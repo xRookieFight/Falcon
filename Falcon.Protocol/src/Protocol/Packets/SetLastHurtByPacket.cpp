@@ -1,0 +1,18 @@
+#include "Protocol/Packets/SetLastHurtByPacket.h"
+
+#include "Protocol/NetworkPacketHandler.h"
+
+SetLastHurtByPacket::SetLastHurtByPacket()
+        : mEntityTypeId(0) {}
+
+void SetLastHurtByPacket::write(BinaryStream &stream) const {
+    stream.putVarInt(mEntityTypeId);
+}
+
+void SetLastHurtByPacket::read(ReadOnlyBinaryStream &stream) {
+    mEntityTypeId = stream.getVarInt();
+}
+
+void SetLastHurtByPacket::handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const {
+    handler.handle(id, *this);
+}

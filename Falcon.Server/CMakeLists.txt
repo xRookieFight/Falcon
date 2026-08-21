@@ -1,0 +1,34 @@
+cmake_minimum_required(VERSION 3.16)
+project(Falcon.Server LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_executable(FalconServer
+        src/Server.cpp
+        src/Core/Debug/BedrockLog.cpp
+        src/Core/Debug/ContentLogEndPoint.cpp
+        src/Core/Debug/FileLogEndPoint.cpp
+        src/Core/Debug/LogAreaID.cpp
+        src/Core/Debug/LogDetails.cpp
+        src/Core/Debug/LogLevel.cpp
+        src/Network/BatchedNetworkPeer.cpp
+        src/Network/CompressedNetworkPeer.cpp
+        src/Network/NetworkEnums.cpp
+        src/Network/NetworkIdentifier.cpp
+        src/Network/NetworkHandler.cpp
+        src/Network/PingedCompatibleServer.cpp
+        src/Network/RakNetInstance.cpp
+        src/Network/RakNetRemotePeer.cpp
+        src/Network/RakNetServerLocator.cpp
+        src/Network/RakPeerHelper.cpp
+        src/Network/ServerNetworkHandler.cpp
+        src/Network/ConnectionRequest.cpp
+        src/Server/ServerPlayer.cpp
+        src/Server/PropertiesSettings.cpp
+)
+
+find_package(ZLIB REQUIRED)
+
+target_include_directories(FalconServer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(FalconServer PRIVATE FalconNetwork FalconProtocol ZLIB::ZLIB)

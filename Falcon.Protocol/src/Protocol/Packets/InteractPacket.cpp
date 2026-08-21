@@ -1,0 +1,26 @@
+#include "Protocol/Packets/InteractPacket.h"
+
+#include "Protocol/NetworkPacketHandler.h"
+
+InteractPacket::InteractPacket()
+        : mAction(Action::None), mRuntimeEntityId(0), mHasMousePosition(false) {}
+
+void InteractPacket::write(BinaryStream &stream) const {
+    stream.putByte((unsigned char) mAction);
+    stream.putUnsignedVarLong(mRuntimeEntityId);
+    stream.putOptionalPresent(mHasMousePosition);
+    if (mHasMousePosition)
+        stream.putVector3f(mMousePosition);
+}
+
+void InteractPacket::read(ReadOnlyBinaryStream &stream) {
+    mAction = (Action) stream.getByte();
+    mRuntimeEntityId = stream.getUnsignedVarLong();
+    mHasMousePosition = stream.getOptionalPresent();
+    if (mHasMousePosition)
+        mMousePosition = stream.getVector3f();
+}
+
+void InteractPacket::handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const {
+    handler.handle(id, *this);
+}

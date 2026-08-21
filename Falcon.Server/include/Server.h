@@ -1,0 +1,15 @@
+#pragma once
+
+#include <string>
+
+struct ServerSettings {
+    unsigned short port = 19132;
+    unsigned short portV6 = 19133;
+    int maxPlayers = 20;
+    std::string motd = "Falcon Server";
+    std::string subMotd = "Falcon";
+    std::string gameVersion = "1.26.40";
+    int protocolVersion = 2168;
+};
+
+void startServer(const ServerSettings &settings = ServerSettings());
