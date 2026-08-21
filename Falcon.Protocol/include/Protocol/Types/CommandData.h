@@ -40,7 +40,7 @@ class CommandData {
 public:
     std::string mName;
     std::string mDescription;
-    uint8_t mFlags = 0;
+    uint16_t mFlags = 0;
     CommandPermission mPermission = CommandPermission::Any;
     bool mHasAliases = false;
     CommandEnumData mAliases;

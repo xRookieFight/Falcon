@@ -39,37 +39,32 @@ namespace {
 PlayerListPacket::PlayerListPacket() = default;
 
 void PlayerListPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putByte((uint8_t) mAction);
     stream.putUnsignedVarInt((uint32_t) mEntries.size());
 
-    if (mAction == Action::Add) {
-        for (const Entry &entry: mEntries)
-            writeEntryBase(stream, entry);
+    for (const Entry &entry: mEntries) {
+        stream.putUnsignedVarInt(entry.mAction == Action::Add ? 1 : 0);
+        stream.putByte((uint8_t) entry.mAction);
 
-        for (const Entry &entry: mEntries)
-            stream.putBool(entry.mTrustedSkin);
-    } else {
-        for (const Entry &entry: mEntries)
+        if (entry.mAction == Action::Add)
+            writeEntryBase(stream, entry);
+        else
             stream.putUuid(entry.mUuid);
     }
 }
 
 void PlayerListPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mAction = (Action) stream.getByte();
     const uint32_t length = stream.getUnsignedVarInt();
 
     mEntries.clear();
     mEntries.reserve(length);
 
-    if (mAction == Action::Add) {
-        for (uint32_t i = 0; i < length; i++)
-            mEntries.push_back(readEntryBase(stream));
+    for (uint32_t i = 0; i < length; i++) {
+        const Action action = stream.getUnsignedVarInt() == 1 ? Action::Add : Action::Remove;
+        stream.getByte();
 
-        for (uint32_t i = 0; i < length && !stream.feof(); i++)
-            mEntries[i].mTrustedSkin = stream.getBool();
-    } else {
-        for (uint32_t i = 0; i < length; i++)
-            mEntries.emplace_back(stream.getUuid());
+        Entry entry = action == Action::Add ? readEntryBase(stream) : Entry(stream.getUuid());
+        entry.mAction = action;
+        mEntries.push_back(entry);
     }
 }
 

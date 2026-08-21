@@ -122,7 +122,7 @@ void AvailableCommandsPacket::write(BinaryStream &stream, const PacketCodecConte
     for (const CommandData &command: mCommands) {
         stream.putString(command.mName);
         stream.putString(command.mDescription);
-        stream.putByte(command.mFlags);
+        stream.putLShort(command.mFlags);
         stream.putString(PERMISSION_NAMES[(size_t) command.mPermission]);
 
         stream.putLInt(command.mHasAliases ? (uint32_t) indexOf(enums, command.mAliases) : (uint32_t) -1);
@@ -234,7 +234,7 @@ void AvailableCommandsPacket::read(ReadOnlyBinaryStream &stream, const PacketCod
         CommandData command;
         command.mName = stream.getString();
         command.mDescription = stream.getString();
-        command.mFlags = stream.getByte();
+        command.mFlags = stream.getLShort();
 
         const std::string permissionName = stream.getString();
         const auto permissionIt = std::find(PERMISSION_NAMES.begin(), PERMISSION_NAMES.end(), permissionName);

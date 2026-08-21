@@ -21,6 +21,7 @@ public:
     public:
         explicit Entry(const Uuid &uuid) : mUuid(uuid) {}
 
+        Action mAction = Action::Add;
         Uuid mUuid;
         int64_t mEntityId = 0;
         std::string mName;
@@ -32,7 +33,6 @@ public:
         bool mHost = false;
         bool mSubClient = false;
         int32_t mColorArgb = -1;
-        bool mTrustedSkin = true;
     };
 
     PlayerListPacket();
@@ -47,6 +47,5 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    Action mAction = Action::Add;
     std::vector<Entry> mEntries;
 };

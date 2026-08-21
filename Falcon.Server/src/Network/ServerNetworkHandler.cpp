@@ -579,11 +579,9 @@ void ServerNetworkHandler::_addToPlayerList(ServerPlayer &player) {
     newEntry.mXuid = player.getXuid();
 
     PlayerListPacket announce;
-    announce.mAction = PlayerListPacket::Action::Add;
     announce.mEntries.push_back(newEntry);
 
     PlayerListPacket existing;
-    existing.mAction = PlayerListPacket::Action::Add;
 
     for (auto &entry: mPlayers) {
         if (!entry.second.isSpawned())
@@ -605,9 +603,11 @@ void ServerNetworkHandler::_addToPlayerList(ServerPlayer &player) {
 }
 
 void ServerNetworkHandler::_removeFromPlayerList(ServerPlayer &player) {
+    PlayerListPacket::Entry removalEntry(Uuid::fromString(player.getUuid()));
+    removalEntry.mAction = PlayerListPacket::Action::Remove;
+
     PlayerListPacket removal;
-    removal.mAction = PlayerListPacket::Action::Remove;
-    removal.mEntries.emplace_back(Uuid::fromString(player.getUuid()));
+    removal.mEntries.push_back(removalEntry);
 
     for (auto &entry: mPlayers) {
         if (entry.second.isSpawned() && &entry.second != &player)
