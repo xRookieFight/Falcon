@@ -1,8 +1,7 @@
 #pragma once
 
-// Generated from CloudburstMC/Protocol Bedrock_v2168 (Minecraft 1.26.40) packet registrations.
-
 enum class MinecraftPacketIds : int {
+    KeepAlive = 0,
     Login = 1,
     PlayStatus = 2,
     ServerToClientHandshake = 3,
