@@ -55,6 +55,11 @@ bool CommandMap::dispatch(CommandSender &sender, const std::string &commandLine)
         return false;
     }
 
+    if ((int) sender.getCommandPermission() < (int) command->getRequiredPermission()) {
+        sender.sendMessage("§cYou do not have permission to use this command");
+        return false;
+    }
+
     const std::vector<std::string> arguments(tokens.begin() + 1, tokens.end());
     return command->execute(sender, arguments);
 }

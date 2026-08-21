@@ -1,6 +1,9 @@
 #include "Network/ServerNetworkHandler.h"
 
+#include "Command/ConsoleCommandSender.h"
+#include "Command/DeopCommand.h"
 #include "Command/GameModeCommand.h"
+#include "Command/OpCommand.h"
 #include "Command/PlayerCommandSender.h"
 #include "Core/Debug/BedrockLog.h"
 #include "Network/ConnectionRequest.h"
@@ -18,11 +21,15 @@
 #include "Protocol/Packets/ResourcePacksInfoPacket.h"
 #include "Protocol/Packets/SetLocalPlayerAsInitializedPacket.h"
 #include "Protocol/Packets/PlayerAuthInputPacket.h"
+#include "Protocol/Packets/AvailableCommandsPacket.h"
 #include "Protocol/Packets/CommandOutputPacket.h"
 #include "Protocol/Packets/CommandRequestPacket.h"
 #include "Protocol/Packets/SetEntityDataPacket.h"
 #include "Protocol/Packets/SetPlayerGameTypePacket.h"
+#include "Protocol/Packets/PlayerListPacket.h"
 #include "Protocol/Packets/TextPacket.h"
+#include "Protocol/Packets/UpdateAbilitiesPacket.h"
+#include "Entity/PlayerAbility.h"
 #include "Protocol/Packets/UpdateBlockPacket.h"
 #include "Protocol/BlockStateHasher.h"
 #include "Protocol/Packets/StartGamePacket.h"
@@ -33,7 +40,7 @@
 ServerNetworkHandler::ServerNetworkHandler(const std::string &serverName, const std::string &subName, int maxPlayers)
         : mRakNetInstance(nullptr), mCodecContext(mBlockDefinitions, mItemDefinitions), mMaxPlayers(maxPlayers),
           mIsListening(false), mNextRuntimeId(1), mLevel("Bedrock level", DEFAULT_VIEW_DISTANCE),
-          mPlayerData("players") {
+          mPlayerData("players"), mOps("ops.txt") {
     std::unique_ptr<RakNetInstance> instance(new RakNetInstance(*this, true));
     mRakNetInstance = instance.get();
 
@@ -47,6 +54,8 @@ ServerNetworkHandler::ServerNetworkHandler(const std::string &serverName, const 
     mAnnouncement.mMaxPlayers = maxPlayers;
 
     mCommands.registerCommand(std::make_shared<GameModeCommand>(*this));
+    mCommands.registerCommand(std::make_shared<OpCommand>(*this));
+    mCommands.registerCommand(std::make_shared<DeopCommand>(*this));
 }
 
 ServerNetworkHandler::~ServerNetworkHandler() {
@@ -121,6 +130,15 @@ void ServerNetworkHandler::tick() {
     if (!mIsListening)
         return;
 
+    {
+        std::lock_guard<std::mutex> lock(mConsoleQueueMutex);
+        while (!mConsoleQueue.empty()) {
+            ConsoleCommandSender sender;
+            mCommands.dispatch(sender, mConsoleQueue.front());
+            mConsoleQueue.pop();
+        }
+    }
+
     mNetworkHandler->runEvents();
     _updateServerAnnouncement();
 }
@@ -147,8 +165,10 @@ void ServerNetworkHandler::onConnectionClosed(const NetworkIdentifier &id, Disco
     if (player != nullptr && !player->getName().empty()) {
         _savePlayerData(*player);
 
-        if (player->isSpawned())
+        if (player->isSpawned()) {
             broadcastSystemMessage("§e" + player->getName() + " left the game");
+            _removeFromPlayerList(*player);
+        }
     }
 
     mPlayers.erase(id);
@@ -164,6 +184,7 @@ void ServerNetworkHandler::_savePlayerData(const ServerPlayer &player) {
 
 void ServerNetworkHandler::_loadPlayerData(ServerPlayer &player) {
     player.setPosition(mLevel.getSpawnPositionForPlayer());
+    player.setOp(mOps.isOp(player.getName()));
 
     Tag data;
     if (!mPlayerData.loadData(player.getName(), data))
@@ -360,6 +381,8 @@ void ServerNetworkHandler::_sendStartGame(ServerPlayer &player) {
 
     _sendAttributes(player);
     _sendEntityData(player);
+    _sendAbilities(player);
+    _sendAvailableCommands(player);
     _sendChunks(player);
 
     PlayStatusPacket spawn;
@@ -385,6 +408,120 @@ void ServerNetworkHandler::_sendEntityData(ServerPlayer &player) {
     entityData.mMetadata.mEntries.push_back(flags2);
 
     mNetworkHandler->send(player.getNetworkIdentifier(), entityData, mCodecContext);
+}
+
+void ServerNetworkHandler::setPlayerOp(ServerPlayer &player, bool isOp) {
+    player.setOp(isOp);
+    _sendAbilities(player);
+}
+
+void ServerNetworkHandler::queueConsoleCommand(const std::string &commandLine) {
+    std::lock_guard<std::mutex> lock(mConsoleQueueMutex);
+    mConsoleQueue.push(commandLine);
+}
+
+void ServerNetworkHandler::_sendAbilities(ServerPlayer &player) {
+    const int32_t gameType = player.getGameType();
+    const bool isCreative = gameType == (int32_t) GameType::Creative;
+    const bool isSpectator = gameType == (int32_t) GameType::Spectator;
+    const bool isAdventure = gameType == (int32_t) GameType::Adventure;
+
+    const uint32_t abilitiesSet = (1u << (int) PlayerAbility::Build) | (1u << (int) PlayerAbility::Mine) |
+                                  (1u << (int) PlayerAbility::DoorsAndSwitches) |
+                                  (1u << (int) PlayerAbility::OpenContainers) |
+                                  (1u << (int) PlayerAbility::AttackPlayers) |
+                                  (1u << (int) PlayerAbility::AttackMobs) |
+                                  (1u << (int) PlayerAbility::OperatorCommands) |
+                                  (1u << (int) PlayerAbility::Teleport) |
+                                  (1u << (int) PlayerAbility::Invulnerable) |
+                                  (1u << (int) PlayerAbility::Flying) | (1u << (int) PlayerAbility::MayFly) |
+                                  (1u << (int) PlayerAbility::Instabuild) |
+                                  (1u << (int) PlayerAbility::WorldBuilder) | (1u << (int) PlayerAbility::NoClip) |
+                                  (1u << (int) PlayerAbility::WalkSpeed) | (1u << (int) PlayerAbility::FlySpeed) |
+                                  (1u << (int) PlayerAbility::VerticalFlySpeed);
+
+    uint32_t abilityValues = 1u << (int) PlayerAbility::WalkSpeed;
+    abilityValues |= 1u << (int) PlayerAbility::FlySpeed;
+    abilityValues |= 1u << (int) PlayerAbility::VerticalFlySpeed;
+    abilityValues |= 1u << (int) PlayerAbility::WorldBuilder;
+
+    if (isSpectator) {
+        abilityValues |= 1u << (int) PlayerAbility::Invulnerable;
+        abilityValues |= 1u << (int) PlayerAbility::Flying;
+        abilityValues |= 1u << (int) PlayerAbility::MayFly;
+        abilityValues |= 1u << (int) PlayerAbility::NoClip;
+    } else {
+        abilityValues |= 1u << (int) PlayerAbility::Build;
+        abilityValues |= 1u << (int) PlayerAbility::Mine;
+        abilityValues |= 1u << (int) PlayerAbility::DoorsAndSwitches;
+        abilityValues |= 1u << (int) PlayerAbility::OpenContainers;
+        abilityValues |= 1u << (int) PlayerAbility::AttackMobs;
+
+        if (!isAdventure)
+            abilityValues |= 1u << (int) PlayerAbility::AttackPlayers;
+
+        if (isCreative) {
+            abilityValues |= 1u << (int) PlayerAbility::MayFly;
+            abilityValues |= 1u << (int) PlayerAbility::Instabuild;
+        }
+    }
+
+    if (player.isOp()) {
+        abilityValues |= 1u << (int) PlayerAbility::Build;
+        abilityValues |= 1u << (int) PlayerAbility::Mine;
+        abilityValues |= 1u << (int) PlayerAbility::DoorsAndSwitches;
+        abilityValues |= 1u << (int) PlayerAbility::OpenContainers;
+        abilityValues |= 1u << (int) PlayerAbility::AttackPlayers;
+        abilityValues |= 1u << (int) PlayerAbility::AttackMobs;
+        abilityValues |= 1u << (int) PlayerAbility::OperatorCommands;
+        abilityValues |= 1u << (int) PlayerAbility::Teleport;
+    }
+
+    AbilityLayer layer;
+    layer.mLayerType = 1;
+    layer.mAbilitiesSet = abilitiesSet;
+    layer.mAbilityValues = abilityValues;
+    layer.mWalkSpeed = 0.1f;
+    layer.mFlySpeed = 0.05f;
+
+    UpdateAbilitiesPacket abilities;
+    abilities.mAbilities.mUniqueEntityId = player.getUniqueId();
+    abilities.mAbilities.mPlayerPermission = (uint8_t) (player.isOp() ? PlayerPermission::Operator
+                                                                     : mProperties.getDefaultPlayerPermissionLevel());
+    abilities.mAbilities.mCommandPermission = (uint8_t) (player.isOp() ? CommandPermission::GameDirectors
+                                                                       : CommandPermission::Any);
+    abilities.mAbilities.mAbilityLayers.push_back(layer);
+
+    mNetworkHandler->send(player.getNetworkIdentifier(), abilities, mCodecContext);
+}
+
+void ServerNetworkHandler::_sendAvailableCommands(ServerPlayer &player) {
+    AvailableCommandsPacket availableCommands;
+
+    for (Command *command: mCommands.getCommands()) {
+        if ((int) player.getCommandPermission() < (int) command->getRequiredPermission())
+            continue;
+
+        CommandData data;
+        data.mName = command->getName();
+        data.mDescription = command->getDescription();
+        data.mPermission = command->getRequiredPermission();
+
+        CommandParamData argsParameter;
+        argsParameter.mName = "args";
+        argsParameter.mOptional = true;
+        argsParameter.mHasType = true;
+        argsParameter.mType = CommandParamType::RawText;
+
+        CommandOverloadData overload;
+        overload.mParameters.push_back(argsParameter);
+
+        data.mOverloads.push_back(overload);
+
+        availableCommands.mCommands.push_back(data);
+    }
+
+    mNetworkHandler->send(player.getNetworkIdentifier(), availableCommands, mCodecContext);
 }
 
 void ServerNetworkHandler::_sendAttributes(ServerPlayer &player) {
@@ -432,6 +569,50 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const SetLocalPla
     LOG_INFO(LogAreaID::Server, "Player %s spawned", player->getName().c_str());
 
     broadcastSystemMessage("§e" + player->getName() + " joined the game");
+    _addToPlayerList(*player);
+}
+
+void ServerNetworkHandler::_addToPlayerList(ServerPlayer &player) {
+    PlayerListPacket::Entry newEntry(Uuid::fromString(player.getUuid()));
+    newEntry.mEntityId = player.getUniqueId();
+    newEntry.mName = player.getName();
+    newEntry.mXuid = player.getXuid();
+
+    PlayerListPacket announce;
+    announce.mAction = PlayerListPacket::Action::Add;
+    announce.mEntries.push_back(newEntry);
+
+    PlayerListPacket existing;
+    existing.mAction = PlayerListPacket::Action::Add;
+
+    for (auto &entry: mPlayers) {
+        if (!entry.second.isSpawned())
+            continue;
+
+        mNetworkHandler->send(entry.second.getNetworkIdentifier(), announce, mCodecContext);
+
+        if (&entry.second != &player) {
+            PlayerListPacket::Entry existingEntry(Uuid::fromString(entry.second.getUuid()));
+            existingEntry.mEntityId = entry.second.getUniqueId();
+            existingEntry.mName = entry.second.getName();
+            existingEntry.mXuid = entry.second.getXuid();
+            existing.mEntries.push_back(existingEntry);
+        }
+    }
+
+    if (!existing.mEntries.empty())
+        mNetworkHandler->send(player.getNetworkIdentifier(), existing, mCodecContext);
+}
+
+void ServerNetworkHandler::_removeFromPlayerList(ServerPlayer &player) {
+    PlayerListPacket removal;
+    removal.mAction = PlayerListPacket::Action::Remove;
+    removal.mEntries.emplace_back(Uuid::fromString(player.getUuid()));
+
+    for (auto &entry: mPlayers) {
+        if (entry.second.isSpawned() && &entry.second != &player)
+            mNetworkHandler->send(entry.second.getNetworkIdentifier(), removal, mCodecContext);
+    }
 }
 
 void ServerNetworkHandler::broadcastSystemMessage(const std::string &message) {
@@ -557,6 +738,8 @@ void ServerNetworkHandler::setPlayerGameMode(ServerPlayer &player, int gameMode)
     SetPlayerGameTypePacket packet;
     packet.mGamemode = gameMode;
     mNetworkHandler->send(player.getNetworkIdentifier(), packet, mCodecContext);
+
+    _sendAbilities(player);
 }
 
 void ServerNetworkHandler::sendCommandOutput(ServerPlayer &player, const CommandOriginData &origin,

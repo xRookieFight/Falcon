@@ -8,6 +8,7 @@
 
 #include <chrono>
 #include <cstdlib>
+#include <iostream>
 #include <thread>
 
 static const char *PROPERTIES_FILE = "server.properties";
@@ -61,6 +62,15 @@ void startServer(const ServerSettings &settings) {
 
     LOG_INFO(LogAreaID::Server, "Server started.");
     BedrockLog::flush();
+
+    std::thread consoleThread([&networkHandler]() {
+        std::string line;
+        while (std::getline(std::cin, line)) {
+            if (!line.empty())
+                networkHandler.queueConsoleCommand(line);
+        }
+    });
+    consoleThread.detach();
 
     for (;;) {
         networkHandler.tick();

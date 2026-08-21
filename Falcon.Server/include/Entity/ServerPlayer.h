@@ -4,6 +4,7 @@
 #include "Entity/Entity.h"
 #include "Network/NetworkIdentifier.h"
 #include "Network/PacketSender.h"
+#include "Protocol/Types/AdventureSettingData.h"
 
 #include <string>
 
@@ -47,6 +48,14 @@ public:
 
     void setGameType(int32_t gameType) { mGameType = gameType; }
 
+    bool isOp() const { return mIsOp; }
+
+    void setOp(bool isOp) { mIsOp = isOp; }
+
+    CommandPermission getCommandPermission() const {
+        return mIsOp ? CommandPermission::GameDirectors : CommandPermission::Any;
+    }
+
     int64_t getFirstPlayed() const { return mFirstPlayed; }
 
     void setFirstPlayed(int64_t firstPlayed) { mFirstPlayed = firstPlayed; }
@@ -72,5 +81,6 @@ private:
     std::string mXuid;
     int32_t mGameType = 0;
     int64_t mFirstPlayed = 0;
+    bool mIsOp = false;
     PacketSender *mSender;
 };

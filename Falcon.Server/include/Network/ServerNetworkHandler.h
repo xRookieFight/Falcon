@@ -12,9 +12,12 @@
 #include "Network/PacketSender.h"
 #include "Protocol/Types/CommandOriginData.h"
 #include "Player/PlayerDataProvider.h"
+#include "Server/OpList.h"
 #include "Server/PropertiesSettings.h"
 #include "Entity/ServerPlayer.h"
 
+#include <mutex>
+#include <queue>
 #include <unordered_map>
 #include <memory>
 #include <string>
@@ -60,11 +63,17 @@ public:
 
     void setPlayerGameMode(ServerPlayer &player, int gameMode);
 
+    void setPlayerOp(ServerPlayer &player, bool isOp);
+
+    OpList &getOpList() { return mOps; }
+
     void sendCommandOutput(ServerPlayer &player, const CommandOriginData &origin, const std::string &message);
 
     void broadcastSystemMessage(const std::string &message);
 
     void sendPacketTo(const NetworkIdentifier &id, const Packet &packet) override;
+
+    void queueConsoleCommand(const std::string &commandLine);
 
 private:
     bool onValidateIncomingConnection(const NetworkIdentifier &id) override;
@@ -104,9 +113,17 @@ private:
 
     void _sendEntityData(ServerPlayer &player);
 
+    void _sendAbilities(ServerPlayer &player);
+
+    void _addToPlayerList(ServerPlayer &player);
+
+    void _removeFromPlayerList(ServerPlayer &player);
+
     void _sendAttributes(ServerPlayer &player);
 
     void _sendChunks(ServerPlayer &player);
+
+    void _sendAvailableCommands(ServerPlayer &player);
 
     void _disconnect(const NetworkIdentifier &id, const std::string &reason);
 
@@ -125,6 +142,7 @@ private:
 
     Level mLevel;
     PlayerDataProvider mPlayerData;
+    OpList mOps;
     CommandMap mCommands;
     PingedCompatibleServer mAnnouncement;
     int mMaxPlayers;
@@ -132,4 +150,7 @@ private:
 
     std::unordered_map<NetworkIdentifier, ServerPlayer, NetworkIdentifier::Hasher> mPlayers;
     uint64_t mNextRuntimeId;
+
+    std::mutex mConsoleQueueMutex;
+    std::queue<std::string> mConsoleQueue;
 };

@@ -16,6 +16,7 @@ class AnimatePacket;
 class AnvilDamagePacket;
 class AutomationClientConnectPacket;
 class AwardAchievementPacket;
+class AvailableCommandsPacket;
 class AvailableEntityIdentifiersPacket;
 class BiomeDefinitionListPacket;
 class BlockEntityDataPacket;
@@ -130,6 +131,7 @@ class PhotoTransferPacket;
 class PlayStatusPacket;
 class PlaySoundPacket;
 class PlayerActionPacket;
+class PlayerListPacket;
 class PlayerArmorDamagePacket;
 class PlayerAuthInputPacket;
 class PlayerEnchantOptionsPacket;
@@ -266,6 +268,8 @@ public:
     virtual void handle(const NetworkIdentifier &, const AutomationClientConnectPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const AwardAchievementPacket &) {}
+
+    virtual void handle(const NetworkIdentifier &, const AvailableCommandsPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const AvailableEntityIdentifiersPacket &) {}
 
@@ -494,6 +498,8 @@ public:
     virtual void handle(const NetworkIdentifier &, const PlaySoundPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const PlayerActionPacket &) {}
+
+    virtual void handle(const NetworkIdentifier &, const PlayerListPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const PlayerArmorDamagePacket &) {}
 

@@ -71,6 +71,7 @@ enum class MinecraftPacketIds : int {
     Camera = 73,
     BossEvent = 74,
     ShowCredits = 75,
+    AvailableCommands = 76,
     CommandRequest = 77,
     CommandBlockUpdate = 78,
     CommandOutput = 79,

@@ -54,7 +54,7 @@ public:
 
     Difficulty getDifficulty() const;
 
-    bool getAllowCheats() const { return getBool("allow-cheats", false); }
+    bool getAllowCheats() const { return getBool("allow-cheats", true); }
 
     int getMaxPlayers() const { return getInt("max-players", 10); }
 

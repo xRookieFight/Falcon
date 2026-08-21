@@ -25,6 +25,9 @@ add_executable(FalconServer
         src/Network/ServerNetworkHandler.cpp
         src/Network/ConnectionRequest.cpp
         src/Command/Command.cpp
+        src/Command/ConsoleCommandSender.cpp
+        src/Command/DeopCommand.cpp
+        src/Command/OpCommand.cpp
         src/Command/CommandMap.cpp
         src/Command/GameModeCommand.cpp
         src/Command/PlayerCommandSender.cpp
@@ -36,6 +39,7 @@ add_executable(FalconServer
         src/Level/FlatChunkGenerator.cpp
         src/Level/Level.cpp
         src/Player/PlayerDataProvider.cpp
+        src/Server/OpList.cpp
         src/Server/PropertiesSettings.cpp
 )
 

@@ -1,0 +1,56 @@
+#include "Server/OpList.h"
+
+#include <algorithm>
+#include <cctype>
+#include <fstream>
+
+OpList::OpList(const std::string &path) : mPath(path) {
+    reload();
+}
+
+std::string OpList::_toLowerCase(const std::string &value) {
+    std::string lowered = value;
+    std::transform(lowered.begin(), lowered.end(), lowered.begin(),
+                   [](unsigned char character) { return (char) std::tolower(character); });
+    return lowered;
+}
+
+void OpList::reload() {
+    mNames.clear();
+
+    std::ifstream file(mPath);
+    if (!file.is_open())
+        return;
+
+    std::string line;
+    while (std::getline(file, line)) {
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+
+        if (!line.empty())
+            mNames.insert(_toLowerCase(line));
+    }
+}
+
+bool OpList::isOp(const std::string &name) const {
+    return mNames.find(_toLowerCase(name)) != mNames.end();
+}
+
+void OpList::addOp(const std::string &name) {
+    if (mNames.insert(_toLowerCase(name)).second)
+        _save();
+}
+
+void OpList::removeOp(const std::string &name) {
+    if (mNames.erase(_toLowerCase(name)) > 0)
+        _save();
+}
+
+void OpList::_save() const {
+    std::ofstream file(mPath, std::ios::trunc);
+    if (!file.is_open())
+        return;
+
+    for (const std::string &name: mNames)
+        file << name << "\n";
+}

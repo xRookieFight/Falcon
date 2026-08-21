@@ -14,6 +14,7 @@
 #include "Protocol/Packets/AnvilDamagePacket.h"
 #include "Protocol/Packets/AutomationClientConnectPacket.h"
 #include "Protocol/Packets/AwardAchievementPacket.h"
+#include "Protocol/Packets/AvailableCommandsPacket.h"
 #include "Protocol/Packets/AvailableEntityIdentifiersPacket.h"
 #include "Protocol/Packets/BiomeDefinitionListPacket.h"
 #include "Protocol/Packets/BlockEntityDataPacket.h"
@@ -128,6 +129,7 @@
 #include "Protocol/Packets/PlayStatusPacket.h"
 #include "Protocol/Packets/PlaySoundPacket.h"
 #include "Protocol/Packets/PlayerActionPacket.h"
+#include "Protocol/Packets/PlayerListPacket.h"
 #include "Protocol/Packets/PlayerArmorDamagePacket.h"
 #include "Protocol/Packets/PlayerAuthInputPacket.h"
 #include "Protocol/Packets/PlayerEnchantOptionsPacket.h"
@@ -278,6 +280,7 @@ void MinecraftPackets::_registerDefaultPackets() {
     registerPacket<AnvilDamagePacket>();
     registerPacket<AutomationClientConnectPacket>();
     registerPacket<AwardAchievementPacket>();
+    registerPacket<AvailableCommandsPacket>();
     registerPacket<AvailableEntityIdentifiersPacket>();
     registerPacket<BiomeDefinitionListPacket>();
     registerPacket<BlockEntityDataPacket>();
@@ -392,6 +395,7 @@ void MinecraftPackets::_registerDefaultPackets() {
     registerPacket<PlayStatusPacket>();
     registerPacket<PlaySoundPacket>();
     registerPacket<PlayerActionPacket>();
+    registerPacket<PlayerListPacket>();
     registerPacket<PlayerArmorDamagePacket>();
     registerPacket<PlayerAuthInputPacket>();
     registerPacket<PlayerEnchantOptionsPacket>();

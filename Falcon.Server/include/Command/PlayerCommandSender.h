@@ -18,6 +18,8 @@ public:
 
     void sendMessage(const std::string &message) override;
 
+    CommandPermission getCommandPermission() const override;
+
 private:
     ServerNetworkHandler &mHandler;
     ServerPlayer &mPlayer;

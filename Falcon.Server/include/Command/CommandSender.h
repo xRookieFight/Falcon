@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Protocol/Types/AdventureSettingData.h"
+
 #include <string>
 
 class ServerPlayer;
@@ -15,4 +17,6 @@ public:
     virtual ServerPlayer *asPlayer() = 0;
 
     virtual void sendMessage(const std::string &message) = 0;
+
+    virtual CommandPermission getCommandPermission() const = 0;
 };

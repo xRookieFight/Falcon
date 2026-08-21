@@ -14,3 +14,7 @@ const std::string &PlayerCommandSender::getSenderName() const {
 void PlayerCommandSender::sendMessage(const std::string &message) {
     mHandler.sendCommandOutput(mPlayer, mOrigin, message);
 }
+
+CommandPermission PlayerCommandSender::getCommandPermission() const {
+    return mPlayer.getCommandPermission();
+}
