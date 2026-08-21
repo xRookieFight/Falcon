@@ -4,19 +4,19 @@
 #include <cstdio>
 #include <string>
 
-struct UUID {
+struct Uuid {
     uint64_t mostSignificantBits;
     uint64_t leastSignificantBits;
 
-    UUID() : mostSignificantBits(0), leastSignificantBits(0) {}
+    Uuid() : mostSignificantBits(0), leastSignificantBits(0) {}
 
-    UUID(uint64_t most, uint64_t least) : mostSignificantBits(most), leastSignificantBits(least) {}
+    Uuid(uint64_t most, uint64_t least) : mostSignificantBits(most), leastSignificantBits(least) {}
 
-    bool operator==(const UUID &right) const {
+    bool operator==(const Uuid &right) const {
         return mostSignificantBits == right.mostSignificantBits && leastSignificantBits == right.leastSignificantBits;
     }
 
-    bool operator!=(const UUID &right) const { return !(*this == right); }
+    bool operator!=(const Uuid &right) const { return !(*this == right); }
 
     std::string toString() const {
         char buffer[40];
@@ -27,5 +27,14 @@ struct UUID {
                  (unsigned int) ((leastSignificantBits >> 48) & 0xffff),
                  (unsigned long long) (leastSignificantBits & 0xffffffffffffULL));
         return std::string(buffer);
+    }
+
+    static Uuid fromString(const std::string &value) {
+        unsigned int a = 0, b = 0, c = 0, d = 0;
+        unsigned long long e = 0;
+        sscanf(value.c_str(), "%08x-%04x-%04x-%04x-%012llx", &a, &b, &c, &d, &e);
+        uint64_t most = ((uint64_t) a << 32) | ((uint64_t) b << 16) | (uint64_t) c;
+        uint64_t least = ((uint64_t) d << 48) | (uint64_t) e;
+        return Uuid(most, least);
     }
 };

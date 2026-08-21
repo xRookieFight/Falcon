@@ -15,7 +15,7 @@ namespace {
 TextPacket::TextPacket()
         : mType(Type::Raw), mNeedsTranslation(false) {}
 
-void TextPacket::write(BinaryStream &stream) const {
+void TextPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putBool(mNeedsTranslation);
 
     const std::string message = mMessage.empty() ? " " : mMessage;
@@ -56,7 +56,7 @@ void TextPacket::write(BinaryStream &stream) const {
         stream.putString(mFilteredMessage);
 }
 
-void TextPacket::read(ReadOnlyBinaryStream &stream) {
+void TextPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mNeedsTranslation = stream.getBool();
 
     const unsigned char category = stream.getByte();

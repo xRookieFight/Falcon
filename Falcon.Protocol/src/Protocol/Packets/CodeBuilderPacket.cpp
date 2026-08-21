@@ -5,12 +5,12 @@
 CodeBuilderPacket::CodeBuilderPacket()
         : mOpening(false) {}
 
-void CodeBuilderPacket::write(BinaryStream &stream) const {
+void CodeBuilderPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putString(mUrl);
     stream.putBool(mOpening);
 }
 
-void CodeBuilderPacket::read(ReadOnlyBinaryStream &stream) {
+void CodeBuilderPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mUrl = stream.getString();
     mOpening = stream.getBool();
 }

@@ -5,14 +5,14 @@
 UpdateBlockPacket::UpdateBlockPacket()
         : mRuntimeId(0), mFlags(Flag::All), mDataLayer(0) {}
 
-void UpdateBlockPacket::write(BinaryStream &stream) const {
+void UpdateBlockPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putBlockPosition(mBlockPosition);
     stream.putUnsignedVarInt(mRuntimeId);
     stream.putUnsignedVarInt(mFlags);
     stream.putUnsignedVarInt(mDataLayer);
 }
 
-void UpdateBlockPacket::read(ReadOnlyBinaryStream &stream) {
+void UpdateBlockPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mBlockPosition = stream.getBlockPosition();
     mRuntimeId = stream.getUnsignedVarInt();
     mFlags = stream.getUnsignedVarInt();

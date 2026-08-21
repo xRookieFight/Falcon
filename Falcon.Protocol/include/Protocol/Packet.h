@@ -3,6 +3,7 @@
 #include "Core/Utility/BinaryStream.h"
 #include "Core/Utility/ReadOnlyBinaryStream.h"
 #include "Protocol/MinecraftPacketIds.h"
+#include "Protocol/PacketCodecContext.h"
 
 class NetworkIdentifier;
 
@@ -30,15 +31,15 @@ public:
 
     virtual const char *getName() const = 0;
 
-    virtual void write(BinaryStream &stream) const = 0;
+    virtual void write(BinaryStream &stream, const PacketCodecContext &context) const = 0;
 
-    virtual void read(ReadOnlyBinaryStream &stream) = 0;
+    virtual void read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) = 0;
 
     virtual void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const;
 
     void writeHeader(BinaryStream &stream) const;
 
-    void writeWithHeader(BinaryStream &stream) const;
+    void writeWithHeader(BinaryStream &stream, const PacketCodecContext &context) const;
 
     void readHeader(ReadOnlyBinaryStream &stream);
 

@@ -7,11 +7,11 @@ RequestNetworkSettingsPacket::RequestNetworkSettingsPacket()
     mCompressible = Packet::Compressibility::Incompressible;
 }
 
-void RequestNetworkSettingsPacket::write(BinaryStream &stream) const {
+void RequestNetworkSettingsPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putInt((uint32_t) mProtocolVersion);
 }
 
-void RequestNetworkSettingsPacket::read(ReadOnlyBinaryStream &stream) {
+void RequestNetworkSettingsPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mProtocolVersion = stream.getSignedInt();
 }
 

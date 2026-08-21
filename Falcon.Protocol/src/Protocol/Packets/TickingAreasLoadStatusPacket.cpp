@@ -5,11 +5,11 @@
 TickingAreasLoadStatusPacket::TickingAreasLoadStatusPacket()
         : mWaitingForPreload(false) {}
 
-void TickingAreasLoadStatusPacket::write(BinaryStream &stream) const {
+void TickingAreasLoadStatusPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putBool(mWaitingForPreload);
 }
 
-void TickingAreasLoadStatusPacket::read(ReadOnlyBinaryStream &stream) {
+void TickingAreasLoadStatusPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mWaitingForPreload = stream.getBool();
 }
 

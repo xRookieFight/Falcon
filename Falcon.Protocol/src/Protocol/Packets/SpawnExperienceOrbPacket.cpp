@@ -5,12 +5,12 @@
 SpawnExperienceOrbPacket::SpawnExperienceOrbPacket()
         : mAmount(0) {}
 
-void SpawnExperienceOrbPacket::write(BinaryStream &stream) const {
+void SpawnExperienceOrbPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putVector3f(mPosition);
     stream.putVarInt(mAmount);
 }
 
-void SpawnExperienceOrbPacket::read(ReadOnlyBinaryStream &stream) {
+void SpawnExperienceOrbPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mPosition = stream.getVector3f();
     mAmount = stream.getVarInt();
 }

@@ -7,7 +7,7 @@ NetworkSettingsPacket::NetworkSettingsPacket()
     mCompressible = Packet::Compressibility::Incompressible;
 }
 
-void NetworkSettingsPacket::write(BinaryStream &stream) const {
+void NetworkSettingsPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putLShort(mCompressionThreshold);
     stream.putLShort((uint16_t) mCompressionAlgorithm);
     stream.putBool(mClientThrottleEnabled);
@@ -15,7 +15,7 @@ void NetworkSettingsPacket::write(BinaryStream &stream) const {
     stream.putLFloat(mClientThrottleScalar);
 }
 
-void NetworkSettingsPacket::read(ReadOnlyBinaryStream &stream) {
+void NetworkSettingsPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mCompressionThreshold = stream.getLShort();
     mCompressionAlgorithm = (CompressionAlgorithm) stream.getLShort();
     mClientThrottleEnabled = stream.getBool();

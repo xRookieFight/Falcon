@@ -4,11 +4,11 @@
 
 RemoveObjectivePacket::RemoveObjectivePacket() {}
 
-void RemoveObjectivePacket::write(BinaryStream &stream) const {
+void RemoveObjectivePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putString(mObjectiveId);
 }
 
-void RemoveObjectivePacket::read(ReadOnlyBinaryStream &stream) {
+void RemoveObjectivePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mObjectiveId = stream.getString();
 }
 

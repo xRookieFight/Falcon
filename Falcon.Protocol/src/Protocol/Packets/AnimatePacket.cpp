@@ -40,7 +40,7 @@ namespace {
 AnimatePacket::AnimatePacket()
         : mAction(Action::NoAction), mRuntimeEntityId(0), mData(0.0f) {}
 
-void AnimatePacket::write(BinaryStream &stream) const {
+void AnimatePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putByte((unsigned char) _toActionId(mAction));
     stream.putUnsignedVarLong(mRuntimeEntityId);
     stream.putLFloat(mData);
@@ -50,7 +50,7 @@ void AnimatePacket::write(BinaryStream &stream) const {
         stream.putString(mSwingSource);
 }
 
-void AnimatePacket::read(ReadOnlyBinaryStream &stream) {
+void AnimatePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mAction = _fromActionId(stream.getByte());
     mRuntimeEntityId = stream.getUnsignedVarLong();
     mData = stream.getLFloat();

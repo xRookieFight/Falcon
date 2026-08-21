@@ -58,7 +58,7 @@ public:
 
     void putBlockPosition(const Vector3i &value);
 
-    void putUuid(const UUID &value);
+    void putUuid(const Uuid &value);
 
     void putByteArray(const std::string &value);
 

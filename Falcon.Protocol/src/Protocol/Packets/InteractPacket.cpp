@@ -5,7 +5,7 @@
 InteractPacket::InteractPacket()
         : mAction(Action::None), mRuntimeEntityId(0), mHasMousePosition(false) {}
 
-void InteractPacket::write(BinaryStream &stream) const {
+void InteractPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putByte((unsigned char) mAction);
     stream.putUnsignedVarLong(mRuntimeEntityId);
     stream.putOptionalPresent(mHasMousePosition);
@@ -13,7 +13,7 @@ void InteractPacket::write(BinaryStream &stream) const {
         stream.putVector3f(mMousePosition);
 }
 
-void InteractPacket::read(ReadOnlyBinaryStream &stream) {
+void InteractPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mAction = (Action) stream.getByte();
     mRuntimeEntityId = stream.getUnsignedVarLong();
     mHasMousePosition = stream.getOptionalPresent();

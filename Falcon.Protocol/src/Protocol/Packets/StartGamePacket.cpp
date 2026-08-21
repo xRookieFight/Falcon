@@ -26,7 +26,7 @@ StartGamePacket::StartGamePacket()
           mBlockRegistryChecksum(0), mClientSideGenerationEnabled(false), mBlockNetworkIdsHashed(true),
           mHasServerConfigurationJoinInfo(false) {}
 
-void StartGamePacket::write(BinaryStream &stream) const {
+void StartGamePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putVarLong(mUniqueEntityId);
     stream.putUnsignedVarLong(mRuntimeEntityId);
     stream.putVarInt((int32_t) mPlayerGameType);
@@ -137,7 +137,7 @@ void StartGamePacket::write(BinaryStream &stream) const {
     stream.putString(mOwnerId);
 }
 
-void StartGamePacket::read(ReadOnlyBinaryStream &stream) {
+void StartGamePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mUniqueEntityId = stream.getVarLong();
     mRuntimeEntityId = stream.getUnsignedVarLong();
     mPlayerGameType = (GameType) stream.getVarInt();

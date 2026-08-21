@@ -5,12 +5,12 @@
 ServerSettingsResponsePacket::ServerSettingsResponsePacket()
         : mFormId(0) {}
 
-void ServerSettingsResponsePacket::write(BinaryStream &stream) const {
+void ServerSettingsResponsePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putUnsignedVarInt(mFormId);
     stream.putString(mFormData);
 }
 
-void ServerSettingsResponsePacket::read(ReadOnlyBinaryStream &stream) {
+void ServerSettingsResponsePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mFormId = stream.getUnsignedVarInt();
     mFormData = stream.getString();
 }

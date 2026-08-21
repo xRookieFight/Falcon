@@ -5,7 +5,7 @@
 NpcRequestPacket::NpcRequestPacket()
         : mRuntimeEntityId(0), mRequestType(RequestType::SetAction), mActionType(0) {}
 
-void NpcRequestPacket::write(BinaryStream &stream) const {
+void NpcRequestPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putUnsignedVarLong(mRuntimeEntityId);
     stream.putByte((unsigned char) mRequestType);
     stream.putString(mCommand);
@@ -13,7 +13,7 @@ void NpcRequestPacket::write(BinaryStream &stream) const {
     stream.putString(mSceneName);
 }
 
-void NpcRequestPacket::read(ReadOnlyBinaryStream &stream) {
+void NpcRequestPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mRuntimeEntityId = stream.getUnsignedVarLong();
     mRequestType = (RequestType) stream.getByte();
     mCommand = stream.getString();

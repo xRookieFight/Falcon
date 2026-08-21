@@ -5,14 +5,14 @@
 StructureTemplateDataRequestPacket::StructureTemplateDataRequestPacket()
         : mOperation(Operation::None) {}
 
-void StructureTemplateDataRequestPacket::write(BinaryStream &stream) const {
+void StructureTemplateDataRequestPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putString(mName);
     stream.putBlockPosition(mPosition);
     mSettings.write(stream);
     stream.putByte((unsigned char) mOperation);
 }
 
-void StructureTemplateDataRequestPacket::read(ReadOnlyBinaryStream &stream) {
+void StructureTemplateDataRequestPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mName = stream.getString();
     mPosition = stream.getBlockPosition();
     mSettings.read(stream);

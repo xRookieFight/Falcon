@@ -5,11 +5,11 @@
 SimpleEventPacket::SimpleEventPacket()
         : mEvent(0) {}
 
-void SimpleEventPacket::write(BinaryStream &stream) const {
+void SimpleEventPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putLShort(mEvent);
 }
 
-void SimpleEventPacket::read(ReadOnlyBinaryStream &stream) {
+void SimpleEventPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mEvent = stream.getLShort();
 }
 

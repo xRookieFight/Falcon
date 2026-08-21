@@ -5,7 +5,7 @@
 NetworkChunkPublisherUpdatePacket::NetworkChunkPublisherUpdatePacket()
         : mRadius(0) {}
 
-void NetworkChunkPublisherUpdatePacket::write(BinaryStream &stream) const {
+void NetworkChunkPublisherUpdatePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putVector3i(mPosition);
     stream.putUnsignedVarInt(mRadius);
 
@@ -17,7 +17,7 @@ void NetworkChunkPublisherUpdatePacket::write(BinaryStream &stream) const {
     }
 }
 
-void NetworkChunkPublisherUpdatePacket::read(ReadOnlyBinaryStream &stream) {
+void NetworkChunkPublisherUpdatePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mPosition = stream.getVector3i();
     mRadius = stream.getUnsignedVarInt();
 

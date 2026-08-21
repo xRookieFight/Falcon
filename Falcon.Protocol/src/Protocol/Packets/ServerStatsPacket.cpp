@@ -5,12 +5,12 @@
 ServerStatsPacket::ServerStatsPacket()
         : mServerTime(0.0f), mNetworkTime(0.0f) {}
 
-void ServerStatsPacket::write(BinaryStream &stream) const {
+void ServerStatsPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putLFloat(mServerTime);
     stream.putLFloat(mNetworkTime);
 }
 
-void ServerStatsPacket::read(ReadOnlyBinaryStream &stream) {
+void ServerStatsPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mServerTime = stream.getLFloat();
     mNetworkTime = stream.getLFloat();
 }

@@ -5,14 +5,14 @@
 CameraShakePacket::CameraShakePacket()
         : mIntensity(0.0f), mDuration(0.0f), mShakeType(ShakeType::Positional), mShakeAction(ShakeAction::Add) {}
 
-void CameraShakePacket::write(BinaryStream &stream) const {
+void CameraShakePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putLFloat(mIntensity);
     stream.putLFloat(mDuration);
     stream.putByte((unsigned char) mShakeType);
     stream.putByte((unsigned char) mShakeAction);
 }
 
-void CameraShakePacket::read(ReadOnlyBinaryStream &stream) {
+void CameraShakePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mIntensity = stream.getLFloat();
     mDuration = stream.getLFloat();
     mShakeType = (ShakeType) stream.getByte();

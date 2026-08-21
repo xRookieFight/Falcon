@@ -6,7 +6,7 @@
 StructureTemplateDataResponsePacket::StructureTemplateDataResponsePacket()
         : mSave(false), mTag(Tag::ofCompound()), mType(Type::None) {}
 
-void StructureTemplateDataResponsePacket::write(BinaryStream &stream) const {
+void StructureTemplateDataResponsePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putString(mName);
     stream.putBool(mSave);
 
@@ -16,7 +16,7 @@ void StructureTemplateDataResponsePacket::write(BinaryStream &stream) const {
     stream.putByte((unsigned char) mType);
 }
 
-void StructureTemplateDataResponsePacket::read(ReadOnlyBinaryStream &stream) {
+void StructureTemplateDataResponsePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mName = stream.getString();
     mSave = stream.getBool();
 

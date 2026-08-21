@@ -6,7 +6,7 @@ LevelChunkPacket::LevelChunkPacket()
         : mChunkX(0), mChunkZ(0), mDimension(0), mSubChunksLength(0), mCachingEnabled(false),
           mRequestSubChunks(false), mSubChunkLimit(0) {}
 
-void LevelChunkPacket::write(BinaryStream &stream) const {
+void LevelChunkPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putVarInt(mChunkX);
     stream.putVarInt(mChunkZ);
     stream.putVarInt(mDimension);
@@ -25,7 +25,7 @@ void LevelChunkPacket::write(BinaryStream &stream) const {
     stream.putByteArray(mData);
 }
 
-void LevelChunkPacket::read(ReadOnlyBinaryStream &stream) {
+void LevelChunkPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mChunkX = stream.getVarInt();
     mChunkZ = stream.getVarInt();
     mDimension = stream.getVarInt();

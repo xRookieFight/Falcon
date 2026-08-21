@@ -5,13 +5,13 @@
 BlockPickRequestPacket::BlockPickRequestPacket()
         : mAddUserData(false), mHotbarSlot(0) {}
 
-void BlockPickRequestPacket::write(BinaryStream &stream) const {
+void BlockPickRequestPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putVector3i(mBlockPosition);
     stream.putBool(mAddUserData);
     stream.putByte((unsigned char) mHotbarSlot);
 }
 
-void BlockPickRequestPacket::read(ReadOnlyBinaryStream &stream) {
+void BlockPickRequestPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mBlockPosition = stream.getVector3i();
     mAddUserData = stream.getBool();
     mHotbarSlot = stream.getByte();

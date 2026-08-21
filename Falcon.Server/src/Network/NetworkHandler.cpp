@@ -76,21 +76,21 @@ Compressibility NetworkHandler::_toPeerCompressibility(const Packet &packet) {
            : Compressibility::Compressible;
 }
 
-void NetworkHandler::send(const NetworkIdentifier &id, const Packet &packet) {
+void NetworkHandler::send(const NetworkIdentifier &id, const Packet &packet, const PacketCodecContext &context) {
     Connection *connection = getConnection(id);
     if (connection == nullptr)
         return;
 
     BinaryStream stream;
-    packet.writeWithHeader(stream);
+    packet.writeWithHeader(stream, context);
 
     connection->getBatchedPeer()->sendPacket(stream.getBuffer(), _toPeerReliability(packet),
                                              _toPeerCompressibility(packet));
 }
 
-void NetworkHandler::sendToAll(const Packet &packet) {
+void NetworkHandler::sendToAll(const Packet &packet, const PacketCodecContext &context) {
     BinaryStream stream;
-    packet.writeWithHeader(stream);
+    packet.writeWithHeader(stream, context);
 
     const NetworkPeer::Reliability reliability = _toPeerReliability(packet);
     const Compressibility compressibility = _toPeerCompressibility(packet);

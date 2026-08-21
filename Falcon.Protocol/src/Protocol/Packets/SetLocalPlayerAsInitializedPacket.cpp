@@ -5,11 +5,11 @@
 SetLocalPlayerAsInitializedPacket::SetLocalPlayerAsInitializedPacket()
         : mRuntimeEntityId(0) {}
 
-void SetLocalPlayerAsInitializedPacket::write(BinaryStream &stream) const {
+void SetLocalPlayerAsInitializedPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putUnsignedVarLong(mRuntimeEntityId);
 }
 
-void SetLocalPlayerAsInitializedPacket::read(ReadOnlyBinaryStream &stream) {
+void SetLocalPlayerAsInitializedPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mRuntimeEntityId = stream.getUnsignedVarLong();
 }
 

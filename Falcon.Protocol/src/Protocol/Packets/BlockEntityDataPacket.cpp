@@ -6,12 +6,12 @@
 BlockEntityDataPacket::BlockEntityDataPacket()
         : mData(Tag::ofCompound()) {}
 
-void BlockEntityDataPacket::write(BinaryStream &stream) const {
+void BlockEntityDataPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putBlockPosition(mBlockPosition);
     NbtIo::writeTag(stream, mData, NbtVariant::Network);
 }
 
-void BlockEntityDataPacket::read(ReadOnlyBinaryStream &stream) {
+void BlockEntityDataPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mBlockPosition = stream.getBlockPosition();
     mData = NbtIo::readTag(stream, NbtVariant::Network);
 

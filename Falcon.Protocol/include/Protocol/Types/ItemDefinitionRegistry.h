@@ -1,0 +1,22 @@
+#pragma once
+
+#include "Protocol/Types/ItemDefinition.h"
+
+#include <memory>
+#include <string>
+#include <unordered_map>
+
+class ItemDefinitionRegistry {
+public:
+    void registerDefinition(std::shared_ptr<ItemDefinition> definition);
+
+    std::shared_ptr<ItemDefinition> getDefinition(int runtimeId) const;
+
+    std::shared_ptr<ItemDefinition> getDefinition(const std::string &identifier) const;
+
+    size_t size() const { return mByRuntimeId.size(); }
+
+private:
+    std::unordered_map<int, std::shared_ptr<ItemDefinition>> mByRuntimeId;
+    std::unordered_map<std::string, std::shared_ptr<ItemDefinition>> mByIdentifier;
+};

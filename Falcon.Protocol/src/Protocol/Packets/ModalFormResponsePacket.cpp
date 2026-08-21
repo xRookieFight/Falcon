@@ -5,7 +5,7 @@
 ModalFormResponsePacket::ModalFormResponsePacket()
         : mFormId(0), mHasFormData(false), mHasCancelReason(false), mCancelReason(CancelReason::UserClosed) {}
 
-void ModalFormResponsePacket::write(BinaryStream &stream) const {
+void ModalFormResponsePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putUnsignedVarInt(mFormId);
 
     stream.putOptionalPresent(mHasFormData);
@@ -17,7 +17,7 @@ void ModalFormResponsePacket::write(BinaryStream &stream) const {
         stream.putByte((unsigned char) mCancelReason);
 }
 
-void ModalFormResponsePacket::read(ReadOnlyBinaryStream &stream) {
+void ModalFormResponsePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mFormId = stream.getUnsignedVarInt();
 
     mHasFormData = stream.getOptionalPresent();

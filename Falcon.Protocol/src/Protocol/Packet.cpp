@@ -16,9 +16,9 @@ void Packet::writeHeader(BinaryStream &stream) const {
     stream.putUnsignedVarInt(header);
 }
 
-void Packet::writeWithHeader(BinaryStream &stream) const {
+void Packet::writeWithHeader(BinaryStream &stream, const PacketCodecContext &context) const {
     writeHeader(stream);
-    write(stream);
+    write(stream, context);
 }
 
 void Packet::readHeader(ReadOnlyBinaryStream &stream) {

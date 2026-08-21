@@ -4,10 +4,10 @@
 
 ServerSettingsRequestPacket::ServerSettingsRequestPacket() {}
 
-void ServerSettingsRequestPacket::write(BinaryStream &) const {
+void ServerSettingsRequestPacket::write(BinaryStream &, const PacketCodecContext &) const {
 }
 
-void ServerSettingsRequestPacket::read(ReadOnlyBinaryStream &) {
+void ServerSettingsRequestPacket::read(ReadOnlyBinaryStream &, const PacketCodecContext &) {
 }
 
 void ServerSettingsRequestPacket::handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const {

@@ -5,11 +5,11 @@
 ChunkRadiusUpdatedPacket::ChunkRadiusUpdatedPacket()
         : mRadius(0) {}
 
-void ChunkRadiusUpdatedPacket::write(BinaryStream &stream) const {
+void ChunkRadiusUpdatedPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putVarInt(mRadius);
 }
 
-void ChunkRadiusUpdatedPacket::read(ReadOnlyBinaryStream &stream) {
+void ChunkRadiusUpdatedPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mRadius = stream.getVarInt();
 }
 

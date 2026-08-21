@@ -5,11 +5,11 @@
 SetTimePacket::SetTimePacket()
         : mTime(0) {}
 
-void SetTimePacket::write(BinaryStream &stream) const {
+void SetTimePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putVarInt(mTime);
 }
 
-void SetTimePacket::read(ReadOnlyBinaryStream &stream) {
+void SetTimePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mTime = stream.getVarInt();
 }
 

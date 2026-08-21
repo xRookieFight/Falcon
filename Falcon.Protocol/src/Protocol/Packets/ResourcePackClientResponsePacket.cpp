@@ -11,7 +11,7 @@ namespace {
 ResourcePackClientResponsePacket::ResourcePackClientResponsePacket()
         : mStatus(Status::Refused) {}
 
-void ResourcePackClientResponsePacket::write(BinaryStream &stream) const {
+void ResourcePackClientResponsePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     const int index = (int) mStatus - 1;
     if (index < 0 || index >= (int) (sizeof(RESPONSE_STATUS) / sizeof(RESPONSE_STATUS[0])))
         throw BinaryDataException("Unsupported resource pack response status");
@@ -27,7 +27,7 @@ void ResourcePackClientResponsePacket::write(BinaryStream &stream) const {
         stream.putString(packId);
 }
 
-void ResourcePackClientResponsePacket::read(ReadOnlyBinaryStream &stream) {
+void ResourcePackClientResponsePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     const uint32_t index = stream.getUnsignedVarInt();
     if (index >= sizeof(RESPONSE_STATUS) / sizeof(RESPONSE_STATUS[0]))
         throw BinaryDataException("Unknown resource pack response status");

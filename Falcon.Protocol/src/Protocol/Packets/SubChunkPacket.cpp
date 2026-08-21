@@ -71,7 +71,7 @@ namespace {
 SubChunkPacket::SubChunkPacket()
         : mCacheEnabled(false), mDimension(0) {}
 
-void SubChunkPacket::write(BinaryStream &stream) const {
+void SubChunkPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putBool(mCacheEnabled);
     stream.putVarInt(mDimension);
     stream.putLInt((uint32_t) mCenterPosition.x);
@@ -83,7 +83,7 @@ void SubChunkPacket::write(BinaryStream &stream) const {
         writeSubChunk(stream, subChunk);
 }
 
-void SubChunkPacket::read(ReadOnlyBinaryStream &stream) {
+void SubChunkPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mCacheEnabled = stream.getBool();
     mDimension = stream.getVarInt();
     const int32_t centerX = stream.getSignedLInt();

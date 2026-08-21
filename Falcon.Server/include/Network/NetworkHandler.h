@@ -10,6 +10,7 @@
 #include <vector>
 
 class Packet;
+class PacketCodecContext;
 
 class NetworkHandler : public Connector::ConnectionCallbacks {
 public:
@@ -55,9 +56,9 @@ public:
 
     void runEvents();
 
-    void send(const NetworkIdentifier &id, const Packet &packet);
+    void send(const NetworkIdentifier &id, const Packet &packet, const PacketCodecContext &context);
 
-    void sendToAll(const Packet &packet);
+    void sendToAll(const Packet &packet, const PacketCodecContext &context);
 
     void send(const NetworkIdentifier &id, const std::string &data,
               NetworkPeer::Reliability reliability = NetworkPeer::Reliability::ReliableOrdered,

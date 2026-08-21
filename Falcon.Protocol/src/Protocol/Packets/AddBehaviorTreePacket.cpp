@@ -4,11 +4,11 @@
 
 AddBehaviorTreePacket::AddBehaviorTreePacket() {}
 
-void AddBehaviorTreePacket::write(BinaryStream &stream) const {
+void AddBehaviorTreePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putString(mBehaviorTreeJson);
 }
 
-void AddBehaviorTreePacket::read(ReadOnlyBinaryStream &stream) {
+void AddBehaviorTreePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mBehaviorTreeJson = stream.getString();
 }
 

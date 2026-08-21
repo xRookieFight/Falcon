@@ -5,11 +5,11 @@
 SetCommandsEnabledPacket::SetCommandsEnabledPacket()
         : mCommandsEnabled(false) {}
 
-void SetCommandsEnabledPacket::write(BinaryStream &stream) const {
+void SetCommandsEnabledPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putBool(mCommandsEnabled);
 }
 
-void SetCommandsEnabledPacket::read(ReadOnlyBinaryStream &stream) {
+void SetCommandsEnabledPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mCommandsEnabled = stream.getBool();
 }
 

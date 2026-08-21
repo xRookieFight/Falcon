@@ -5,11 +5,11 @@
 SetHealthPacket::SetHealthPacket()
         : mHealth(0) {}
 
-void SetHealthPacket::write(BinaryStream &stream) const {
+void SetHealthPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putVarInt(mHealth);
 }
 
-void SetHealthPacket::read(ReadOnlyBinaryStream &stream) {
+void SetHealthPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mHealth = stream.getVarInt();
 }
 

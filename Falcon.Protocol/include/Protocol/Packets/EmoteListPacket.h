@@ -14,12 +14,12 @@ public:
 
     const char *getName() const override { return "EmoteListPacket"; }
 
-    void write(BinaryStream &stream) const override;
+    void write(BinaryStream &stream, const PacketCodecContext &context) const override;
 
-    void read(ReadOnlyBinaryStream &stream) override;
+    void read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) override;
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
     uint64_t mRuntimeEntityId;
-    std::vector<UUID> mPieceIds;
+    std::vector<Uuid> mPieceIds;
 };

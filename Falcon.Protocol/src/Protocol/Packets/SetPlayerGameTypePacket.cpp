@@ -5,11 +5,11 @@
 SetPlayerGameTypePacket::SetPlayerGameTypePacket()
         : mGamemode(0) {}
 
-void SetPlayerGameTypePacket::write(BinaryStream &stream) const {
+void SetPlayerGameTypePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putVarInt(mGamemode);
 }
 
-void SetPlayerGameTypePacket::read(ReadOnlyBinaryStream &stream) {
+void SetPlayerGameTypePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mGamemode = stream.getVarInt();
 }
 

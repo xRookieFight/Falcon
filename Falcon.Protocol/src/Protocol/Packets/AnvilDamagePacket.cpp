@@ -4,11 +4,11 @@
 
 AnvilDamagePacket::AnvilDamagePacket() {}
 
-void AnvilDamagePacket::write(BinaryStream &stream) const {
+void AnvilDamagePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putBlockPosition(mPosition);
 }
 
-void AnvilDamagePacket::read(ReadOnlyBinaryStream &stream) {
+void AnvilDamagePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mPosition = stream.getBlockPosition();
 }
 

@@ -21,6 +21,14 @@ static std::vector<std::string> splitAnnouncement(const std::string &raw) {
     return fields;
 }
 
+static int announcementGameModeId(const std::string &gameMode) {
+    if (gameMode == "Creative")
+        return 2;
+    if (gameMode == "Adventure")
+        return 3;
+    return 1;
+}
+
 std::string PingedCompatibleServer::toAnnouncement(unsigned short portV4, unsigned short portV6) const {
     return "MCPE;" + mServerName + ";" +
            std::to_string(mProtocolVersion) + ";" +
@@ -30,7 +38,7 @@ std::string PingedCompatibleServer::toAnnouncement(unsigned short portV4, unsign
            std::to_string(mServerId) + ";" +
            mSubName + ";" +
            mGameMode + ";" +
-           std::to_string(mGameModeId) + ";" +
+           std::to_string(announcementGameModeId(mGameMode)) + ";" +
            std::to_string(portV4) + ";" +
            std::to_string(portV6) + ";";
 }

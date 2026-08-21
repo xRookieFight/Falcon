@@ -5,15 +5,15 @@
 EmoteListPacket::EmoteListPacket()
         : mRuntimeEntityId(0) {}
 
-void EmoteListPacket::write(BinaryStream &stream) const {
+void EmoteListPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putUnsignedVarLong(mRuntimeEntityId);
 
     stream.putArrayLength((uint32_t) mPieceIds.size());
-    for (const UUID &pieceId: mPieceIds)
+    for (const Uuid &pieceId: mPieceIds)
         stream.putUuid(pieceId);
 }
 
-void EmoteListPacket::read(ReadOnlyBinaryStream &stream) {
+void EmoteListPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mRuntimeEntityId = stream.getUnsignedVarLong();
 
     const uint32_t pieceCount = stream.getArrayLength();

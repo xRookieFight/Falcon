@@ -6,7 +6,7 @@ ResourcePacksInfoPacket::ResourcePacksInfoPacket()
         : mForcedToAccept(false), mHasAddonPacks(false), mScriptingEnabled(false),
           mVibrantVisualsForceDisabled(false) {}
 
-void ResourcePacksInfoPacket::write(BinaryStream &stream) const {
+void ResourcePacksInfoPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putBool(mForcedToAccept);
     stream.putBool(mHasAddonPacks);
     stream.putBool(mScriptingEnabled);
@@ -29,7 +29,7 @@ void ResourcePacksInfoPacket::write(BinaryStream &stream) const {
     }
 }
 
-void ResourcePacksInfoPacket::read(ReadOnlyBinaryStream &stream) {
+void ResourcePacksInfoPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mForcedToAccept = stream.getBool();
     mHasAddonPacks = stream.getBool();
     mScriptingEnabled = stream.getBool();

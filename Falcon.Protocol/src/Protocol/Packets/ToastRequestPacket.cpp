@@ -4,12 +4,12 @@
 
 ToastRequestPacket::ToastRequestPacket() {}
 
-void ToastRequestPacket::write(BinaryStream &stream) const {
+void ToastRequestPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putString(mTitle);
     stream.putString(mContent);
 }
 
-void ToastRequestPacket::read(ReadOnlyBinaryStream &stream) {
+void ToastRequestPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mTitle = stream.getString();
     mContent = stream.getString();
 }

@@ -5,11 +5,11 @@
 OnScreenTextureAnimationPacket::OnScreenTextureAnimationPacket()
         : mEffectId(0) {}
 
-void OnScreenTextureAnimationPacket::write(BinaryStream &stream) const {
+void OnScreenTextureAnimationPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putLInt(mEffectId);
 }
 
-void OnScreenTextureAnimationPacket::read(ReadOnlyBinaryStream &stream) {
+void OnScreenTextureAnimationPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mEffectId = stream.getLInt();
 }
 

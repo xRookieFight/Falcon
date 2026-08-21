@@ -5,12 +5,12 @@
 NetworkStackLatencyPacket::NetworkStackLatencyPacket()
         : mTimestamp(0), mFromServer(false) {}
 
-void NetworkStackLatencyPacket::write(BinaryStream &stream) const {
+void NetworkStackLatencyPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putLLong(mTimestamp);
     stream.putBool(mFromServer);
 }
 
-void NetworkStackLatencyPacket::read(ReadOnlyBinaryStream &stream) {
+void NetworkStackLatencyPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mTimestamp = stream.getLLong();
     mFromServer = stream.getBool();
 }

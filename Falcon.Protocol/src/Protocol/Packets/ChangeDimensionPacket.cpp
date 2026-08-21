@@ -5,7 +5,7 @@
 ChangeDimensionPacket::ChangeDimensionPacket()
         : mDimension(0), mRespawn(false), mHasLoadingScreenId(false), mLoadingScreenId(0) {}
 
-void ChangeDimensionPacket::write(BinaryStream &stream) const {
+void ChangeDimensionPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putVarInt(mDimension);
     stream.putVector3f(mPosition);
     stream.putBool(mRespawn);
@@ -15,7 +15,7 @@ void ChangeDimensionPacket::write(BinaryStream &stream) const {
         stream.putLInt((uint32_t) mLoadingScreenId);
 }
 
-void ChangeDimensionPacket::read(ReadOnlyBinaryStream &stream) {
+void ChangeDimensionPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mDimension = stream.getVarInt();
     mPosition = stream.getVector3f();
     mRespawn = stream.getBool();

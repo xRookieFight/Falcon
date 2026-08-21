@@ -4,11 +4,11 @@
 
 ServerToClientHandshakePacket::ServerToClientHandshakePacket() {}
 
-void ServerToClientHandshakePacket::write(BinaryStream &stream) const {
+void ServerToClientHandshakePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putString(mJwt);
 }
 
-void ServerToClientHandshakePacket::read(ReadOnlyBinaryStream &stream) {
+void ServerToClientHandshakePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mJwt = stream.getString();
 }
 

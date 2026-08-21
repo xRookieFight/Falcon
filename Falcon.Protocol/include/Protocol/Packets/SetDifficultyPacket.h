@@ -12,9 +12,9 @@ public:
 
     const char *getName() const override { return "SetDifficultyPacket"; }
 
-    void write(BinaryStream &stream) const override;
+    void write(BinaryStream &stream, const PacketCodecContext &context) const override;
 
-    void read(ReadOnlyBinaryStream &stream) override;
+    void read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) override;
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 

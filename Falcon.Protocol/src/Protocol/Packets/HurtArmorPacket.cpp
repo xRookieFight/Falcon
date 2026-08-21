@@ -5,13 +5,13 @@
 HurtArmorPacket::HurtArmorPacket()
         : mCause(0), mDamage(0), mArmorSlots(0) {}
 
-void HurtArmorPacket::write(BinaryStream &stream) const {
+void HurtArmorPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putVarInt(mCause);
     stream.putVarInt(mDamage);
     stream.putUnsignedVarLong(mArmorSlots);
 }
 
-void HurtArmorPacket::read(ReadOnlyBinaryStream &stream) {
+void HurtArmorPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mCause = stream.getVarInt();
     mDamage = stream.getVarInt();
     mArmorSlots = stream.getUnsignedVarLong();

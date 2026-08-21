@@ -5,11 +5,11 @@
 SetLastHurtByPacket::SetLastHurtByPacket()
         : mEntityTypeId(0) {}
 
-void SetLastHurtByPacket::write(BinaryStream &stream) const {
+void SetLastHurtByPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putVarInt(mEntityTypeId);
 }
 
-void SetLastHurtByPacket::read(ReadOnlyBinaryStream &stream) {
+void SetLastHurtByPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mEntityTypeId = stream.getVarInt();
 }
 

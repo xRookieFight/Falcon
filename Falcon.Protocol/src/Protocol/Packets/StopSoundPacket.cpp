@@ -5,13 +5,13 @@
 StopSoundPacket::StopSoundPacket()
         : mStoppingAllSound(false), mStopMusicLegacy(false) {}
 
-void StopSoundPacket::write(BinaryStream &stream) const {
+void StopSoundPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putString(mSoundName);
     stream.putBool(mStoppingAllSound);
     stream.putBool(mStopMusicLegacy);
 }
 
-void StopSoundPacket::read(ReadOnlyBinaryStream &stream) {
+void StopSoundPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mSoundName = stream.getString();
     mStoppingAllSound = stream.getBool();
     mStopMusicLegacy = stream.getBool();

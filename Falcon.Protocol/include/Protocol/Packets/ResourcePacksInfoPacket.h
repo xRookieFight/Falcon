@@ -11,7 +11,7 @@ public:
     static const MinecraftPacketIds ID = MinecraftPacketIds::ResourcePacksInfo;
 
     struct Entry {
-        UUID mPackId;
+        Uuid mPackId;
         std::string mPackVersion;
         uint64_t mPackSize = 0;
         std::string mContentKey;
@@ -29,9 +29,9 @@ public:
 
     const char *getName() const override { return "ResourcePacksInfoPacket"; }
 
-    void write(BinaryStream &stream) const override;
+    void write(BinaryStream &stream, const PacketCodecContext &context) const override;
 
-    void read(ReadOnlyBinaryStream &stream) override;
+    void read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) override;
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
@@ -39,7 +39,7 @@ public:
     bool mHasAddonPacks;
     bool mScriptingEnabled;
     bool mVibrantVisualsForceDisabled;
-    UUID mWorldTemplateId;
+    Uuid mWorldTemplateId;
     std::string mWorldTemplateVersion;
     std::vector<Entry> mResourcePackInfos;
 };

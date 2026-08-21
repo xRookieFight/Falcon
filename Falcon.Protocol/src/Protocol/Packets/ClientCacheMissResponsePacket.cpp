@@ -2,7 +2,7 @@
 
 #include "Protocol/NetworkPacketHandler.h"
 
-void ClientCacheMissResponsePacket::write(BinaryStream &stream) const {
+void ClientCacheMissResponsePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putArrayLength((uint32_t) mBlobs.size());
 
     for (const std::pair<uint64_t, std::string> &blob: mBlobs) {
@@ -11,7 +11,7 @@ void ClientCacheMissResponsePacket::write(BinaryStream &stream) const {
     }
 }
 
-void ClientCacheMissResponsePacket::read(ReadOnlyBinaryStream &stream) {
+void ClientCacheMissResponsePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     const uint32_t count = stream.getArrayLength();
 
     mBlobs.clear();

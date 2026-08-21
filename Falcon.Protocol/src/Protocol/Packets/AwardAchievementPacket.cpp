@@ -5,11 +5,11 @@
 AwardAchievementPacket::AwardAchievementPacket()
         : mAchievementId(0) {}
 
-void AwardAchievementPacket::write(BinaryStream &stream) const {
+void AwardAchievementPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putLInt((uint32_t) mAchievementId);
 }
 
-void AwardAchievementPacket::read(ReadOnlyBinaryStream &stream) {
+void AwardAchievementPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mAchievementId = stream.getSignedLInt();
 }
 

@@ -5,7 +5,7 @@
 LoginPacket::LoginPacket()
         : mProtocolVersion(0) {}
 
-void LoginPacket::write(BinaryStream &stream) const {
+void LoginPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putInt((uint32_t) mProtocolVersion);
 
     // both jwts live inside a single length prefixed blob, each with its own little endian length
@@ -18,7 +18,7 @@ void LoginPacket::write(BinaryStream &stream) const {
     stream.putByteArray(body.getBuffer());
 }
 
-void LoginPacket::read(ReadOnlyBinaryStream &stream) {
+void LoginPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mProtocolVersion = stream.getSignedInt();
 
     ReadOnlyBinaryStream body(stream.getByteArray());

@@ -4,10 +4,10 @@
 
 RefreshEntitlementsPacket::RefreshEntitlementsPacket() {}
 
-void RefreshEntitlementsPacket::write(BinaryStream &) const {
+void RefreshEntitlementsPacket::write(BinaryStream &, const PacketCodecContext &) const {
 }
 
-void RefreshEntitlementsPacket::read(ReadOnlyBinaryStream &) {
+void RefreshEntitlementsPacket::read(ReadOnlyBinaryStream &, const PacketCodecContext &) {
 }
 
 void RefreshEntitlementsPacket::handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const {

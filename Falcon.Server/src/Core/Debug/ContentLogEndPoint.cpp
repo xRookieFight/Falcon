@@ -40,6 +40,8 @@ void ContentLogEndPoint::log(const LogDetails &details) {
         fprintf(stdout, "[%s %s] %s\n", details.getTimestamp().c_str(), toString(details.mLevel),
                 details.mMessage.c_str());
     }
+
+    fflush(stdout);
 }
 
 void ContentLogEndPoint::flush() {

@@ -5,11 +5,11 @@
 RemoveEntityPacket::RemoveEntityPacket()
         : mUniqueEntityId(0) {}
 
-void RemoveEntityPacket::write(BinaryStream &stream) const {
+void RemoveEntityPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putVarLong(mUniqueEntityId);
 }
 
-void RemoveEntityPacket::read(ReadOnlyBinaryStream &stream) {
+void RemoveEntityPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mUniqueEntityId = stream.getVarLong();
 }
 

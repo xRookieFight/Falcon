@@ -5,12 +5,12 @@
 SettingsCommandPacket::SettingsCommandPacket()
         : mSuppressingOutput(false) {}
 
-void SettingsCommandPacket::write(BinaryStream &stream) const {
+void SettingsCommandPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putString(mCommand);
     stream.putBool(mSuppressingOutput);
 }
 
-void SettingsCommandPacket::read(ReadOnlyBinaryStream &stream) {
+void SettingsCommandPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mCommand = stream.getString();
     mSuppressingOutput = stream.getBool();
 }

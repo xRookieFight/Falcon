@@ -93,7 +93,7 @@ public:
 
     Vector3i getBlockPosition();
 
-    UUID getUuid();
+    Uuid getUuid();
 
     // Length prefixed blob, matching BedrockCodecHelper readByteBuf
     std::string getByteArray();

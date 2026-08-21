@@ -24,11 +24,29 @@ add_executable(FalconServer
         src/Network/RakPeerHelper.cpp
         src/Network/ServerNetworkHandler.cpp
         src/Network/ConnectionRequest.cpp
-        src/Server/ServerPlayer.cpp
+        src/Command/Command.cpp
+        src/Command/CommandMap.cpp
+        src/Command/GameModeCommand.cpp
+        src/Command/PlayerCommandSender.cpp
+        src/Entity/Entity.cpp
+        src/Entity/EntityAttributes.cpp
+        src/Entity/EntityFlags.cpp
+        src/Entity/ItemEntity.cpp
+        src/Entity/ServerPlayer.cpp
+        src/Level/FlatChunkGenerator.cpp
+        src/Level/Level.cpp
+        src/Player/PlayerDataProvider.cpp
         src/Server/PropertiesSettings.cpp
 )
 
 find_package(ZLIB REQUIRED)
 
-target_include_directories(FalconServer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(FalconServer PRIVATE FalconNetwork FalconProtocol ZLIB::ZLIB)
+target_include_directories(FalconServer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include ${ZLIB_INCLUDE_DIRS})
+target_link_libraries(FalconServer PRIVATE FalconNetwork FalconProtocol)
+
+if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_link_options(FalconServer PRIVATE -static)
+    target_link_libraries(FalconServer PRIVATE z)
+else()
+    target_link_libraries(FalconServer PRIVATE ZLIB::ZLIB)
+endif()

@@ -146,7 +146,7 @@ void BinaryStream::putBlockPosition(const Vector3i &value) {
     putVarInt(value.z);
 }
 
-void BinaryStream::putUuid(const UUID &value) {
+void BinaryStream::putUuid(const Uuid &value) {
     putLLong(value.mostSignificantBits);
     putLLong(value.leastSignificantBits);
 }

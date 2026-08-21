@@ -2,6 +2,7 @@
 
 #include "RakNet/MessageIdentifiers.h"
 
+
 RakNetInstance::RakNetInstance(RakPeerHelper::IPSupportInterface &ipSupport, bool isServer)
         : mRakPeer(RakNet::RakPeerInterface::GetInstance()), mHelper(&ipSupport), mIsServer(isServer),
           mIsHosting(false) {

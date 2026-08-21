@@ -4,13 +4,13 @@
 
 PlayerFogPacket::PlayerFogPacket() {}
 
-void PlayerFogPacket::write(BinaryStream &stream) const {
+void PlayerFogPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putArrayLength((uint32_t) mFogStack.size());
     for (const std::string &fogEffect: mFogStack)
         stream.putString(fogEffect);
 }
 
-void PlayerFogPacket::read(ReadOnlyBinaryStream &stream) {
+void PlayerFogPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     const uint32_t fogCount = stream.getArrayLength();
     mFogStack.clear();
     mFogStack.reserve(fogCount);

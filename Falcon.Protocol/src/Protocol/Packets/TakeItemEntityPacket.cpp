@@ -5,12 +5,12 @@
 TakeItemEntityPacket::TakeItemEntityPacket()
         : mItemRuntimeEntityId(0), mRuntimeEntityId(0) {}
 
-void TakeItemEntityPacket::write(BinaryStream &stream) const {
+void TakeItemEntityPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putUnsignedVarLong(mItemRuntimeEntityId);
     stream.putUnsignedVarLong(mRuntimeEntityId);
 }
 
-void TakeItemEntityPacket::read(ReadOnlyBinaryStream &stream) {
+void TakeItemEntityPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mItemRuntimeEntityId = stream.getUnsignedVarLong();
     mRuntimeEntityId = stream.getUnsignedVarLong();
 }

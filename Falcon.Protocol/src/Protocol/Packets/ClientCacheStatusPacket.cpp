@@ -5,11 +5,11 @@
 ClientCacheStatusPacket::ClientCacheStatusPacket()
         : mSupported(false) {}
 
-void ClientCacheStatusPacket::write(BinaryStream &stream) const {
+void ClientCacheStatusPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putBool(mSupported);
 }
 
-void ClientCacheStatusPacket::read(ReadOnlyBinaryStream &stream) {
+void ClientCacheStatusPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mSupported = stream.getBool();
 }
 

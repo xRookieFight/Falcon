@@ -5,12 +5,12 @@
 OpenSignPacket::OpenSignPacket()
         : mFrontSide(false) {}
 
-void OpenSignPacket::write(BinaryStream &stream) const {
+void OpenSignPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putBlockPosition(mPosition);
     stream.putBool(mFrontSide);
 }
 
-void OpenSignPacket::read(ReadOnlyBinaryStream &stream) {
+void OpenSignPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mPosition = stream.getBlockPosition();
     mFrontSide = stream.getBool();
 }

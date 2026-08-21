@@ -5,11 +5,11 @@
 SetDifficultyPacket::SetDifficultyPacket()
         : mDifficulty(0) {}
 
-void SetDifficultyPacket::write(BinaryStream &stream) const {
+void SetDifficultyPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putUnsignedVarInt(mDifficulty);
 }
 
-void SetDifficultyPacket::read(ReadOnlyBinaryStream &stream) {
+void SetDifficultyPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mDifficulty = stream.getUnsignedVarInt();
 }
 

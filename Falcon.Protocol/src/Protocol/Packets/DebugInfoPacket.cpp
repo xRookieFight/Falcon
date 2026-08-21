@@ -5,12 +5,12 @@
 DebugInfoPacket::DebugInfoPacket()
         : mUniqueEntityId(0) {}
 
-void DebugInfoPacket::write(BinaryStream &stream) const {
+void DebugInfoPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putVarLong(mUniqueEntityId);
     stream.putString(mData);
 }
 
-void DebugInfoPacket::read(ReadOnlyBinaryStream &stream) {
+void DebugInfoPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mUniqueEntityId = stream.getVarLong();
     mData = stream.getString();
 }

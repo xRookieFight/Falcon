@@ -1,8 +1,7 @@
 #pragma once
 
-// Generated from CloudburstMC/Protocol Bedrock_v2168 (Minecraft 1.26.40) packet registrations.
-
 enum class MinecraftPacketIds : int {
+	KeepAlive = 0,
     Login = 1,
     PlayStatus = 2,
     ServerToClientHandshake = 3,
@@ -22,6 +21,7 @@ enum class MinecraftPacketIds : int {
     TakeItemEntity = 17,
     MoveEntityAbsolute = 18,
     MovePlayer = 19,
+    TickSync = 23,
     UpdateBlock = 21,
     AddPainting = 22,
     BlockEvent = 26,
@@ -110,10 +110,12 @@ enum class MinecraftPacketIds : int {
     SetLocalPlayerAsInitialized = 113,
     UpdateSoftEnum = 114,
     NetworkStackLatency = 115,
+    ScriptCustomEvent = 117,
     SpawnParticleEffect = 118,
     AvailableEntityIdentifiers = 119,
     NetworkChunkPublisherUpdate = 121,
     BiomeDefinitionList = 122,
+    VideoStreamConnect = 125,
     ClientCacheStatus = 129,
     OnScreenTextureAnimation = 130,
     MapCreateLockedCopy = 131,
@@ -148,6 +150,7 @@ enum class MinecraftPacketIds : int {
     PlayerFog = 160,
     CorrectPlayerMovePrediction = 161,
     ItemComponent = 162,
+    FilterText = 163,
     ClientboundDebugRenderer = 164,
     SyncEntityProperty = 165,
     AddVolumeEntity = 166,

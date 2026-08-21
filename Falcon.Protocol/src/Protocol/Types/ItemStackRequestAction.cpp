@@ -1,0 +1,46 @@
+#include "Protocol/Types/ItemStackRequestAction.h"
+
+#include "Core/Utility/BinaryDataException.h"
+
+#include <string>
+
+namespace {
+    const ItemStackRequestActionType TYPES_BY_ID[] = {
+        ItemStackRequestActionType::Take,
+        ItemStackRequestActionType::Place,
+        ItemStackRequestActionType::Swap,
+        ItemStackRequestActionType::Drop,
+        ItemStackRequestActionType::Destroy,
+        ItemStackRequestActionType::Consume,
+        ItemStackRequestActionType::Create,
+        ItemStackRequestActionType::LabTableCombine,
+        ItemStackRequestActionType::BeaconPayment,
+        ItemStackRequestActionType::MineBlock,
+        ItemStackRequestActionType::CraftRecipe,
+        ItemStackRequestActionType::CraftRecipeAuto,
+        ItemStackRequestActionType::CraftCreative,
+        ItemStackRequestActionType::CraftRecipeOptional,
+        ItemStackRequestActionType::CraftRepairAndDisenchant,
+        ItemStackRequestActionType::CraftLoom,
+        ItemStackRequestActionType::CraftNonImplemented,
+        ItemStackRequestActionType::CraftResultsDeprecated,
+    };
+
+    const int32_t TYPE_COUNT = sizeof(TYPES_BY_ID) / sizeof(TYPES_BY_ID[0]);
+}
+
+int32_t itemStackRequestActionTypeToId(ItemStackRequestActionType type) {
+    for (int32_t i = 0; i < TYPE_COUNT; i++) {
+        if (TYPES_BY_ID[i] == type) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+ItemStackRequestActionType itemStackRequestActionTypeFromId(int32_t id) {
+    if (id < 0 || id >= TYPE_COUNT) {
+        throw BinaryDataException("Unknown ItemStackRequestActionType id " + std::to_string(id));
+    }
+    return TYPES_BY_ID[id];
+}

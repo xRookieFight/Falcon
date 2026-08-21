@@ -5,7 +5,7 @@
 ResourcePackStackPacket::ResourcePackStackPacket()
         : mForcedToAccept(false), mExperimentsPreviouslyToggled(false), mHasEditorPacks(false) {}
 
-void ResourcePackStackPacket::write(BinaryStream &stream) const {
+void ResourcePackStackPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putBool(mForcedToAccept);
 
     stream.putArrayLength((uint32_t) mResourcePacks.size());
@@ -21,7 +21,7 @@ void ResourcePackStackPacket::write(BinaryStream &stream) const {
     stream.putBool(mHasEditorPacks);
 }
 
-void ResourcePackStackPacket::read(ReadOnlyBinaryStream &stream) {
+void ResourcePackStackPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mForcedToAccept = stream.getBool();
 
     const uint32_t count = stream.getArrayLength();

@@ -239,10 +239,10 @@ Vector3i ReadOnlyBinaryStream::getBlockPosition() {
     return Vector3i(x, y, z);
 }
 
-UUID ReadOnlyBinaryStream::getUuid() {
+Uuid ReadOnlyBinaryStream::getUuid() {
     const uint64_t most = getLLong();
     const uint64_t least = getLLong();
-    return UUID(most, least);
+    return Uuid(most, least);
 }
 
 std::string ReadOnlyBinaryStream::getByteArray() {

@@ -4,10 +4,10 @@
 
 ClientboundCloseFormPacket::ClientboundCloseFormPacket() {}
 
-void ClientboundCloseFormPacket::write(BinaryStream &) const {
+void ClientboundCloseFormPacket::write(BinaryStream &, const PacketCodecContext &) const {
 }
 
-void ClientboundCloseFormPacket::read(ReadOnlyBinaryStream &) {
+void ClientboundCloseFormPacket::read(ReadOnlyBinaryStream &, const PacketCodecContext &) {
 }
 
 void ClientboundCloseFormPacket::handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const {

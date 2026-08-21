@@ -5,7 +5,7 @@
 DisconnectPacket::DisconnectPacket()
         : mReason(0), mMessageSkipped(false) {}
 
-void DisconnectPacket::write(BinaryStream &stream) const {
+void DisconnectPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putVarInt(mReason);
     stream.putUnsignedVarInt(mMessageSkipped ? 1 : 0);
 
@@ -15,7 +15,7 @@ void DisconnectPacket::write(BinaryStream &stream) const {
     }
 }
 
-void DisconnectPacket::read(ReadOnlyBinaryStream &stream) {
+void DisconnectPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mReason = stream.getVarInt();
     mMessageSkipped = stream.getUnsignedVarInt() != 0;
 

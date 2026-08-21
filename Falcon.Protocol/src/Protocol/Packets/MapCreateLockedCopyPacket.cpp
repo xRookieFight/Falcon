@@ -5,12 +5,12 @@
 MapCreateLockedCopyPacket::MapCreateLockedCopyPacket()
         : mOriginalMapId(0), mNewMapId(0) {}
 
-void MapCreateLockedCopyPacket::write(BinaryStream &stream) const {
+void MapCreateLockedCopyPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putVarLong(mOriginalMapId);
     stream.putVarLong(mNewMapId);
 }
 
-void MapCreateLockedCopyPacket::read(ReadOnlyBinaryStream &stream) {
+void MapCreateLockedCopyPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mOriginalMapId = stream.getVarLong();
     mNewMapId = stream.getVarLong();
 }

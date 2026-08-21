@@ -5,7 +5,7 @@
 MobEffectPacket::MobEffectPacket()
         : mRuntimeEntityId(0), mEvent(Event::None), mEffectId(0), mAmplifier(0), mParticles(false), mDuration(0), mTick(0), mAmbient(false) {}
 
-void MobEffectPacket::write(BinaryStream &stream) const {
+void MobEffectPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putUnsignedVarLong(mRuntimeEntityId);
     stream.putByte((unsigned char) mEvent);
     stream.putVarInt(mEffectId);
@@ -16,7 +16,7 @@ void MobEffectPacket::write(BinaryStream &stream) const {
     stream.putBool(mAmbient);
 }
 
-void MobEffectPacket::read(ReadOnlyBinaryStream &stream) {
+void MobEffectPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mRuntimeEntityId = stream.getUnsignedVarLong();
     mEvent = (Event) stream.getByte();
     mEffectId = stream.getVarInt();

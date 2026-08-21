@@ -5,7 +5,7 @@
 SpawnParticleEffectPacket::SpawnParticleEffectPacket()
         : mDimensionId(0), mUniqueEntityId(-1), mHasMolangVariablesJson(false) {}
 
-void SpawnParticleEffectPacket::write(BinaryStream &stream) const {
+void SpawnParticleEffectPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putByte((unsigned char) mDimensionId);
     stream.putVarLong(mUniqueEntityId);
     stream.putVector3f(mPosition);
@@ -16,7 +16,7 @@ void SpawnParticleEffectPacket::write(BinaryStream &stream) const {
         stream.putString(mMolangVariablesJson);
 }
 
-void SpawnParticleEffectPacket::read(ReadOnlyBinaryStream &stream) {
+void SpawnParticleEffectPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mDimensionId = stream.getByte();
     mUniqueEntityId = stream.getVarLong();
     mPosition = stream.getVector3f();

@@ -27,12 +27,12 @@ namespace {
 
 }
 
-void ClientCacheBlobStatusPacket::write(BinaryStream &stream) const {
+void ClientCacheBlobStatusPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     writeBlobIds(stream, mNaks);
     writeBlobIds(stream, mAcks);
 }
 
-void ClientCacheBlobStatusPacket::read(ReadOnlyBinaryStream &stream) {
+void ClientCacheBlobStatusPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     readBlobIds(stream, mNaks);
     readBlobIds(stream, mAcks);
 }

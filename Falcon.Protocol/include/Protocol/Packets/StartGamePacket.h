@@ -20,9 +20,9 @@ public:
 
     const char *getName() const override { return "StartGamePacket"; }
 
-    void write(BinaryStream &stream) const override;
+    void write(BinaryStream &stream, const PacketCodecContext &context) const override;
 
-    void read(ReadOnlyBinaryStream &stream) override;
+    void read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) override;
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
@@ -106,7 +106,7 @@ public:
     std::string mServerEngine;
     Tag mPlayerPropertyData;
     uint64_t mBlockRegistryChecksum;
-    UUID mWorldTemplateId;
+    Uuid mWorldTemplateId;
     bool mClientSideGenerationEnabled;
     bool mBlockNetworkIdsHashed;
     NetworkPermissions mNetworkPermissions;

@@ -5,7 +5,7 @@
 SubChunkRequestPacket::SubChunkRequestPacket()
         : mDimension(0) {}
 
-void SubChunkRequestPacket::write(BinaryStream &stream) const {
+void SubChunkRequestPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putVarInt(mDimension);
 
     stream.putArrayLength((uint32_t) mPositionOffsets.size());
@@ -20,7 +20,7 @@ void SubChunkRequestPacket::write(BinaryStream &stream) const {
     stream.putLInt((uint32_t) mSubChunkPosition.z);
 }
 
-void SubChunkRequestPacket::read(ReadOnlyBinaryStream &stream) {
+void SubChunkRequestPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mDimension = stream.getVarInt();
 
     const uint32_t count = stream.getUnsignedVarInt();
