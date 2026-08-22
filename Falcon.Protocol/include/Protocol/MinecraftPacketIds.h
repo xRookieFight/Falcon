@@ -1,7 +1,7 @@
 #pragma once
 
 enum class MinecraftPacketIds : int {
-	KeepAlive = 0,
+    KeepAlive = 0,
     Login = 1,
     PlayStatus = 2,
     ServerToClientHandshake = 3,
