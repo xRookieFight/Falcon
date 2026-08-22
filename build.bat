@@ -19,10 +19,6 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [1/3] Removing previous build directory...
-if exist build (
-    rmdir /s /q build
-)
 
 echo [2/3] Configuring project with CMake...
 cmake -B build -G Ninja -DCMAKE_CXX_COMPILER=g++ -DCMAKE_MAKE_PROGRAM=ninja

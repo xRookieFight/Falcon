@@ -26,6 +26,7 @@
 #include "Protocol/Packets/CommandRequestPacket.h"
 #include "Protocol/Packets/SetEntityDataPacket.h"
 #include "Protocol/Packets/SetPlayerGameTypePacket.h"
+#include "Protocol/Packets/PacketViolationWarningPacket.h"
 #include "Protocol/Packets/PlayerListPacket.h"
 #include "Protocol/Packets/TextPacket.h"
 #include "Protocol/Packets/UpdateAbilitiesPacket.h"
@@ -777,6 +778,14 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const TextPacket 
         if (entry.second.isSpawned())
             mNetworkHandler->send(entry.second.getNetworkIdentifier(), chat, mCodecContext);
     }
+}
+
+void ServerNetworkHandler::handle(const NetworkIdentifier &id, const PacketViolationWarningPacket &packet) {
+    (void) id;
+
+    const char *causeName = toString((MinecraftPacketIds) packet.mPacketCauseId);
+    LOG_ERROR(LogAreaID::Network, "CLIENT REJECTED PACKET id=%d (%s), type=%d, severity=%d, context: %s",
+              packet.mPacketCauseId, causeName, (int) packet.mType, (int) packet.mSeverity, packet.mContext.c_str());
 }
 
 void ServerNetworkHandler::handle(const NetworkIdentifier &id, const CommandRequestPacket &packet) {

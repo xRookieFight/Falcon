@@ -99,6 +99,8 @@ private:
 
     void handle(const NetworkIdentifier &id, const TextPacket &packet) override;
 
+    void handle(const NetworkIdentifier &id, const PacketViolationWarningPacket &packet) override;
+
     ServerPlayer *_getPlayer(const NetworkIdentifier &id);
 
     void _sendStartGame(ServerPlayer &player);

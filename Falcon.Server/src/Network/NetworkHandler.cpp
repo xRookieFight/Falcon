@@ -4,6 +4,37 @@
 #include "Protocol/Packet.h"
 
 #include <algorithm>
+#include <cstdio>
+#include <fstream>
+#include <mutex>
+
+namespace {
+
+    std::mutex gPacketLogMutex;
+
+    void logPacketToFile(const char *direction, const Packet &packet, const std::string &payload) {
+        std::lock_guard<std::mutex> lock(gPacketLogMutex);
+
+        std::ofstream file("packet.txt", std::ios::app);
+        if (!file.is_open())
+            return;
+
+        file << direction << " " << packet.getName() << " id=" << (int) packet.getId()
+             << " size=" << payload.size() << "\n";
+
+        char hex[4];
+        for (size_t i = 0; i < payload.size(); i++) {
+            snprintf(hex, sizeof(hex), "%02x ", (unsigned char) payload[i]);
+            file << hex;
+
+            if ((i + 1) % 32 == 0)
+                file << "\n";
+        }
+
+        file << "\n\n";
+    }
+
+}
 
 NetworkHandler::Connection::Connection(const NetworkIdentifier &id, std::shared_ptr<NetworkPeer> peer)
         : mId(id), mPeer(std::move(peer)) {
@@ -83,6 +114,8 @@ void NetworkHandler::send(const NetworkIdentifier &id, const Packet &packet, con
 
     BinaryStream stream;
     packet.writeWithHeader(stream, context);
+
+    logPacketToFile("SEND", packet, stream.getBuffer());
 
     connection->getBatchedPeer()->sendPacket(stream.getBuffer(), _toPeerReliability(packet),
                                              _toPeerCompressibility(packet));
