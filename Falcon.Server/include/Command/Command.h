@@ -2,6 +2,7 @@
 
 #include "Command/CommandSender.h"
 #include "Protocol/Types/AdventureSettingData.h"
+#include "Protocol/Types/CommandData.h"
 
 #include <string>
 #include <vector>
@@ -18,6 +19,11 @@ public:
     virtual bool execute(CommandSender &sender, const std::vector<std::string> &arguments) = 0;
 
     virtual CommandPermission getRequiredPermission() const { return CommandPermission::GameDirectors; }
+
+    virtual std::vector<CommandOverloadData> getOverloads() const;
+
+    static CommandParamData makePlayerParameter(const std::string &name,
+                                                const std::vector<std::string> &playerNames);
 
     const std::string &getName() const { return mName; }
 

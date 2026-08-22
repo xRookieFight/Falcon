@@ -1,5 +1,7 @@
 #include "Inventory/ItemStackRequestHandler.h"
 
+#include "Core/Debug/BedrockLog.h"
+
 #include <algorithm>
 #include <vector>
 
@@ -12,7 +14,9 @@ namespace {
 
     struct RequestContext {
         const std::vector<CreativeItemData> *mCreativeItems = nullptr;
+        const std::vector<ItemStack> *mRecipeOutputs = nullptr;
         ItemStack mCreatedOutput;
+        std::vector<ItemStack> *mDroppedItems = nullptr;
     };
 
     ItemStack *resolveSlot(PlayerInventory &inventory, RequestContext &context, ContainerSlotType container,
@@ -137,11 +141,19 @@ namespace {
     }
 
     bool removeItems(PlayerInventory &inventory, RequestContext &context, const ItemStackRequestAction &action,
-                     std::vector<TouchedSlot> &touched) {
+                     std::vector<TouchedSlot> &touched, bool dropped = false) {
         ItemStack *source = resolveSlot(inventory, context, action.mSource.mContainerName.mContainer,
                                         action.mSource.mSlot);
         if (source == nullptr || source->isAir() || action.mCount <= 0 || action.mCount > source->mCount) {
             return false;
+        }
+
+        if (dropped && context.mDroppedItems != nullptr) {
+            ItemStack drop = *source;
+            drop.mCount = action.mCount;
+            drop.mUsingNetId = false;
+            drop.mNetId = 0;
+            context.mDroppedItems->push_back(drop);
         }
 
         source->mCount -= action.mCount;
@@ -174,6 +186,28 @@ namespace {
         return false;
     }
 
+    bool craftRecipe(RequestContext &context, const ItemStackRequestAction &action) {
+        if (context.mRecipeOutputs == nullptr) {
+            return false;
+        }
+
+        const int32_t netId = action.mRecipeNetworkId;
+        if (netId <= 0 || (size_t) netId > context.mRecipeOutputs->size()) {
+            return false;
+        }
+
+        const ItemStack &output = (*context.mRecipeOutputs)[(size_t) netId - 1];
+        if (output.isAir()) {
+            return false;
+        }
+
+        const int repetitions = action.mNumberOfRequestedCrafts <= 0 ? 1 : action.mNumberOfRequestedCrafts;
+
+        context.mCreatedOutput = output;
+        context.mCreatedOutput.mCount = output.mCount * repetitions;
+        return true;
+    }
+
     bool applyAction(PlayerInventory &inventory, RequestContext &context, const ItemStackRequestAction &action,
                      std::vector<TouchedSlot> &touched) {
         switch (action.mType) {
@@ -185,6 +219,8 @@ namespace {
                 return swapItems(inventory, context, action, touched);
 
             case ItemStackRequestActionType::Drop:
+                return removeItems(inventory, context, action, touched, true);
+
             case ItemStackRequestActionType::Destroy:
             case ItemStackRequestActionType::Consume:
                 return removeItems(inventory, context, action, touched);
@@ -192,12 +228,21 @@ namespace {
             case ItemStackRequestActionType::CraftCreative:
                 return createCreativeItem(context, action);
 
+            case ItemStackRequestActionType::CraftRecipe:
+            case ItemStackRequestActionType::CraftRecipeAuto:
+                return craftRecipe(context, action);
+
             case ItemStackRequestActionType::Create:
             case ItemStackRequestActionType::CraftResultsDeprecated:
+            case ItemStackRequestActionType::CraftNonImplemented:
             case ItemStackRequestActionType::MineBlock:
+            case ItemStackRequestActionType::LabTableCombine:
+            case ItemStackRequestActionType::BeaconPayment:
                 return true;
 
             default:
+                LOG_WARN(LogAreaID::Server, "Unhandled item stack request action %d",
+                         itemStackRequestActionTypeToId(action.mType));
                 return false;
         }
     }
@@ -205,7 +250,9 @@ namespace {
 }
 
 ItemStackResponseEntry ItemStackRequestHandler::execute(PlayerInventory &inventory, const ItemStackRequest &request,
-                                                       const std::vector<CreativeItemData> &creativeItems) {
+                                                       const std::vector<CreativeItemData> &creativeItems,
+                                                       const std::vector<ItemStack> &recipeOutputs,
+                                                       std::vector<ItemStack> *outDroppedItems) {
     ItemStackResponseEntry entry;
     entry.mRequestId = request.mRequestId;
     entry.mResult = RESULT_OK;
@@ -214,7 +261,9 @@ ItemStackResponseEntry ItemStackRequestHandler::execute(PlayerInventory &invento
 
     RequestContext context;
     context.mCreativeItems = &creativeItems;
+    context.mRecipeOutputs = &recipeOutputs;
     context.mCreatedOutput = ItemStack::air();
+    context.mDroppedItems = outDroppedItems;
 
     for (const ItemStackRequestAction &action: request.mActions) {
         if (!applyAction(inventory, context, action, touched)) {

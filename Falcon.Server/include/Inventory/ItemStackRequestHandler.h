@@ -13,5 +13,7 @@ public:
     static const int RESULT_ERROR = 1;
 
     static ItemStackResponseEntry execute(PlayerInventory &inventory, const ItemStackRequest &request,
-                                          const std::vector<CreativeItemData> &creativeItems);
+                                          const std::vector<CreativeItemData> &creativeItems,
+                                          const std::vector<ItemStack> &recipeOutputs,
+                                          std::vector<ItemStack> *outDroppedItems = nullptr);
 };

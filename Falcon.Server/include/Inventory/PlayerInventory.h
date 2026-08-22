@@ -65,6 +65,10 @@ public:
 
     bool addItem(const ItemStack &item);
 
+    bool addItem(const ItemStack &item, std::vector<int> &outTouchedSlots);
+
+    int addItemPartial(const ItemStack &item, std::vector<int> &outTouchedSlots);
+
     void clear();
 
     void assignNetId(ItemStack &item);

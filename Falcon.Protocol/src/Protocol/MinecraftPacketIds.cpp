@@ -46,6 +46,8 @@ const char *toString(MinecraftPacketIds id) {
             return "AddPainting";
         case MinecraftPacketIds::BlockEvent:
             return "BlockEvent";
+        case MinecraftPacketIds::EntityEvent:
+            return "EntityEvent";
         case MinecraftPacketIds::MobEffect:
             return "MobEffect";
         case MinecraftPacketIds::UpdateAttributes:

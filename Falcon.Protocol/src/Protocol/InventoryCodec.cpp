@@ -5,6 +5,23 @@
 
 namespace {
 
+    void skipRecipeIngredient(ReadOnlyBinaryStream &stream) {
+        const uint32_t descriptorType = stream.getUnsignedVarInt();
+        stream.getByte();
+
+        if (descriptorType == 1) {
+            stream.getString();
+            stream.getVarInt();
+        } else if (descriptorType == 2) {
+            stream.getString();
+            stream.getLShort();
+        } else if (descriptorType == 3) {
+            stream.getString();
+        }
+
+        stream.getLShort();
+    }
+
     int32_t itemStackRequestActionJavaOrdinal(ItemStackRequestActionType type) {
         switch (type) {
             case ItemStackRequestActionType::Take:
@@ -285,7 +302,16 @@ namespace {
                 break;
             case ItemStackRequestActionType::CraftNonImplemented:
                 break;
-            case ItemStackRequestActionType::CraftRecipeAuto:
+            case ItemStackRequestActionType::CraftRecipeAuto: {
+                action.mRecipeNetworkId = stream.getVarInt();
+                action.mNumberOfRequestedCrafts = stream.getByte();
+
+                const uint32_t ingredientCount = stream.getUnsignedVarInt();
+                for (uint32_t i = 0; i < ingredientCount; i++)
+                    skipRecipeIngredient(stream);
+
+                break;
+            }
             case ItemStackRequestActionType::CraftResultsDeprecated:
                 throw BinaryDataException("ItemStackRequestAction crafting-ingredient decoding is not supported yet");
         }
@@ -362,7 +388,13 @@ ItemUseTransaction InventoryCodec::readItemUseTransaction(ReadOnlyBinaryStream &
 
     transaction.mLegacyRequestId = stream.getVarInt();
     if (stream.getBool()) {
-        throw BinaryDataException("Legacy item use transaction slots are not supported");
+        const uint32_t changedSlotSetCount = stream.getUnsignedVarInt();
+        for (uint32_t i = 0; i < changedSlotSetCount; i++) {
+            stream.getByte();
+            const uint32_t changedSlotCount = stream.getUnsignedVarInt();
+            for (uint32_t j = 0; j < changedSlotCount; j++)
+                stream.getByte();
+        }
     }
 
     if (stream.getBool() && stream.getBool()) {
@@ -391,14 +423,14 @@ ItemUseTransaction InventoryCodec::readItemUseTransaction(ReadOnlyBinaryStream &
 
 void InventoryCodec::writePlayerBlockActionData(BinaryStream &stream, const PlayerBlockActionData &data) {
     stream.putVarInt((int32_t) data.mAction);
-    stream.putVector3i(data.mBlockPosition);
+    stream.putBlockPosition(data.mBlockPosition);
     stream.putVarInt(data.mFace);
 }
 
 PlayerBlockActionData InventoryCodec::readPlayerBlockActionData(ReadOnlyBinaryStream &stream) {
     PlayerBlockActionData data;
     data.mAction = (PlayerActionType) stream.getVarInt();
-    data.mBlockPosition = stream.getVector3i();
+    data.mBlockPosition = stream.getBlockPosition();
     data.mFace = stream.getVarInt();
     return data;
 }

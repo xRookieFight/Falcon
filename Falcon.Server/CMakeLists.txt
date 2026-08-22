@@ -25,19 +25,39 @@ add_executable(FalconServer
         src/Network/ServerNetworkHandler.cpp
         src/Network/ConnectionRequest.cpp
         src/Network/LoginChainVerifier.cpp
+        src/Network/AuthKeyProvider.cpp
+        src/Network/BadPacketCheck.cpp
+        src/Network/BlockActionHandler.cpp
+        src/Network/ChatHandler.cpp
+        src/Network/InventoryHandler.cpp
+        src/Network/LoginHandler.cpp
+        src/Network/MovementHandler.cpp
+        src/Network/ItemEntityHandler.cpp
         src/Command/Command.cpp
         src/Command/ConsoleCommandSender.cpp
         src/Command/DeopCommand.cpp
+        src/Command/EnchantCommand.cpp
         src/Command/OpCommand.cpp
         src/Command/CommandMap.cpp
         src/Command/GameModeCommand.cpp
+        src/Command/GiveCommand.cpp
+        src/Command/KillCommand.cpp
         src/Command/PlayerCommandSender.cpp
+        src/Block/BlockData.cpp
+        src/Block/CreativeContentTable.cpp
         src/Block/VanillaBlocks.cpp
         src/Entity/Entity.cpp
+        src/Entity/LivingEntity.cpp
         src/Entity/EntityAttributes.cpp
         src/Entity/EntityFlags.cpp
+        src/Entity/ExperienceManager.cpp
         src/Entity/ItemEntity.cpp
         src/Entity/ServerPlayer.cpp
+        src/Item/CraftingRecipeTable.cpp
+        src/Item/EnchantmentTable.cpp
+        src/Item/ItemDataTable.cpp
+        src/Item/ItemEnchantments.cpp
+        src/Item/ItemNetworkIdTable.cpp
         src/Item/StringToItemParser.cpp
         src/Item/VanillaItems.cpp
         src/Inventory/InventoryManager.cpp
@@ -65,7 +85,7 @@ target_link_libraries(FalconServer PRIVATE FalconNetwork FalconProtocol leveldb)
 
 if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_link_options(FalconServer PRIVATE -static -fuse-ld=lld)
-    target_link_libraries(FalconServer PRIVATE z crypto ws2_32 crypt32)
+    target_link_libraries(FalconServer PRIVATE z ssl crypto ws2_32 crypt32)
 else()
-    target_link_libraries(FalconServer PRIVATE ZLIB::ZLIB OpenSSL::Crypto)
+    target_link_libraries(FalconServer PRIVATE ZLIB::ZLIB OpenSSL::SSL OpenSSL::Crypto)
 endif()

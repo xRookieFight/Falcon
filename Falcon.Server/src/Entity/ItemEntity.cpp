@@ -8,4 +8,6 @@ ItemEntity::ItemEntity(uint64_t runtimeId, const ItemStack &item) : Entity(runti
 void ItemEntity::tick() {
     if (mPickupDelay > 0)
         mPickupDelay--;
+
+    mAge++;
 }

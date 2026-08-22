@@ -5,11 +5,16 @@
 
 class ItemEntity : public Entity {
 public:
+    static const int DEFAULT_PICKUP_DELAY = 10;
+    static const int LIFETIME_TICKS = 6000;
+
     ItemEntity(uint64_t runtimeId, const ItemStack &item);
 
     const char *getIdentifier() const override { return "minecraft:item"; }
 
     const ItemStack &getItem() const { return mItem; }
+
+    ItemStack &getItem() { return mItem; }
 
     void setItem(const ItemStack &item) { mItem = item; }
 
@@ -19,9 +24,19 @@ public:
 
     bool canPickup() const { return mPickupDelay <= 0; }
 
+    int getAge() const { return mAge; }
+
+    bool isExpired() const { return mAge >= LIFETIME_TICKS; }
+
+    bool isRemoved() const { return mRemoved; }
+
+    void setRemoved(bool removed) { mRemoved = removed; }
+
     void tick();
 
 private:
     ItemStack mItem;
-    int mPickupDelay = 10;
+    int mPickupDelay = DEFAULT_PICKUP_DELAY;
+    int mAge = 0;
+    bool mRemoved = false;
 };

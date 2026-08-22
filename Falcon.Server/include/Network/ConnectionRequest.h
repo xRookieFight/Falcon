@@ -39,6 +39,8 @@ private:
 
     SerializedSkin buildDefaultSkin() const;
 
+    static void normalizeSkin(SerializedSkin &skin);
+
     std::string mDisplayName;
     std::string mIdentity;
     std::string mXuid;

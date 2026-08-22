@@ -21,6 +21,13 @@ namespace {
     const char *TAG_INVENTORY = "Inventory";
     const char *TAG_OFF_INVENTORY = "OffInventory";
     const char *TAG_SELECTED_SLOT = "SelectedInventorySlot";
+    const char *TAG_FOOD_LEVEL = "foodLevel";
+    const char *TAG_FOOD_EXHAUSTION_LEVEL = "foodExhaustionLevel";
+    const char *TAG_FOOD_SATURATION_LEVEL = "foodSaturationLevel";
+    const char *TAG_FOOD_TICK_TIMER = "foodTickTimer";
+    const char *TAG_XP_LEVEL = "XpLevel";
+    const char *TAG_XP_PROGRESS = "XpP";
+    const char *TAG_LIFETIME_XP_TOTAL = "XpTotal";
 
     int64_t currentTimeMillis() {
         using namespace std::chrono;
@@ -45,7 +52,7 @@ namespace {
 }
 
 ServerPlayer::ServerPlayer(const NetworkIdentifier &id, uint64_t runtimeId, PacketSender *sender)
-        : Entity(runtimeId), mId(id), mLoginState(LoginState::Connecting), mSender(sender) {}
+        : LivingEntity(runtimeId), mId(id), mLoginState(LoginState::Connecting), mSender(sender) {}
 
 void ServerPlayer::sendMessage(const std::string &message) {
     if (mSender == nullptr)
@@ -117,6 +124,15 @@ Tag ServerPlayer::saveNbt(const std::string &levelName) const {
     data.putString(TAG_LAST_KNOWN_XUID, mXuid);
     data.putString(TAG_NAME, mName);
 
+    data.putInt(TAG_FOOD_LEVEL, (int32_t) getFood());
+    data.putFloat(TAG_FOOD_EXHAUSTION_LEVEL, getExhaustion());
+    data.putFloat(TAG_FOOD_SATURATION_LEVEL, getSaturation());
+    data.putInt(TAG_FOOD_TICK_TIMER, mFoodTickTimer);
+
+    data.putInt(TAG_XP_LEVEL, mExperience.getXpLevel());
+    data.putFloat(TAG_XP_PROGRESS, mExperience.getXpProgress());
+    data.putInt(TAG_LIFETIME_XP_TOTAL, mExperience.getLifetimeTotalXp());
+
     Tag inventory = Tag::ofList(Tag::Type::Compound);
 
     for (int slot = 0; slot < PlayerInventory::CONTAINER_SIZE; slot++) {
@@ -157,6 +173,15 @@ void ServerPlayer::loadNbt(const Tag &data, const PacketCodecContext &context) {
     mAttributes.set("minecraft:health", data.getFloat(TAG_HEALTH, 20.0f));
     mGameType = data.getInt(TAG_GAME_MODE, mGameType);
     mFirstPlayed = data.getLong(TAG_FIRST_PLAYED, 0);
+
+    setFood((float) data.getInt(TAG_FOOD_LEVEL, (int32_t) getFood()));
+    setExhaustion(data.getFloat(TAG_FOOD_EXHAUSTION_LEVEL, getExhaustion()));
+    setSaturation(data.getFloat(TAG_FOOD_SATURATION_LEVEL, getSaturation()));
+    setFoodTickTimer(data.getInt(TAG_FOOD_TICK_TIMER, mFoodTickTimer));
+
+    mExperience.setXpAndProgress(data.getInt(TAG_XP_LEVEL, 0), data.getFloat(TAG_XP_PROGRESS, 0.0f));
+    mExperience.setLifetimeTotalXp(data.getInt(TAG_LIFETIME_XP_TOTAL, 0));
+    syncExperience();
 
     mInventory.clear();
 

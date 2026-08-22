@@ -2,12 +2,23 @@
 
 #include "Command/ConsoleCommandSender.h"
 #include "Command/DeopCommand.h"
+#include "Command/EnchantCommand.h"
 #include "Command/GameModeCommand.h"
+#include "Command/GiveCommand.h"
+#include "Command/KillCommand.h"
 #include "Command/OpCommand.h"
 #include "Command/PlayerCommandSender.h"
 #include "Core/Debug/BedrockLog.h"
 #include "Network/ConnectionRequest.h"
+#include "Network/AuthKeyProvider.h"
+#include "Network/BadPacketCheck.h"
+#include "Network/BlockActionHandler.h"
+#include "Network/ChatHandler.h"
+#include "Network/InventoryHandler.h"
+#include "Network/ItemEntityHandler.h"
 #include "Network/LoginChainVerifier.h"
+#include "Network/LoginHandler.h"
+#include "Network/MovementHandler.h"
 #include "Core/Utility/ReadOnlyBinaryStream.h"
 #include "Protocol/MinecraftPackets.h"
 #include "Protocol/Packets/DisconnectPacket.h"
@@ -28,6 +39,8 @@
 #include "Protocol/Packets/ResourcePackChunkRequestPacket.h"
 #include "Protocol/Packets/SetLocalPlayerAsInitializedPacket.h"
 #include "Protocol/Packets/PlayerAuthInputPacket.h"
+#include "Protocol/Packets/MovePlayerPacket.h"
+#include "Protocol/Packets/CorrectPlayerMovePredictionPacket.h"
 #include "Protocol/Packets/AvailableCommandsPacket.h"
 #include "Protocol/Packets/BiomeDefinitionListPacket.h"
 #include "Protocol/Packets/CreativeContentPacket.h"
@@ -42,11 +55,13 @@
 #include "Protocol/Packets/TextPacket.h"
 #include "Protocol/Packets/UpdateAbilitiesPacket.h"
 #include "Entity/PlayerAbility.h"
-#include "Protocol/Packets/UpdateBlockPacket.h"
-#include "Protocol/BlockStateHasher.h"
 #include "Protocol/Packets/StartGamePacket.h"
-#include "Protocol/Packets/SetMovementAuthorityPacket.h"
 #include "Protocol/Packets/AvailableEntityIdentifiersPacket.h"
+#include "Protocol/Packets/DeathInfoPacket.h"
+#include "Protocol/Packets/EntityEventPacket.h"
+#include "Protocol/Packets/PlayerActionPacket.h"
+#include "Protocol/Packets/RespawnPacket.h"
+#include "Protocol/Packets/SetHealthPacket.h"
 #include "Protocol/Packets/ContainerClosePacket.h"
 #include "Protocol/Packets/CraftingDataPacket.h"
 #include "Protocol/Packets/InteractPacket.h"
@@ -54,24 +69,53 @@
 #include "Protocol/Packets/InventorySlotPacket.h"
 #include "Protocol/Packets/InventoryTransactionPacket.h"
 #include "Protocol/Packets/ItemStackRequestPacket.h"
-#include "Protocol/Packets/ItemStackResponsePacket.h"
-#include "Protocol/Packets/MobArmorEquipmentPacket.h"
 #include "Protocol/Packets/MobEquipmentPacket.h"
 #include "Protocol/Packets/PlayerHotbarPacket.h"
-#include "Inventory/ItemStackRequestHandler.h"
+#include "Block/CreativeContentTable.h"
 #include "Block/VanillaBlocks.h"
-#include "Item/VanillaItems.h"
+#include "Item/CraftingRecipeTable.h"
+#include "Item/ItemNetworkIdTable.h"
+#include "Item/ItemData.h"
+#include "Core/NBT/NbtIo.h"
 
 #include <cmath>
+#include <cstdlib>
 #include <unordered_set>
 #include <utility>
 #include "Protocol/Packets/UpdateAttributesPacket.h"
 
 static const int64_t RESOURCE_PACK_CHUNK_SIZE = 1024 * 1024;
+static const float PLAYER_BASE_OFFSET = 1.62f;
+static const int64_t FOOD_USE_DURATION_TICKS = 31;
+static const float THROW_SPEED = 0.3f;
+static const int THROW_PICKUP_DELAY = 40;
+static const char *HEALTH_ATTRIBUTE = "minecraft:health";
+static const float DEFAULT_MAX_HEALTH = 20.0f;
+static const float ITEM_DROP_HEIGHT = 1.3f;
+
+namespace {
+    float maxHealthOf(const Entity &entity) {
+        for (const AttributeData &attribute: entity.getAttributes().getAll()) {
+            if (attribute.mName == HEALTH_ATTRIBUTE)
+                return attribute.mMaximum;
+        }
+
+        return DEFAULT_MAX_HEALTH;
+    }
+
+    float randomUnitFloat() {
+        return (float) (rand() % 1000) / 1000.0f;
+    }
+
+    Vector3f randomDropMotion() {
+        return Vector3f(randomUnitFloat() * 0.2f - 0.1f, 0.2f, randomUnitFloat() * 0.2f - 0.1f);
+    }
+}
 
 ServerNetworkHandler::ServerNetworkHandler(const std::string &serverName, const std::string &subName, int maxPlayers)
         : mRakNetInstance(nullptr), mCodecContext(mBlockDefinitions, mItemDefinitions), mMaxPlayers(maxPlayers),
-          mIsListening(false), mNextRuntimeId(1), mLevel("Bedrock level", DEFAULT_VIEW_DISTANCE),
+          mIsListening(false), mKeepInventory(false), mNextRuntimeId(1),
+          mLevel("Bedrock level", DEFAULT_VIEW_DISTANCE),
           mPlayerData("players"), mOps("ops.txt") {
     std::unique_ptr<RakNetInstance> instance(new RakNetInstance(*this, true));
     mRakNetInstance = instance.get();
@@ -88,9 +132,14 @@ ServerNetworkHandler::ServerNetworkHandler(const std::string &serverName, const 
     mCommands.registerCommand(std::make_shared<GameModeCommand>(*this));
     mCommands.registerCommand(std::make_shared<OpCommand>(*this));
     mCommands.registerCommand(std::make_shared<DeopCommand>(*this));
+    mCommands.registerCommand(std::make_shared<GiveCommand>(*this));
+    mCommands.registerCommand(std::make_shared<EnchantCommand>(*this));
+    mCommands.registerCommand(std::make_shared<KillCommand>(*this));
 
     mResourcePacks.loadFromDirectory("resource_packs");
     _registerVanillaDefinitions();
+
+    AuthKeyProvider::getInstance().start();
 }
 
 int ServerNetworkHandler::_getServerViewDistance() const {
@@ -105,30 +154,7 @@ int ServerNetworkHandler::_getServerViewDistance() const {
 }
 
 void ServerNetworkHandler::_registerVanillaDefinitions() {
-    for (const Block &block: VanillaBlocks::getAll()) {
-        mBlockDefinitions.registerDefinition(std::make_shared<BlockDefinition>(
-                block.getIdentifier(), block.getNetworkHash(), block.getStates()));
-    }
-
-    int runtimeId = 1;
-    for (const Item &item: VanillaItems::getAll()) {
-        if (item.getIdentifier() == "minecraft:air")
-            continue;
-
-        mItemDefinitions.registerDefinition(std::make_shared<ItemDefinition>(
-                item.getIdentifier(), runtimeId++, false, Tag::ofCompound()));
-    }
-
-    for (const Block &block: VanillaBlocks::getAll()) {
-        if (block.getIdentifier() == "minecraft:air")
-            continue;
-
-        mItemDefinitions.registerDefinition(std::make_shared<ItemDefinition>(
-                block.getIdentifier(), runtimeId++, false, Tag::ofCompound()));
-    }
-
-    LOG_INFO(LogAreaID::Server, "Registered %zu block(s) and %d item definition(s)",
-             VanillaBlocks::getAll().size(), runtimeId - 1);
+    LoginHandler::registerVanillaDefinitions(*this);
 }
 
 ServerNetworkHandler::~ServerNetworkHandler() {
@@ -196,14 +222,38 @@ void ServerNetworkHandler::stopServerListening() {
     if (!mIsListening)
         return;
 
-    mNetworkHandler->disconnect();
+    if (!mPlayers.empty()) {
+        LOG_INFO(LogAreaID::Server, "Saving data for %zu player(s)", mPlayers.size());
+
+        for (auto &entry: mPlayers) {
+            ServerPlayer &player = entry.second;
+
+            if (!player.getName().empty())
+                _savePlayerData(player);
+
+            _disconnect(entry.first, "Server closed");
+        }
+
+        mPlayers.clear();
+        mNetworkHandler->runEvents();
+    }
+
+    LOG_INFO(LogAreaID::Server, "Saving level %s", mLevel.getName().c_str());
     mLevel.closeStorage();
+
+    AuthKeyProvider::getInstance().stop();
+
+    mNetworkHandler->disconnect();
     mIsListening = false;
+
+    LOG_INFO(LogAreaID::Server, "Server stopped.");
 }
 
 void ServerNetworkHandler::tick() {
     if (!mIsListening)
         return;
+
+    mCurrentTick++;
 
     {
         std::lock_guard<std::mutex> lock(mConsoleQueueMutex);
@@ -222,12 +272,42 @@ void ServerNetworkHandler::tick() {
         if (player.getLoginState() < ServerPlayer::LoginState::StartGameSent)
             continue;
 
+        if (player.hasPendingMove()) {
+            MovementHandler::handleMovement(*this, player, player.getPendingMovePosition(),
+                                            player.getPendingMoveRotation());
+            player.clearPendingMove();
+        }
+
+        if (player.isBreakingBlock()) {
+            const Vector3i breakingPosition = player.getBreakingBlockPosition();
+            const Vector3f breakingCenter((float) breakingPosition.x + 0.5f, (float) breakingPosition.y + 0.5f,
+                                          (float) breakingPosition.z + 0.5f);
+            const Vector3f feet = player.getPosition();
+            const float dx = feet.x - breakingCenter.x;
+            const float dy = feet.y - breakingCenter.y;
+            const float dz = feet.z - breakingCenter.z;
+
+            if (dx * dx + dy * dy + dz * dz > 256.0f) {
+                BlockActionHandler::stopBreakingBlock(*this, player);
+            } else {
+                BlockActionHandler::continueBreakingBlock(*this, player);
+
+                if (player.isBreakingBlock() && player.getBreakingFxTicker() % 5 == 0)
+                    BlockActionHandler::sendBreakingFx(*this, player);
+            }
+        }
+
+        if (player.isSpawned() && player.tickHunger(1, (int) mProperties.getDifficulty()))
+            _sendAttributes(player);
+
         if (!player.hasChunkPosition())
             continue;
 
         _sendChunks(player);
         _checkTerrainReady(player);
     }
+
+    ItemEntityHandler::tickItemEntities(*this);
 
     _updateServerAnnouncement();
 }
@@ -276,10 +356,21 @@ void ServerNetworkHandler::_loadPlayerData(ServerPlayer &player) {
     player.setOp(mOps.isOp(player.getName()));
 
     Tag data;
-    if (!mPlayerData.loadData(player.getName(), data))
+    if (!mPlayerData.loadData(player.getName(), data)) {
+        player.resetFallDistance();
         return;
+    }
 
     player.loadNbt(data, mCodecContext);
+    player.resetFallDistance();
+
+    if (player.getAttributes().get(HEALTH_ATTRIBUTE) <= 0.0f) {
+        player.setDead(false);
+        player.getAttributes().set(HEALTH_ATTRIBUTE, maxHealthOf(player));
+        player.setPosition(mLevel.getSpawnPositionForPlayer());
+        player.resetFallDistance();
+    }
+
     LOG_INFO(LogAreaID::Server, "Loaded player data for %s at %.2f %.2f %.2f, rotation %.2f %.2f, mode %d",
              player.getName().c_str(), player.getPosition().x, player.getPosition().y, player.getPosition().z,
              player.getRotation().x, player.getRotation().y, player.getGameType());
@@ -303,10 +394,19 @@ void ServerNetworkHandler::onDataReceived(const NetworkIdentifier &id, const std
         packet->mClientSubId = clientSubId;
         packet->read(stream, mCodecContext);
 
-        LOG_TRACE(LogAreaID::Network, "Received %s from %s", packet->getName(), id.getAddress().c_str());
+        if (packetId != MinecraftPacketIds::PlayerAuthInput)
+            LOG_INFO(LogAreaID::Network, "RECV %s (id %d)", packet->getName(), (int) packetId);
         packet->handle(id, *this);
     } catch (const BinaryDataException &exception) {
         LOG_WARN(LogAreaID::Network, "Malformed packet from %s: %s", id.getAddress().c_str(), exception.what());
+        _disconnect(id, "Malformed packet");
+    } catch (const std::exception &exception) {
+        LOG_ERROR(LogAreaID::Network, "Unhandled exception while processing a packet from %s: %s",
+                  id.getAddress().c_str(), exception.what());
+        _disconnect(id, "Internal server error");
+    } catch (...) {
+        LOG_ERROR(LogAreaID::Network, "Unknown exception while processing a packet from %s", id.getAddress().c_str());
+        _disconnect(id, "Internal server error");
     }
 }
 
@@ -326,41 +426,7 @@ void ServerNetworkHandler::_disconnect(const NetworkIdentifier &id, const std::s
 }
 
 void ServerNetworkHandler::handle(const NetworkIdentifier &id, const RequestNetworkSettingsPacket &packet) {
-    LOG_INFO(LogAreaID::Network, "%s requested network settings, client protocol version %d",
-             id.getAddress().c_str(), packet.mProtocolVersion);
-
-    if (packet.mProtocolVersion != mAnnouncement.mProtocolVersion) {
-        PlayStatusPacket status;
-        status.mStatus = packet.mProtocolVersion < mAnnouncement.mProtocolVersion
-                         ? PlayStatusPacket::Status::LoginFailedClientOld
-                         : PlayStatusPacket::Status::LoginFailedServerOld;
-
-        mNetworkHandler->send(id, status, mCodecContext);
-        mNetworkHandler->flush(id);
-
-        LOG_WARN(LogAreaID::Network, "%s uses protocol %d but the server runs %d", id.getAddress().c_str(),
-                 packet.mProtocolVersion, mAnnouncement.mProtocolVersion);
-        return;
-    }
-
-    NetworkSettingsPacket settings;
-    settings.mCompressionThreshold = mProperties.getCompressionThreshold();
-    settings.mCompressionAlgorithm = mProperties.getCompressionAlgorithm();
-    settings.mClientThrottleEnabled = false;
-    settings.mClientThrottleThreshold = 0;
-    settings.mClientThrottleScalar = 0.0f;
-
-    mNetworkHandler->send(id, settings, mCodecContext);
-
-    // the settings themselves travel uncompressed, everything after them does not
-    mNetworkHandler->flush(id);
-    mNetworkHandler->enableCompression(id, CompressedNetworkPeer::CompressionAlgorithm::ZLib,
-                                       settings.mCompressionThreshold);
-
-    mPlayers.erase(id);
-    ServerPlayer player(id, mNextRuntimeId++, this);
-    player.setLoginState(ServerPlayer::LoginState::NetworkSettingsSent);
-    mPlayers.insert(std::make_pair(id, player));
+    LoginHandler::handleRequestNetworkSettings(*this, id, packet);
 }
 
 void ServerNetworkHandler::handle(const NetworkIdentifier &id, const LoginPacket &packet) {
@@ -370,64 +436,7 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const LoginPacket
         return;
     }
 
-    ConnectionRequest request;
-    if (!request.parse(packet.mAuthJwt, packet.mClientJwt)) {
-        LOG_WARN(LogAreaID::Network, "%s sent a login that could not be parsed", id.getAddress().c_str());
-        _disconnect(id, "Malformed login");
-        return;
-    }
-
-    LoginChainVerifier verifier;
-    const bool verified = verifier.verify(packet.mAuthJwt);
-
-    if (mProperties.getXboxAuthRequired() && (!verified || !verifier.isSigned())) {
-        LOG_WARN(LogAreaID::Network, "%s failed Xbox Live authentication", id.getAddress().c_str());
-        _disconnect(id, "You must be authenticated with Xbox Live to join");
-        mPlayers.erase(id);
-        return;
-    }
-
-    if (verified && verifier.isSigned()) {
-        player->setName(verifier.getDisplayName());
-        player->setUuid(verifier.getIdentity());
-        player->setXuid(verifier.getXuid());
-    } else {
-        player->setName(request.getDisplayName());
-        player->setUuid(request.getIdentity());
-        player->setXuid(request.getXuid());
-    }
-
-    player->setSkin(request.getSkin());
-    player->setBuildPlatform(request.getBuildPlatform());
-    player->setLoginState(ServerPlayer::LoginState::LoggedIn);
-
-    LOG_INFO(LogAreaID::Server, "Player %s logged in, uuid %s, xuid %s", player->getName().c_str(),
-             player->getUuid().c_str(), player->getXuid().c_str());
-
-    PlayStatusPacket status;
-    status.mStatus = PlayStatusPacket::Status::LoginSuccess;
-    mNetworkHandler->send(id, status, mCodecContext);
-
-    ResourcePacksInfoPacket packs;
-    packs.mForcedToAccept = mProperties.getTexturePackRequired();
-    packs.mWorldTemplateVersion = "";
-    packs.mHasAddonPacks = false;
-    packs.mScriptingEnabled = false;
-    packs.mVibrantVisualsForceDisabled = false;
-
-    for (const ResourcePack &pack: mResourcePacks.getPacks()) {
-        ResourcePacksInfoPacket::Entry entry;
-        entry.mPackId = pack.mUuid;
-        entry.mPackVersion = pack.mVersion;
-        entry.mPackSize = pack.mSize;
-        entry.mContentKey = pack.mContentKey;
-        entry.mContentId = pack.mUuidString;
-        packs.mResourcePackInfos.push_back(entry);
-    }
-
-    mNetworkHandler->send(id, packs, mCodecContext);
-
-    player->setLoginState(ServerPlayer::LoginState::ResourcePacksSent);
+    LoginHandler::handleLogin(*this, id, *player, packet);
 }
 
 void ServerNetworkHandler::handle(const NetworkIdentifier &id, const ResourcePackClientResponsePacket &packet) {
@@ -435,144 +444,15 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const ResourcePac
     if (player == nullptr)
         return;
 
-    switch (packet.mStatus) {
-        case ResourcePackClientResponsePacket::Status::SendPacks: {
-            for (const std::string &requested: packet.mPackIds) {
-                const std::string uuid = requested.substr(0, requested.find('_'));
-                const ResourcePack *pack = mResourcePacks.findById(uuid);
-                if (pack == nullptr)
-                    continue;
-
-                ResourcePackDataInfoPacket info;
-                info.mPackId = pack->mUuid;
-                info.mPackVersion = pack->mVersion;
-                info.mMaxChunkSize = RESOURCE_PACK_CHUNK_SIZE;
-                info.mChunkCount = (int64_t) ((pack->mSize + RESOURCE_PACK_CHUNK_SIZE - 1) / RESOURCE_PACK_CHUNK_SIZE);
-                info.mCompressedPackSize = (int64_t) pack->mSize;
-                info.mHash = pack->mSha256;
-                info.mType = ResourcePackType::Resources;
-                mNetworkHandler->send(id, info, mCodecContext);
-            }
-            break;
-        }
-
-        case ResourcePackClientResponsePacket::Status::HaveAllPacks: {
-            ResourcePackStackPacket stack;
-            stack.mForcedToAccept = mProperties.getTexturePackRequired();
-            stack.mGameVersion = mAnnouncement.mGameVersion;
-
-            for (const ResourcePack &pack: mResourcePacks.getPacks()) {
-                ResourcePackStackPacket::Entry entry;
-                entry.mPackId = pack.mUuidString;
-                entry.mPackVersion = pack.mVersion;
-                stack.mResourcePacks.push_back(entry);
-            }
-
-            mNetworkHandler->send(id, stack, mCodecContext);
-            break;
-        }
-
-        case ResourcePackClientResponsePacket::Status::Completed:
-            _sendStartGame(*player);
-            break;
-
-        case ResourcePackClientResponsePacket::Status::Refused:
-            _disconnect(id, "You must accept the resource packs to join");
-            break;
-
-        default:
-            break;
-    }
+    LoginHandler::handleResourcePackClientResponse(*this, id, *player, packet);
 }
 
 void ServerNetworkHandler::handle(const NetworkIdentifier &id, const ResourcePackChunkRequestPacket &packet) {
-    const ResourcePack *pack = mResourcePacks.findById(packet.mPackId.toString());
-    if (pack == nullptr) {
-        LOG_WARN(LogAreaID::Network, "Client requested unknown resource pack %s", packet.mPackId.toString().c_str());
-        return;
-    }
-
-    const uint64_t offset = (uint64_t) packet.mChunkIndex * (uint64_t) RESOURCE_PACK_CHUNK_SIZE;
-    if (offset >= pack->mSize)
-        return;
-
-    const uint64_t remaining = pack->mSize - offset;
-    const uint64_t length = remaining < (uint64_t) RESOURCE_PACK_CHUNK_SIZE ? remaining : (uint64_t) RESOURCE_PACK_CHUNK_SIZE;
-
-    ResourcePackChunkDataPacket chunk;
-    chunk.mPackId = pack->mUuid;
-    chunk.mPackVersion = pack->mVersion;
-    chunk.mChunkIndex = packet.mChunkIndex;
-    chunk.mProgress = (int64_t) offset;
-    chunk.mData = pack->mData.substr(offset, length);
-    mNetworkHandler->send(id, chunk, mCodecContext);
+    LoginHandler::handleResourcePackChunkRequest(*this, id, packet);
 }
 
 void ServerNetworkHandler::_sendStartGame(ServerPlayer &player) {
-    const NetworkIdentifier &id = player.getNetworkIdentifier();
-
-    player.getFlags().applyPlayerDefaults();
-    player.getAttributes() = EntityAttributes::createPlayerDefaults();
-    player.setGameType((int32_t) mProperties.getGameType());
-    _loadPlayerData(player);
-
-    StartGamePacket startGame;
-    startGame.mUniqueEntityId = player.getUniqueId();
-    startGame.mRuntimeEntityId = player.getRuntimeId();
-    startGame.mPlayerGameType = (GameType) player.getGameType();
-    startGame.mPlayerPosition = player.getPosition();
-    startGame.mRotation = Vector2f(player.getRotation().x, player.getRotation().y);
-
-    startGame.mSeed = 0;
-    startGame.mDimensionId = 0;
-    startGame.mGeneratorId = 1;
-    startGame.mLevelGameType = mProperties.getGameType();
-    startGame.mDifficulty = (int32_t) mProperties.getDifficulty();
-    startGame.mDefaultSpawn = mLevel.getSpawnPosition();
-    startGame.mCommandsEnabled = mProperties.getAllowCheats();
-    startGame.mTexturePacksRequired = mProperties.getTexturePackRequired();
-    startGame.mDefaultPlayerPermission = mProperties.getDefaultPlayerPermissionLevel();
-    startGame.mChatRestrictionLevel = mProperties.getChatRestrictionLevel();
-    startGame.mDisablingPlayerInteractions = mProperties.getDisablePlayerInteraction();
-    startGame.mClientSideGenerationEnabled = mProperties.getClientSideChunkGenerationEnabled();
-    startGame.mDisablingCustomSkins = mProperties.getDisableCustomSkins();
-    startGame.mServerChunkTickRange = mProperties.getTickDistance();
-    startGame.mVanillaVersion = mAnnouncement.mGameVersion;
-    startGame.mLevelId = "RmFsY29u";
-    startGame.mLevelName = mLevel.getName();
-    startGame.mMultiplayerCorrelationId = "";
-    startGame.mServerEngine = "Falcon";
-    startGame.mCurrentTick = 0;
-    startGame.mEnchantmentSeed = 0;
-    startGame.mBlockNetworkIdsHashed = mProperties.getBlockNetworkIdsAreHashes();
-    startGame.mInventoriesServerAuthoritative = true;
-
-    startGame.mGamerules.push_back(GameRuleData::ofBool("showcoordinates", true));
-
-    mNetworkHandler->send(id, startGame, mCodecContext);
-
-    SetMovementAuthorityPacket movementAuthority;
-    movementAuthority.mMode = AuthoritativeMovementMode::Server;
-    mNetworkHandler->send(id, movementAuthority, mCodecContext);
-
-    player.setLoginState(ServerPlayer::LoginState::StartGameSent);
-    LOG_INFO(LogAreaID::Server, "Sent StartGame to %s", player.getName().c_str());
-
-    player.getInventoryManager().attach(&player, this);
-
-    _sendItemComponents(player);
-    _sendActorIdentifiers(player);
-    _sendBiomeDefinitions(player);
-    _sendAttributes(player);
-    _sendAvailableCommands(player);
-    _sendAbilities(player);
-    _sendEntityData(player);
-
-    player.getInventoryManager().syncAll();
-    player.getInventoryManager().syncSelectedHotbarSlot();
-
-    _sendCreativeContent(player);
-    _sendCraftingData(player);
+    LoginHandler::sendStartGame(*this, player);
 }
 
 void ServerNetworkHandler::_sendEntityData(ServerPlayer &player) {
@@ -614,286 +494,253 @@ void ServerNetworkHandler::queueConsoleCommand(const std::string &commandLine) {
 }
 
 void ServerNetworkHandler::_sendAbilities(ServerPlayer &player) {
-    const int32_t gameType = player.getGameType();
-    const bool isCreative = gameType == (int32_t) GameType::Creative;
-    const bool isSpectator = gameType == (int32_t) GameType::Spectator;
-    const bool isAdventure = gameType == (int32_t) GameType::Adventure;
-
-    const uint32_t abilitiesSet = (1u << (int) PlayerAbility::Build) | (1u << (int) PlayerAbility::Mine) |
-                                  (1u << (int) PlayerAbility::DoorsAndSwitches) |
-                                  (1u << (int) PlayerAbility::OpenContainers) |
-                                  (1u << (int) PlayerAbility::AttackPlayers) |
-                                  (1u << (int) PlayerAbility::AttackMobs) |
-                                  (1u << (int) PlayerAbility::OperatorCommands) |
-                                  (1u << (int) PlayerAbility::Teleport) |
-                                  (1u << (int) PlayerAbility::Invulnerable) |
-                                  (1u << (int) PlayerAbility::Flying) | (1u << (int) PlayerAbility::MayFly) |
-                                  (1u << (int) PlayerAbility::Instabuild) |
-                                  (1u << (int) PlayerAbility::WorldBuilder) | (1u << (int) PlayerAbility::NoClip) |
-                                  (1u << (int) PlayerAbility::WalkSpeed) | (1u << (int) PlayerAbility::FlySpeed) |
-                                  (1u << (int) PlayerAbility::VerticalFlySpeed);
-
-    uint32_t abilityValues = 1u << (int) PlayerAbility::WalkSpeed;
-    abilityValues |= 1u << (int) PlayerAbility::FlySpeed;
-    abilityValues |= 1u << (int) PlayerAbility::VerticalFlySpeed;
-    abilityValues |= 1u << (int) PlayerAbility::WorldBuilder;
-
-    if (isSpectator) {
-        abilityValues |= 1u << (int) PlayerAbility::Invulnerable;
-        abilityValues |= 1u << (int) PlayerAbility::Flying;
-        abilityValues |= 1u << (int) PlayerAbility::MayFly;
-        abilityValues |= 1u << (int) PlayerAbility::NoClip;
-    } else {
-        abilityValues |= 1u << (int) PlayerAbility::Build;
-        abilityValues |= 1u << (int) PlayerAbility::Mine;
-        abilityValues |= 1u << (int) PlayerAbility::DoorsAndSwitches;
-        abilityValues |= 1u << (int) PlayerAbility::OpenContainers;
-        abilityValues |= 1u << (int) PlayerAbility::AttackMobs;
-
-        if (!isAdventure)
-            abilityValues |= 1u << (int) PlayerAbility::AttackPlayers;
-
-        if (isCreative) {
-            abilityValues |= 1u << (int) PlayerAbility::MayFly;
-            abilityValues |= 1u << (int) PlayerAbility::Instabuild;
-        }
-    }
-
-    if (player.isOp()) {
-        abilityValues |= 1u << (int) PlayerAbility::Build;
-        abilityValues |= 1u << (int) PlayerAbility::Mine;
-        abilityValues |= 1u << (int) PlayerAbility::DoorsAndSwitches;
-        abilityValues |= 1u << (int) PlayerAbility::OpenContainers;
-        abilityValues |= 1u << (int) PlayerAbility::AttackPlayers;
-        abilityValues |= 1u << (int) PlayerAbility::AttackMobs;
-        abilityValues |= 1u << (int) PlayerAbility::OperatorCommands;
-        abilityValues |= 1u << (int) PlayerAbility::Teleport;
-    }
-
-    if (player.isFlying())
-        abilityValues |= 1u << (int) PlayerAbility::Flying;
-
-    AbilityLayer layer;
-    layer.mLayerType = 1;
-    layer.mAbilitiesSet = abilitiesSet;
-    layer.mAbilityValues = abilityValues;
-    layer.mWalkSpeed = 0.1f;
-    layer.mFlySpeed = 0.05f;
-    layer.mVerticalFlySpeed = 1.0f;
-
-    UpdateAbilitiesPacket abilities;
-    abilities.mAbilities.mUniqueEntityId = player.getUniqueId();
-    abilities.mAbilities.mPlayerPermission = (uint8_t) (player.isOp() ? PlayerPermission::Operator
-                                                                     : mProperties.getDefaultPlayerPermissionLevel());
-    abilities.mAbilities.mCommandPermission = (uint8_t) (player.isOp() ? CommandPermission::GameDirectors
-                                                                       : CommandPermission::Any);
-    abilities.mAbilities.mAbilityLayers.push_back(layer);
-
-    mNetworkHandler->send(player.getNetworkIdentifier(), abilities, mCodecContext);
+    LoginHandler::sendAbilities(*this, player);
 }
 
 void ServerNetworkHandler::_sendBiomeDefinitions(ServerPlayer &player) {
-    BiomeDefinitionListPacket biomes;
-    biomes.mBiomes = mBiomes.getBiomes();
-
-    mNetworkHandler->send(player.getNetworkIdentifier(), biomes, mCodecContext);
+    LoginHandler::sendBiomeDefinitions(*this, player);
 }
 
 void ServerNetworkHandler::_sendItemComponents(ServerPlayer &player) {
-    ItemComponentPacket components;
-
-    for (const std::shared_ptr<ItemDefinition> &definition: mItemDefinitions.getAll()) {
-        ItemComponentEntry entry;
-        entry.mIdentifier = definition->getIdentifier();
-        entry.mRuntimeId = (int16_t) definition->getRuntimeId();
-        entry.mComponentBased = definition->isComponentBased();
-        entry.mItemVersion = 0;
-        entry.mComponentData = definition->getComponentData();
-        components.mEntries.push_back(entry);
-    }
-
-    mNetworkHandler->send(player.getNetworkIdentifier(), components, mCodecContext);
-
-    LOG_INFO(LogAreaID::Server, "Sent %zu item component(s) to %s", components.mEntries.size(),
-             player.getName().c_str());
+    LoginHandler::sendItemComponents(*this, player);
 }
 
 void ServerNetworkHandler::_sendActorIdentifiers(ServerPlayer &player) {
-    AvailableEntityIdentifiersPacket identifiers;
-    identifiers.mIdentifiers = Tag::ofCompound();
-    identifiers.mIdentifiers.put("idlist", Tag::ofList(Tag::Type::Compound));
+    LoginHandler::sendActorIdentifiers(*this, player);
+}
 
-    mNetworkHandler->send(player.getNetworkIdentifier(), identifiers, mCodecContext);
+void ServerNetworkHandler::_buildCraftingData() {
+    LoginHandler::buildCraftingData(*this);
 }
 
 void ServerNetworkHandler::_sendCraftingData(ServerPlayer &player) {
-    CraftingDataPacket crafting;
-    crafting.mCleanRecipes = true;
-
-    mNetworkHandler->send(player.getNetworkIdentifier(), crafting, mCodecContext);
+    LoginHandler::sendCraftingData(*this, player);
 }
 
 void ServerNetworkHandler::_buildCreativeContent() {
-    if (!mCreativeItems.empty())
-        return;
-
-    CreativeItemGroup constructionGroup;
-    constructionGroup.mCategory = (uint8_t) CreativeItemCategory::Construction;
-    constructionGroup.mName = "itemGroup.name.construction";
-    constructionGroup.mIcon = ItemStack::air();
-    mCreativeGroups.push_back(constructionGroup);
-
-    CreativeItemGroup itemsGroup;
-    itemsGroup.mCategory = (uint8_t) CreativeItemCategory::Items;
-    itemsGroup.mName = "itemGroup.name.items";
-    itemsGroup.mIcon = ItemStack::air();
-    mCreativeGroups.push_back(itemsGroup);
-
-    int32_t netId = 1;
-
-    for (const Block &block: VanillaBlocks::getAll()) {
-        if (block.getIdentifier() == "minecraft:air")
-            continue;
-
-        std::shared_ptr<ItemDefinition> definition = mItemDefinitions.getDefinition(block.getIdentifier());
-        if (definition == nullptr)
-            continue;
-
-        CreativeItemData entry;
-        entry.mNetId = netId++;
-        entry.mGroupIndex = 0;
-        entry.mItem.mDefinition = definition;
-        entry.mItem.mBlockDefinition = mBlockDefinitions.getDefinition(block.getIdentifier());
-        entry.mItem.mCount = 1;
-        mCreativeItems.push_back(entry);
-    }
-
-    for (const Item &item: VanillaItems::getAll()) {
-        if (item.getIdentifier() == "minecraft:air")
-            continue;
-
-        std::shared_ptr<ItemDefinition> definition = mItemDefinitions.getDefinition(item.getIdentifier());
-        if (definition == nullptr)
-            continue;
-
-        CreativeItemData entry;
-        entry.mNetId = netId++;
-        entry.mGroupIndex = 1;
-        entry.mItem.mDefinition = definition;
-        entry.mItem.mCount = 1;
-        mCreativeItems.push_back(entry);
-    }
+    LoginHandler::buildCreativeContent(*this);
 }
 
 void ServerNetworkHandler::_sendCreativeContent(ServerPlayer &player) {
-    _buildCreativeContent();
-
-    CreativeContentPacket creative;
-    creative.mGroups = mCreativeGroups;
-    creative.mItems = mCreativeItems;
-
-    mNetworkHandler->send(player.getNetworkIdentifier(), creative, mCodecContext);
-
-    LOG_INFO(LogAreaID::Server, "Sent %zu creative item(s) to %s", creative.mItems.size(),
-             player.getName().c_str());
+    LoginHandler::sendCreativeContent(*this, player);
 }
 
 void ServerNetworkHandler::_sendInventory(ServerPlayer &player) {
-    player.getInventoryManager().syncAll();
-    player.getInventoryManager().syncSelectedHotbarSlot();
-    _sendArmorContent(player);
-    _sendOffhandContent(player);
-    _sendHeldItem(player);
-}
-
-void ServerNetworkHandler::_sendArmorContent(ServerPlayer &player) {
-    const PlayerInventory &inventory = player.getInventory();
-
-    MobArmorEquipmentPacket equipment;
-    equipment.mRuntimeEntityId = (int64_t) player.getRuntimeId();
-    equipment.mHelmet = inventory.getArmor(PlayerInventory::ARMOR_HEAD);
-    equipment.mChestplate = inventory.getArmor(PlayerInventory::ARMOR_TORSO);
-    equipment.mLeggings = inventory.getArmor(PlayerInventory::ARMOR_LEGS);
-    equipment.mBoots = inventory.getArmor(PlayerInventory::ARMOR_FEET);
-    equipment.mBody = ItemStack::air();
-
-    for (auto &entry: mPlayers) {
-        if (entry.second.isSpawned() && &entry.second != &player)
-            mNetworkHandler->send(entry.second.getNetworkIdentifier(), equipment, mCodecContext);
-    }
-}
-
-void ServerNetworkHandler::_sendOffhandContent(ServerPlayer &player) {
-    const ItemStack &offhand = player.getInventory().getOffhand();
-
-    MobEquipmentPacket equipment;
-    equipment.mRuntimeEntityId = (int64_t) player.getRuntimeId();
-    equipment.mItem = offhand;
-    equipment.mInventorySlot = PlayerInventory::OFFHAND_NETWORK_SLOT;
-    equipment.mHotbarSlot = PlayerInventory::OFFHAND_NETWORK_SLOT;
-    equipment.mContainerId = PlayerInventory::CONTAINER_ID_OFFHAND;
-
-    for (auto &entry: mPlayers) {
-        if (entry.second.isSpawned())
-            mNetworkHandler->send(entry.second.getNetworkIdentifier(), equipment, mCodecContext);
-    }
-}
-
-void ServerNetworkHandler::_sendHeldItem(ServerPlayer &player) {
-    const PlayerInventory &inventory = player.getInventory();
-    const int selected = inventory.getSelectedSlot();
-
-    player.getInventoryManager().syncSelectedHotbarSlot();
-
-    MobEquipmentPacket equipment;
-    equipment.mRuntimeEntityId = (int64_t) player.getRuntimeId();
-    equipment.mItem = inventory.getItemInHand();
-    equipment.mInventorySlot = selected;
-    equipment.mHotbarSlot = selected;
-    equipment.mContainerId = PlayerInventory::CONTAINER_ID_INVENTORY;
-
-    for (auto &entry: mPlayers) {
-        if (entry.second.isSpawned() && &entry.second != &player)
-            mNetworkHandler->send(entry.second.getNetworkIdentifier(), equipment, mCodecContext);
-    }
+    InventoryHandler::sendInventory(*this, player);
 }
 
 void ServerNetworkHandler::_sendAvailableCommands(ServerPlayer &player) {
-    AvailableCommandsPacket availableCommands;
-
-    for (Command *command: mCommands.getCommands()) {
-        if ((int) player.getCommandPermission() < (int) command->getRequiredPermission())
-            continue;
-
-        CommandData data;
-        data.mName = command->getName();
-        data.mDescription = command->getDescription();
-        data.mPermission = command->getRequiredPermission();
-
-        CommandParamData argsParameter;
-        argsParameter.mName = "args";
-        argsParameter.mOptional = true;
-        argsParameter.mHasType = true;
-        argsParameter.mType = CommandParamType::RawText;
-
-        CommandOverloadData overload;
-        overload.mParameters.push_back(argsParameter);
-
-        data.mOverloads.push_back(overload);
-
-        availableCommands.mCommands.push_back(data);
-    }
-
-    mNetworkHandler->send(player.getNetworkIdentifier(), availableCommands, mCodecContext);
+    LoginHandler::sendAvailableCommands(*this, player);
 }
 
 void ServerNetworkHandler::_sendAttributes(ServerPlayer &player) {
-    UpdateAttributesPacket attributes;
-    attributes.mRuntimeEntityId = (int64_t) player.getRuntimeId();
-    attributes.mTick = 0;
-    attributes.mAttributes = player.getAttributes().getAll();
+    LoginHandler::sendAttributes(*this, player);
+}
 
-    mNetworkHandler->send(player.getNetworkIdentifier(), attributes, mCodecContext);
+void ServerNetworkHandler::_sendHealth(ServerPlayer &player) {
+    SetHealthPacket health;
+    health.mHealth = (int32_t) std::ceil(player.getAttributes().get(HEALTH_ATTRIBUTE));
+
+    mNetworkHandler->send(player.getNetworkIdentifier(), health, mCodecContext);
+
+    _sendAttributes(player);
+}
+
+void ServerNetworkHandler::_broadcastEntityEvent(const Entity &entity, uint8_t eventId) {
+    EntityEventPacket event;
+    event.mRuntimeEntityId = entity.getRuntimeId();
+    event.mEventId = eventId;
+    event.mEventData = 0;
+    event.mHasFirePosition = false;
+
+    for (auto &entry: mPlayers) {
+        if (entry.second.isSpawned())
+            mNetworkHandler->send(entry.second.getNetworkIdentifier(), event, mCodecContext);
+    }
+}
+
+void ServerNetworkHandler::_handleFallDamage(ServerPlayer &player) {
+    if (player.isFlying() || player.isDead())
+        return;
+
+    const float damage = player.computeFallDamage();
+    if (damage < 1.0f)
+        return;
+
+    applyDamage(player, damage, "§7" + player.getName() + " fell from a high place");
+}
+
+void ServerNetworkHandler::applyDamage(ServerPlayer &player, float amount, const std::string &deathMessage) {
+    if (!player.isSpawned() || player.isDead() || amount <= 0.0f)
+        return;
+
+    const int32_t gameType = player.getGameType();
+    if (gameType == (int32_t) GameType::Creative || gameType == (int32_t) GameType::Spectator)
+        return;
+
+    const float health = player.reduceHealth(amount);
+
+    if (health <= 0.0f) {
+        killPlayer(player, deathMessage);
+        return;
+    }
+
+    _sendHealth(player);
+    _broadcastEntityEvent(player, (uint8_t) EntityEventType::HurtAnimation);
+}
+
+void ServerNetworkHandler::killPlayer(ServerPlayer &player, const std::string &deathMessage) {
+    if (player.isDead())
+        return;
+
+    player.kill();
+
+    player.getInventoryManager().onCurrentWindowRemove();
+
+    if (!mKeepInventory && player.getGameType() != (int32_t) GameType::Creative)
+        _dropInventoryOnDeath(player);
+
+    _sendHealth(player);
+    _broadcastEntityEvent(player, (uint8_t) EntityEventType::DeathAnimation);
+
+    const std::string message = deathMessage.empty() ? "§7" + player.getName() + " died" : deathMessage;
+    broadcastSystemMessage(message);
+
+    const Vector3f spawn = mLevel.getSpawnPositionForPlayer();
+
+    RespawnPacket respawn;
+    respawn.mPosition = Vector3f(spawn.x, spawn.y + PLAYER_BASE_OFFSET, spawn.z);
+    respawn.mState = RespawnPacket::State::ServerSearching;
+    respawn.mRuntimeEntityId = player.getRuntimeId();
+    mNetworkHandler->send(player.getNetworkIdentifier(), respawn, mCodecContext);
+
+    DeathInfoPacket info;
+    info.mCauseAttackName = message;
+    mNetworkHandler->send(player.getNetworkIdentifier(), info, mCodecContext);
+
+    LOG_INFO(LogAreaID::Server, "%s died", player.getName().c_str());
+}
+
+void ServerNetworkHandler::_throwItem(ServerPlayer &player, const ItemStack &item) {
+    if (item.isAir() || item.mCount <= 0)
+        return;
+
+    const Vector3f position = player.getPosition();
+    const Vector3f dropPosition(position.x, position.y + ITEM_DROP_HEIGHT, position.z);
+
+    const float yaw = player.getRotation().y * 3.14159265f / 180.0f;
+    const float pitch = player.getRotation().x * 3.14159265f / 180.0f;
+
+    const Vector3f motion(-std::sin(yaw) * std::cos(pitch) * THROW_SPEED,
+                          -std::sin(pitch) * THROW_SPEED + 0.1f,
+                          std::cos(yaw) * std::cos(pitch) * THROW_SPEED);
+
+    dropItem(dropPosition, item, motion, THROW_PICKUP_DELAY);
+}
+
+void ServerNetworkHandler::_dropInventoryOnDeath(ServerPlayer &player) {
+    PlayerInventory &inventory = player.getInventory();
+    const Vector3f position = player.getPosition();
+    const Vector3f dropPosition(position.x, position.y + ITEM_DROP_HEIGHT, position.z);
+
+    for (int slot = 0; slot < PlayerInventory::CONTAINER_SIZE; slot++) {
+        dropItem(dropPosition, inventory.getItem(slot), randomDropMotion(), ItemEntity::DEFAULT_PICKUP_DELAY);
+    }
+
+    for (int slot = 0; slot < PlayerInventory::ARMOR_SIZE; slot++) {
+        dropItem(dropPosition, inventory.getArmor(slot), randomDropMotion(), ItemEntity::DEFAULT_PICKUP_DELAY);
+    }
+
+    dropItem(dropPosition, inventory.getOffhand(), randomDropMotion(), ItemEntity::DEFAULT_PICKUP_DELAY);
+    dropItem(dropPosition, inventory.getCursor(), randomDropMotion(), ItemEntity::DEFAULT_PICKUP_DELAY);
+
+    inventory.clear();
+    inventory.setSelectedSlot(0);
+
+    _sendInventory(player);
+}
+
+void ServerNetworkHandler::_respawnPlayer(ServerPlayer &player) {
+    if (!player.isDead())
+        return;
+
+    const Vector3f spawn = mLevel.getSpawnPositionForPlayer();
+
+    player.setDead(false);
+    player.getAttributes().set(HEALTH_ATTRIBUTE, maxHealthOf(player));
+    player.setPosition(spawn);
+    player.setRotation(Vector3f(0.0f, 0.0f, 0.0f));
+    player.setMotion(Vector3f(0.0f, 0.0f, 0.0f));
+    player.setOnGround(true);
+    player.clearPendingMove();
+    player.resetFallDistance();
+
+    const Vector3f eyePosition(spawn.x, spawn.y + PLAYER_BASE_OFFSET, spawn.z);
+
+    RespawnPacket respawn;
+    respawn.mPosition = eyePosition;
+    respawn.mState = RespawnPacket::State::ServerReady;
+    respawn.mRuntimeEntityId = player.getRuntimeId();
+    mNetworkHandler->send(player.getNetworkIdentifier(), respawn, mCodecContext);
+
+    MovePlayerPacket move;
+    move.mRuntimeEntityId = (int64_t) player.getRuntimeId();
+    move.mPosition = eyePosition;
+    move.mRotation = player.getRotation();
+    move.mMode = MovePlayerMode::Respawn;
+    move.mOnGround = true;
+    mNetworkHandler->send(player.getNetworkIdentifier(), move, mCodecContext);
+
+    player.setForceMoveSync(true);
+
+    _sendHealth(player);
+    _sendEntityData(player);
+    _sendAbilities(player);
+    _sendInventory(player);
+    ItemEntityHandler::sendItemEntitiesTo(*this, player);
+    _sendChunks(player);
+
+    LOG_INFO(LogAreaID::Server, "%s respawned at %.2f %.2f %.2f", player.getName().c_str(), spawn.x, spawn.y,
+             spawn.z);
+}
+
+void ServerNetworkHandler::handle(const NetworkIdentifier &id, const PlayerActionPacket &packet) {
+    ServerPlayer *player = _getPlayer(id);
+    if (player == nullptr || !player->isSpawned())
+        return;
+
+    const bool legacyBreakAction = packet.mAction == PlayerActionType::StartBreak ||
+                                   packet.mAction == PlayerActionType::ContinueBreak ||
+                                   packet.mAction == PlayerActionType::BlockContinueDestroy ||
+                                   packet.mAction == PlayerActionType::BlockPredictDestroy ||
+                                   packet.mAction == PlayerActionType::AbortBreak ||
+                                   packet.mAction == PlayerActionType::StopBreak;
+
+    if (legacyBreakAction ||
+        (packet.mAction == PlayerActionType::DimensionChangeRequestOrCreativeDestroyBlock &&
+         player->getGameType() != (int32_t) GameType::Creative)) {
+        _disconnect(id, "Bad packet: invalid break channel");
+        return;
+    }
+
+    if (packet.mAction == PlayerActionType::Respawn)
+        _respawnPlayer(*player);
+}
+
+void ServerNetworkHandler::handle(const NetworkIdentifier &id, const RespawnPacket &packet) {
+    ServerPlayer *player = _getPlayer(id);
+    if (player == nullptr || !player->isSpawned())
+        return;
+
+    if (packet.mState != RespawnPacket::State::ClientReady)
+        return;
+
+    _respawnPlayer(*player);
+}
+
+ItemEntity *ServerNetworkHandler::dropItem(const Vector3f &position, const ItemStack &item, const Vector3f &motion,
+                                           int pickupDelay) {
+    return ItemEntityHandler::dropItem(*this, position, item, motion, pickupDelay);
 }
 
 void ServerNetworkHandler::_sendChunks(ServerPlayer &player) {
@@ -943,73 +790,15 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const SetLocalPla
     if (player == nullptr)
         return;
 
-    player->setLoginState(ServerPlayer::LoginState::Spawned);
-    LOG_INFO(LogAreaID::Server, "Player %s spawned", player->getName().c_str());
-
-    _sendInventory(*player);
-
-    broadcastSystemMessage("§e" + player->getName() + " joined the game");
-}
-
-static Uuid listUuidFor(const ServerPlayer &player) {
-    Uuid parsed = Uuid::fromString(player.getUuid());
-    if (parsed.mostSignificantBits != 0 || parsed.leastSignificantBits != 0)
-        return parsed;
-
-    const std::hash<std::string> hasher;
-    uint64_t most = hasher(player.getName() + "-most");
-    const uint64_t least = hasher(player.getName() + "-least");
-    if (most == 0)
-        most = 1;
-
-    return Uuid(most, least);
+    LoginHandler::handleSetLocalPlayerAsInitialized(*this, *player);
 }
 
 void ServerNetworkHandler::_addToPlayerList(ServerPlayer &player) {
-    PlayerListPacket::Entry newEntry(listUuidFor(player));
-    newEntry.mEntityId = player.getUniqueId();
-    newEntry.mName = player.getName();
-    newEntry.mXuid = player.getXuid();
-    newEntry.mSkin = player.getSkin();
-    newEntry.mBuildPlatform = player.getBuildPlatform();
-
-    PlayerListPacket announce;
-    announce.mEntries.push_back(newEntry);
-
-    PlayerListPacket existing;
-
-    for (auto &entry: mPlayers) {
-        if (!entry.second.isSpawned())
-            continue;
-
-        mNetworkHandler->send(entry.second.getNetworkIdentifier(), announce, mCodecContext);
-
-        if (&entry.second != &player) {
-            PlayerListPacket::Entry existingEntry(listUuidFor(entry.second));
-            existingEntry.mEntityId = entry.second.getUniqueId();
-            existingEntry.mName = entry.second.getName();
-            existingEntry.mXuid = entry.second.getXuid();
-            existingEntry.mSkin = entry.second.getSkin();
-            existingEntry.mBuildPlatform = entry.second.getBuildPlatform();
-            existing.mEntries.push_back(existingEntry);
-        }
-    }
-
-    if (!existing.mEntries.empty())
-        mNetworkHandler->send(player.getNetworkIdentifier(), existing, mCodecContext);
+    LoginHandler::addToPlayerList(*this, player);
 }
 
 void ServerNetworkHandler::_removeFromPlayerList(ServerPlayer &player) {
-    PlayerListPacket::Entry removalEntry(listUuidFor(player));
-    removalEntry.mAction = PlayerListPacket::Action::Remove;
-
-    PlayerListPacket removal;
-    removal.mEntries.push_back(removalEntry);
-
-    for (auto &entry: mPlayers) {
-        if (entry.second.isSpawned() && &entry.second != &player)
-            mNetworkHandler->send(entry.second.getNetworkIdentifier(), removal, mCodecContext);
-    }
+    LoginHandler::removeFromPlayerList(*this, player);
 }
 
 void ServerNetworkHandler::broadcastSystemMessage(const std::string &message) {
@@ -1025,7 +814,7 @@ void ServerNetworkHandler::sendPacketTo(const NetworkIdentifier &id, const Packe
 
 void ServerNetworkHandler::handle(const NetworkIdentifier &id, const PlayerAuthInputPacket &packet) {
     ServerPlayer *player = _getPlayer(id);
-    if (player == nullptr)
+    if (player == nullptr || player->isDead())
         return;
 
     if (!std::isfinite(packet.mPosition.x) || !std::isfinite(packet.mPosition.y) ||
@@ -1033,102 +822,102 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const PlayerAuthI
         !std::isfinite(packet.mRotation.y) || !std::isfinite(packet.mRotation.z))
         return;
 
-    player->setPosition(packet.mPosition);
-    player->setRotation(packet.mRotation);
-
-    if (player->isSpawned()) {
-        const int32_t chunkX = (int32_t) std::floor(packet.mPosition.x) >> 4;
-        const int32_t chunkZ = (int32_t) std::floor(packet.mPosition.z) >> 4;
-
-        if (!player->hasChunkPosition() || chunkX != player->getLastChunkX() ||
-            chunkZ != player->getLastChunkZ())
-            _sendChunks(*player);
+    std::string badPacketReason;
+    if (BadPacketCheck::inspect(*player, packet, badPacketReason)) {
+        _disconnect(id, "Bad packet: " + badPacketReason);
+        return;
     }
 
-    EntityFlags &flags = player->getFlags();
-    const EntityFlags previous = flags;
+    MovementHandler::handlePlayerAuthInput(*this, id, *player, packet);
+}
 
-    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StartSprinting))
-        flags.set(EntityFlag::Sprinting, true);
-    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StopSprinting))
-        flags.set(EntityFlag::Sprinting, false);
+namespace {
+    const ItemData *findEdibleData(const ItemStack &item) {
+        if (item.isAir() || item.mDefinition == nullptr)
+            return nullptr;
 
-    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StartSneaking))
-        flags.set(EntityFlag::Sneaking, true);
-    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StopSneaking))
-        flags.set(EntityFlag::Sneaking, false);
+        const ItemData *data = ItemDataTable::find(item.mDefinition->getIdentifier());
+        if (data == nullptr || data->mNutrition <= 0)
+            return nullptr;
 
-    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StartSwimming))
-        flags.set(EntityFlag::Swimming, true);
-    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StopSwimming))
-        flags.set(EntityFlag::Swimming, false);
-
-    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StartGliding))
-        flags.set(EntityFlag::Gliding, true);
-    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StopGliding))
-        flags.set(EntityFlag::Gliding, false);
-
-    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StartCrawling))
-        flags.set(EntityFlag::Crawling, true);
-    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StopCrawling))
-        flags.set(EntityFlag::Crawling, false);
-
-    if (flags.getLowBits() != previous.getLowBits() || flags.getHighBits() != previous.getHighBits())
-        _sendEntityData(*player);
-
-    for (const PlayerBlockActionData &action: packet.mPlayerActions) {
-        if (action.mAction == PlayerActionType::BlockPredictDestroy ||
-            action.mAction == PlayerActionType::DimensionChangeRequestOrCreativeDestroyBlock)
-            _breakBlock(*player, action.mBlockPosition);
+        return data;
     }
-
-    if (packet.mHasItemUseTransaction && packet.mItemUseTransaction.mActionType == 0)
-        _placeBlock(*player, packet.mItemUseTransaction);
 }
 
-void ServerNetworkHandler::_breakBlock(ServerPlayer &player, const Vector3i &position) {
-    const int32_t airHash = mLevel.getAirHash();
-    mLevel.setBlockState(position.x, position.y, position.z, BlockState("minecraft:air"));
-
-    UpdateBlockPacket update;
-    update.mBlockPosition = position;
-    update.mRuntimeId = (uint32_t) airHash;
-    update.mFlags = UpdateBlockPacket::Flag::All;
-    update.mDataLayer = 0;
-    mNetworkHandler->send(player.getNetworkIdentifier(), update, mCodecContext);
-
-    LOG_INFO(LogAreaID::Server, "%s broke block at %d %d %d", player.getName().c_str(), position.x, position.y,
-             position.z);
-}
-
-void ServerNetworkHandler::_placeBlock(ServerPlayer &player, const ItemUseTransaction &transaction) {
-    if (transaction.mItemInHand.mBlockDefinition == nullptr)
+void ServerNetworkHandler::_useHeldItem(ServerPlayer &player) {
+    if (findEdibleData(player.getInventory().getItemInHand()) == nullptr)
         return;
 
-    static const int offsets[6][3] = {
-            {0,  -1, 0}, {0, 1, 0}, {0, 0, -1}, {0, 0, 1}, {-1, 0, 0}, {1, 0, 0}
-    };
+    const bool usingItem = player.getFlags().get(EntityFlag::UsingItem);
 
-    const int face = transaction.mBlockFace >= 0 && transaction.mBlockFace < 6 ? transaction.mBlockFace : 1;
-    const Vector3i target(transaction.mBlockPosition.x + offsets[face][0],
-                          transaction.mBlockPosition.y + offsets[face][1],
-                          transaction.mBlockPosition.z + offsets[face][2]);
+    if (!player.canEat()) {
+        if (usingItem) {
+            player.getFlags().set(EntityFlag::UsingItem, false);
+            _sendEntityData(player);
+        }
+        return;
+    }
 
-    const BlockDefinition &definition = *transaction.mItemInHand.mBlockDefinition;
-    const int32_t blockHash = BlockStateHasher::hash(definition.getIdentifier(), definition.getState());
+    if (usingItem)
+        return;
 
-    mLevel.setBlockState(target.x, target.y, target.z,
-                         BlockState(definition.getIdentifier(), definition.getState()));
+    player.getFlags().set(EntityFlag::UsingItem, true);
+    player.setItemUseStartTick(mCurrentTick);
+    _sendEntityData(player);
+}
 
-    UpdateBlockPacket update;
-    update.mBlockPosition = target;
-    update.mRuntimeId = (uint32_t) blockHash;
-    update.mFlags = UpdateBlockPacket::Flag::All;
-    update.mDataLayer = 0;
-    mNetworkHandler->send(player.getNetworkIdentifier(), update, mCodecContext);
+void ServerNetworkHandler::_consumeHeldItem(ServerPlayer &player) {
+    const bool wasUsing = player.getFlags().get(EntityFlag::UsingItem);
+    const int64_t heldTicks = mCurrentTick - player.getItemUseStartTick();
 
-    LOG_INFO(LogAreaID::Server, "%s placed %s at %d %d %d", player.getName().c_str(),
-             definition.getIdentifier().c_str(), target.x, target.y, target.z);
+    if (wasUsing) {
+        player.getFlags().set(EntityFlag::UsingItem, false);
+        _sendEntityData(player);
+    }
+
+    PlayerInventory &inventory = player.getInventory();
+    const int slot = inventory.getSelectedSlot();
+
+    const ItemData *data = findEdibleData(inventory.getItemInHand());
+    if (data == nullptr)
+        return;
+
+    if (!wasUsing || heldTicks < FOOD_USE_DURATION_TICKS) {
+        player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, slot);
+        return;
+    }
+
+    if (!player.canEat()) {
+        player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, slot);
+        _sendAttributes(player);
+        return;
+    }
+
+    player.consumeFood(data->mNutrition, data->mSaturation);
+
+    ItemStack remaining = inventory.getItemInHand();
+    remaining.mCount -= 1;
+    if (remaining.mCount <= 0)
+        remaining = ItemStack::air();
+
+    inventory.setItemInHand(std::move(remaining));
+    player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, slot);
+
+    _sendAttributes(player);
+
+    LOG_INFO(LogAreaID::Server, "%s ate %s, food is now %.1f", player.getName().c_str(), data->mIdentifier,
+             player.getFood());
+}
+
+namespace {
+    std::string toLowerCopy(const std::string &value) {
+        std::string lowered = value;
+        for (char &character: lowered) {
+            if (character >= 'A' && character <= 'Z')
+                character = (char) (character - 'A' + 'a');
+        }
+        return lowered;
+    }
 }
 
 ServerPlayer *ServerNetworkHandler::getPlayerByName(const std::string &name) {
@@ -1136,21 +925,94 @@ ServerPlayer *ServerNetworkHandler::getPlayerByName(const std::string &name) {
         if (entry.second.getName() == name)
             return &entry.second;
     }
-    return nullptr;
+
+    const std::string lowered = toLowerCopy(name);
+
+    for (auto &entry: mPlayers) {
+        if (toLowerCopy(entry.second.getName()) == lowered)
+            return &entry.second;
+    }
+
+    ServerPlayer *partial = nullptr;
+    for (auto &entry: mPlayers) {
+        const std::string candidate = toLowerCopy(entry.second.getName());
+        if (candidate.compare(0, lowered.size(), lowered) != 0)
+            continue;
+
+        if (partial != nullptr)
+            return nullptr;
+
+        partial = &entry.second;
+    }
+
+    return partial;
+}
+
+std::vector<std::string> ServerNetworkHandler::getPlayerNames() const {
+    std::vector<std::string> names;
+    names.reserve(mPlayers.size());
+
+    for (const auto &entry: mPlayers) {
+        if (!entry.second.getName().empty())
+            names.push_back(entry.second.getName());
+    }
+
+    return names;
+}
+
+std::vector<ServerPlayer *> ServerNetworkHandler::resolveTargets(CommandSender &sender,
+                                                                 const std::string &selector) {
+    std::vector<ServerPlayer *> targets;
+
+    if (selector == "@a" || selector == "@e") {
+        for (auto &entry: mPlayers) {
+            if (entry.second.isSpawned())
+                targets.push_back(&entry.second);
+        }
+        return targets;
+    }
+
+    if (selector == "@s" || selector == "@p") {
+        ServerPlayer *self = sender.asPlayer();
+        if (self != nullptr)
+            targets.push_back(self);
+        return targets;
+    }
+
+    if (selector == "@r") {
+        for (auto &entry: mPlayers) {
+            if (entry.second.isSpawned()) {
+                targets.push_back(&entry.second);
+                break;
+            }
+        }
+        return targets;
+    }
+
+    ServerPlayer *named = getPlayerByName(selector);
+    if (named != nullptr)
+        targets.push_back(named);
+
+    return targets;
 }
 
 void ServerNetworkHandler::setPlayerGameMode(ServerPlayer &player, int gameMode) {
     player.setGameType(gameMode);
+    player.setHungerEnabled(gameMode == (int32_t) GameType::Survival);
 
     const bool mayFly = gameMode == (int32_t) GameType::Creative || gameMode == (int32_t) GameType::Spectator;
-    if (!mayFly && player.isFlying())
+    if (!mayFly && player.isFlying()) {
         player.setFlying(false);
+        player.setOnGround(MovementHandler::checkGroundState(*this, player.getPosition()));
+    }
+
+    _sendAbilities(player);
 
     SetPlayerGameTypePacket packet;
     packet.mGamemode = gameMode;
     mNetworkHandler->send(player.getNetworkIdentifier(), packet, mCodecContext);
 
-    _sendAbilities(player);
+    player.resetFallDistance();
 }
 
 void ServerNetworkHandler::sendCommandOutput(ServerPlayer &player, const CommandOriginData &origin,
@@ -1176,23 +1038,19 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const TextPacket 
     if (packet.mType != TextPacket::Type::Chat)
         return;
 
-    LOG_INFO(LogAreaID::Server, "<%s> %s", player->getName().c_str(), packet.mMessage.c_str());
-
-    TextPacket chat;
-    chat.mType = TextPacket::Type::Chat;
-    chat.mSourceName = player->getName();
-    chat.mMessage = packet.mMessage;
-
-    for (auto &entry: mPlayers) {
-        if (entry.second.isSpawned())
-            mNetworkHandler->send(entry.second.getNetworkIdentifier(), chat, mCodecContext);
-    }
+    ChatHandler::broadcastChat(*this, *player, packet.mMessage);
 }
 
 void ServerNetworkHandler::handle(const NetworkIdentifier &id, const RequestChunkRadiusPacket &packet) {
     ServerPlayer *player = _getPlayer(id);
     if (player == nullptr)
         return;
+
+    std::string badPacketReason;
+    if (BadPacketCheck::inspect(*player, packet, badPacketReason)) {
+        _disconnect(id, "Bad packet: " + badPacketReason);
+        return;
+    }
 
     int32_t granted = packet.mRadius;
     const int32_t maximum = _getServerViewDistance();
@@ -1214,20 +1072,7 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const RequestChun
 }
 
 void ServerNetworkHandler::_checkTerrainReady(ServerPlayer &player) {
-    if (player.hasSpawnChunksReady())
-        return;
-
-    if (player.getSentChunkCount() < SPAWN_CHUNK_THRESHOLD)
-        return;
-
-    player.setSpawnChunksReady(true);
-
-    PlayStatusPacket spawn;
-    spawn.mStatus = PlayStatusPacket::Status::PlayerSpawn;
-    mNetworkHandler->send(player.getNetworkIdentifier(), spawn, mCodecContext);
-
-    LOG_INFO(LogAreaID::Server, "Terrain ready for %s after %u chunks", player.getName().c_str(),
-             (unsigned) player.getSentChunkCount());
+    LoginHandler::checkTerrainReady(*this, player);
 }
 
 void ServerNetworkHandler::handle(const NetworkIdentifier &id, const RequestAbilityPacket &packet) {
@@ -1248,6 +1093,10 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const RequestAbil
     }
 
     player->setFlying(packet.mBoolValue);
+
+    if (!packet.mBoolValue)
+        player->setOnGround(MovementHandler::checkGroundState(*this, player->getPosition()));
+
     _sendAbilities(*player);
 }
 
@@ -1256,29 +1105,13 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const MobEquipmen
     if (player == nullptr || !player->isSpawned())
         return;
 
-    if (packet.mContainerId != PlayerInventory::CONTAINER_ID_INVENTORY)
-        return;
-
-    PlayerInventory &inventory = player->getInventory();
-    if (packet.mHotbarSlot < 0 || packet.mHotbarSlot >= PlayerInventory::HOTBAR_SIZE) {
-        _sendHeldItem(*player);
+    std::string badPacketReason;
+    if (BadPacketCheck::inspect(*player, packet, badPacketReason)) {
+        _disconnect(id, "Bad packet: " + badPacketReason);
         return;
     }
 
-    player->getInventoryManager().onClientSelectHotbarSlot(packet.mHotbarSlot);
-    inventory.setSelectedSlot(packet.mHotbarSlot);
-
-    MobEquipmentPacket equipment;
-    equipment.mRuntimeEntityId = (int64_t) player->getRuntimeId();
-    equipment.mItem = inventory.getItemInHand();
-    equipment.mInventorySlot = inventory.getSelectedSlot();
-    equipment.mHotbarSlot = inventory.getSelectedSlot();
-    equipment.mContainerId = PlayerInventory::CONTAINER_ID_INVENTORY;
-
-    for (auto &entry: mPlayers) {
-        if (entry.second.isSpawned() && &entry.second != player)
-            mNetworkHandler->send(entry.second.getNetworkIdentifier(), equipment, mCodecContext);
-    }
+    InventoryHandler::handleMobEquipment(*this, *player, packet);
 }
 
 void ServerNetworkHandler::handle(const NetworkIdentifier &id, const PlayerHotbarPacket &packet) {
@@ -1286,16 +1119,7 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const PlayerHotba
     if (player == nullptr || !player->isSpawned())
         return;
 
-    if (packet.mContainerId != PlayerInventory::CONTAINER_ID_INVENTORY || !packet.mSelectHotbarSlot)
-        return;
-
-    if (packet.mSelectedHotbarSlot < 0 || packet.mSelectedHotbarSlot >= PlayerInventory::HOTBAR_SIZE) {
-        _sendHeldItem(*player);
-        return;
-    }
-
-    player->getInventoryManager().onClientSelectHotbarSlot(packet.mSelectedHotbarSlot);
-    player->getInventory().setSelectedSlot(packet.mSelectedHotbarSlot);
+    InventoryHandler::handlePlayerHotbar(*this, *player, packet);
 }
 
 void ServerNetworkHandler::handle(const NetworkIdentifier &id, const InteractPacket &packet) {
@@ -1309,7 +1133,7 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const InteractPac
     if (packet.mRuntimeEntityId != player->getRuntimeId())
         return;
 
-    player->getInventoryManager().onClientOpenMainInventory();
+    InventoryHandler::handleOpenInventory(*player);
 }
 
 void ServerNetworkHandler::handle(const NetworkIdentifier &id, const ItemStackRequestPacket &packet) {
@@ -1317,27 +1141,13 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const ItemStackRe
     if (player == nullptr || !player->isSpawned())
         return;
 
-    PlayerInventory &inventory = player->getInventory();
-
-    ItemStackResponsePacket response;
-    bool needsResync = false;
-
-    for (const ItemStackRequest &request: packet.mRequests) {
-        _buildCreativeContent();
-        ItemStackResponseEntry entry = ItemStackRequestHandler::execute(inventory, request, mCreativeItems);
-        if (entry.mResult != ItemStackRequestHandler::RESULT_OK)
-            needsResync = true;
-
-        response.mEntries.push_back(std::move(entry));
+    std::string badPacketReason;
+    if (BadPacketCheck::inspect(*player, packet, badPacketReason)) {
+        _disconnect(id, "Bad packet: " + badPacketReason);
+        return;
     }
 
-    if (response.mEntries.empty())
-        return;
-
-    mNetworkHandler->send(id, response, mCodecContext);
-
-    if (needsResync)
-        _sendInventory(*player);
+    InventoryHandler::handleItemStackRequest(*this, id, *player, packet);
 }
 
 void ServerNetworkHandler::handle(const NetworkIdentifier &id, const InventoryTransactionPacket &packet) {
@@ -1345,12 +1155,13 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const InventoryTr
     if (player == nullptr || !player->isSpawned())
         return;
 
-    if (packet.mTransactionType != InventoryTransactionType::Normal
-        && packet.mTransactionType != InventoryTransactionType::Mismatch)
+    std::string badPacketReason;
+    if (BadPacketCheck::inspect(*player, packet, badPacketReason)) {
+        _disconnect(id, "Bad packet: " + badPacketReason);
         return;
+    }
 
-    LOG_TRACE(LogAreaID::Network, "Resyncing inventory of %s after a legacy transaction", player->getName().c_str());
-    _sendInventory(*player);
+    InventoryHandler::handleTransaction(*this, *player, packet);
 }
 
 void ServerNetworkHandler::handle(const NetworkIdentifier &id, const ContainerClosePacket &packet) {
@@ -1358,14 +1169,7 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const ContainerCl
     if (player == nullptr || !player->isSpawned())
         return;
 
-    PlayerInventory &inventory = player->getInventory();
-    if (!inventory.getCursor().isAir()) {
-        inventory.addItem(inventory.getCursor());
-        inventory.setCursor(ItemStack::air());
-    }
-
-    player->getInventoryManager().onClientRemoveWindow((int) packet.mWindowId);
-    player->getInventoryManager().syncAll();
+    InventoryHandler::handleContainerClose(*player, packet);
 }
 
 void ServerNetworkHandler::handle(const NetworkIdentifier &id, const PacketViolationWarningPacket &packet) {

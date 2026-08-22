@@ -5,7 +5,7 @@
 
 class LoginChainVerifier {
 public:
-    bool verify(const std::string &authJwt);
+    bool verify(const std::string &authJwt, const std::string &clientJwt);
 
     bool isSigned() const { return mSigned; }
 
@@ -19,22 +19,34 @@ public:
 
     const std::string &getIdentityPublicKey() const { return mIdentityPublicKey; }
 
+    const std::string &getFailureReason() const { return mFailureReason; }
+
 private:
-    static std::vector<std::string> extractChain(const std::string &authJwt);
+    static std::vector<std::string> _extractChain(const std::string &authJwt);
 
-    static std::string extractToken(const std::string &authJwt);
+    static std::string _extractToken(const std::string &authJwt);
 
-    static std::string xuidToUuid(const std::string &xuid);
+    static std::string _xuidToUuid(const std::string &xuid);
 
-    bool verifyToken(const std::string &token);
+    static bool _splitJwt(const std::string &jwt, std::string &header, std::string &payload, std::string &signature);
 
-    static bool splitJwt(const std::string &jwt, std::string &header, std::string &payload, std::string &signature);
+    static std::string _extractObject(const std::string &json, const std::string &key);
 
-    static std::string extractObject(const std::string &json, const std::string &key);
+    static long long _findJsonLong(const std::string &json, const std::string &key, long long fallback);
 
-    bool verifyChain(const std::vector<std::string> &chain);
+    bool _fail(const std::string &reason);
 
-    void extractIdentity(const std::string &payload);
+    bool _checkExpiry(const std::string &payloadJson);
+
+    bool _verifyClientData(const std::string &clientJwt, const std::string &expectedKeyBase64);
+
+    bool _verifyOpenIdToken(const std::string &token, const std::string &clientJwt);
+
+    bool _verifySelfSignedToken(const std::string &token, const std::string &clientJwt);
+
+    bool _verifyChain(const std::vector<std::string> &chain);
+
+    void _extractIdentity(const std::string &payload);
 
     bool mSigned = false;
     std::string mIdentity;
@@ -42,4 +54,5 @@ private:
     std::string mDisplayName;
     std::string mTitleId;
     std::string mIdentityPublicKey;
+    std::string mFailureReason;
 };

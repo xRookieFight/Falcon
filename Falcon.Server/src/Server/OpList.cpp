@@ -36,6 +36,16 @@ bool OpList::isOp(const std::string &name) const {
     return mNames.find(_toLowerCase(name)) != mNames.end();
 }
 
+std::vector<std::string> OpList::getNames() const {
+    std::vector<std::string> names;
+    names.reserve(mNames.size());
+
+    for (const std::string &name: mNames)
+        names.push_back(name);
+
+    return names;
+}
+
 void OpList::addOp(const std::string &name) {
     if (mNames.insert(_toLowerCase(name)).second)
         _save();

@@ -20,6 +20,7 @@ public:
     size_t size() const { return mByRuntimeId.size(); }
 
 private:
+    std::vector<std::shared_ptr<ItemDefinition>> mOrdered;
     std::unordered_map<int, std::shared_ptr<ItemDefinition>> mByRuntimeId;
     std::unordered_map<std::string, std::shared_ptr<ItemDefinition>> mByIdentifier;
 };

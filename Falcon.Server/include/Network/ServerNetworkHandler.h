@@ -16,17 +16,21 @@
 #include "Server/OpList.h"
 #include "Server/PropertiesSettings.h"
 #include "Server/ResourcePackManager.h"
+#include "Entity/ItemEntity.h"
 #include "Entity/ServerPlayer.h"
 #include "Protocol/Types/ContainerSlotType.h"
+#include "Protocol/Packets/CraftingDataPacket.h"
 #include "Protocol/Packets/CreativeContentPacket.h"
 
 #include <mutex>
+#include <vector>
 #include <queue>
 #include <unordered_map>
 #include <memory>
 #include <string>
 
 class ItemUseTransaction;
+class CommandSender;
 
 class ServerNetworkHandler : public NetworkHandler::Listener,
                              public NetworkPacketHandler,
@@ -57,6 +61,14 @@ public:
 
     NetworkHandler &getNetworkHandler() { return *mNetworkHandler; }
 
+    Level &getLevel() { return mLevel; }
+
+    std::unordered_map<NetworkIdentifier, ServerPlayer, NetworkIdentifier::Hasher> &getPlayers() { return mPlayers; }
+
+    std::vector<std::unique_ptr<ItemEntity>> &getItemEntities() { return mItemEntities; }
+
+    uint64_t allocateRuntimeId() { return mNextRuntimeId++; }
+
     BlockDefinitionRegistry &getBlockDefinitions() { return mBlockDefinitions; }
 
     ItemDefinitionRegistry &getItemDefinitions() { return mItemDefinitions; }
@@ -64,6 +76,10 @@ public:
     const PacketCodecContext &getCodecContext() const { return mCodecContext; }
 
     ServerPlayer *getPlayerByName(const std::string &name);
+
+    std::vector<ServerPlayer *> resolveTargets(CommandSender &sender, const std::string &selector);
+
+    std::vector<std::string> getPlayerNames() const;
 
     void setPlayerGameMode(ServerPlayer &player, int gameMode);
 
@@ -74,6 +90,88 @@ public:
     void sendCommandOutput(ServerPlayer &player, const CommandOriginData &origin, const std::string &message);
 
     void broadcastSystemMessage(const std::string &message);
+
+    ItemEntity *dropItem(const Vector3f &position, const ItemStack &item, const Vector3f &motion, int pickupDelay);
+
+    void applyDamage(ServerPlayer &player, float amount, const std::string &deathMessage);
+
+    void killPlayer(ServerPlayer &player, const std::string &deathMessage);
+
+    void _throwItem(ServerPlayer &player, const ItemStack &item);
+
+    void _useHeldItem(ServerPlayer &player);
+
+    void _consumeHeldItem(ServerPlayer &player);
+
+    void _sendInventory(ServerPlayer &player);
+
+    const std::vector<CreativeItemData> &getCreativeItems() { _buildCreativeContent(); return mCreativeItems; }
+
+    const std::vector<ItemStack> &getRecipeOutputs() { _buildCraftingData(); return mRecipeOutputs; }
+
+    std::vector<CreativeItemData> &getCreativeItemsMutable() { return mCreativeItems; }
+
+    std::vector<ItemStack> &getRecipeOutputsMutable() { return mRecipeOutputs; }
+
+    CraftingDataPacket &getCachedCraftingData() { return mCachedCraftingData; }
+
+    void _loadPlayerData(ServerPlayer &player);
+
+    void _sendHealth(ServerPlayer &player);
+
+    void _sendEntityData(ServerPlayer &player);
+
+    void _sendChunks(ServerPlayer &player);
+
+    void _handleFallDamage(ServerPlayer &player);
+
+    void _disconnect(const NetworkIdentifier &id, const std::string &reason);
+
+    ResourcePackManager &getResourcePacks() { return mResourcePacks; }
+
+    PingedCompatibleServer &getAnnouncement() { return mAnnouncement; }
+
+    CommandMap &getCommands() { return mCommands; }
+
+    BiomeRegistry &getBiomes() { return mBiomes; }
+
+    std::vector<CreativeItemGroup> &getCreativeGroups() { return mCreativeGroups; }
+
+    PlayerDataProvider &getPlayerDataProvider() { return mPlayerData; }
+
+    void _registerVanillaDefinitions();
+
+    void _sendStartGame(ServerPlayer &player);
+
+    void _sendAbilities(ServerPlayer &player);
+
+    void _addToPlayerList(ServerPlayer &player);
+
+    void _removeFromPlayerList(ServerPlayer &player);
+
+    void _sendAttributes(ServerPlayer &player);
+
+    void _checkTerrainReady(ServerPlayer &player);
+
+    void _sendBiomeDefinitions(ServerPlayer &player);
+
+    void _sendItemComponents(ServerPlayer &player);
+
+    void _sendActorIdentifiers(ServerPlayer &player);
+
+    void _sendCraftingData(ServerPlayer &player);
+
+    void _buildCraftingData();
+
+    void _buildCreativeContent();
+
+    void _sendCreativeContent(ServerPlayer &player);
+
+    void _sendAvailableCommands(ServerPlayer &player);
+
+    bool getKeepInventory() const { return mKeepInventory; }
+
+    void setKeepInventory(bool keepInventory) { mKeepInventory = keepInventory; }
 
     void sendPacketTo(const NetworkIdentifier &id, const Packet &packet) override;
 
@@ -123,59 +221,21 @@ private:
 
     void handle(const NetworkIdentifier &id, const InteractPacket &packet) override;
 
+    void handle(const NetworkIdentifier &id, const PlayerActionPacket &packet) override;
+
+    void handle(const NetworkIdentifier &id, const RespawnPacket &packet) override;
+
     ServerPlayer *_getPlayer(const NetworkIdentifier &id);
 
     int _getServerViewDistance() const;
 
-    void _registerVanillaDefinitions();
-
-    void _sendStartGame(ServerPlayer &player);
-
-    void _breakBlock(ServerPlayer &player, const Vector3i &position);
-
-    void _placeBlock(ServerPlayer &player, const ItemUseTransaction &transaction);
-
     void _savePlayerData(const ServerPlayer &player);
 
-    void _loadPlayerData(ServerPlayer &player);
+    void _broadcastEntityEvent(const Entity &entity, uint8_t eventId);
 
-    void _sendEntityData(ServerPlayer &player);
+    void _dropInventoryOnDeath(ServerPlayer &player);
 
-    void _sendAbilities(ServerPlayer &player);
-
-    void _addToPlayerList(ServerPlayer &player);
-
-    void _removeFromPlayerList(ServerPlayer &player);
-
-    void _sendAttributes(ServerPlayer &player);
-
-    void _sendChunks(ServerPlayer &player);
-
-    void _checkTerrainReady(ServerPlayer &player);
-
-    void _sendBiomeDefinitions(ServerPlayer &player);
-
-    void _sendItemComponents(ServerPlayer &player);
-
-    void _sendActorIdentifiers(ServerPlayer &player);
-
-    void _sendCraftingData(ServerPlayer &player);
-
-    void _buildCreativeContent();
-
-    void _sendCreativeContent(ServerPlayer &player);
-
-    void _sendInventory(ServerPlayer &player);
-
-    void _sendArmorContent(ServerPlayer &player);
-
-    void _sendOffhandContent(ServerPlayer &player);
-
-    void _sendHeldItem(ServerPlayer &player);
-
-    void _sendAvailableCommands(ServerPlayer &player);
-
-    void _disconnect(const NetworkIdentifier &id, const std::string &reason);
+    void _respawnPlayer(ServerPlayer &player);
 
     void onReceiveIPSupport(RakPeerHelper::IPSupport support) override;
 
@@ -197,6 +257,8 @@ private:
     BiomeRegistry mBiomes;
     std::vector<CreativeItemGroup> mCreativeGroups;
     std::vector<CreativeItemData> mCreativeItems;
+    CraftingDataPacket mCachedCraftingData;
+    std::vector<ItemStack> mRecipeOutputs;
     PlayerDataProvider mPlayerData;
     OpList mOps;
     ResourcePackManager mResourcePacks;
@@ -206,7 +268,10 @@ private:
     bool mIsListening;
 
     std::unordered_map<NetworkIdentifier, ServerPlayer, NetworkIdentifier::Hasher> mPlayers;
+    std::vector<std::unique_ptr<ItemEntity>> mItemEntities;
+    bool mKeepInventory;
     uint64_t mNextRuntimeId;
+    int64_t mCurrentTick = 0;
 
     std::mutex mConsoleQueueMutex;
     std::queue<std::string> mConsoleQueue;

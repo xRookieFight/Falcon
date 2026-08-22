@@ -1,6 +1,8 @@
 #include "Item/StringToItemParser.h"
 
+#include "Block/BlockData.h"
 #include "Block/VanillaBlocks.h"
+#include "Item/ItemData.h"
 #include "Item/VanillaItems.h"
 
 StringToItemParser::StringToItemParser() {
@@ -48,13 +50,22 @@ void StringToItemParser::registerBlock(const std::string &alias, const std::func
 }
 
 void StringToItemParser::_registerDefaults() {
-    registerBlock("air", VanillaBlocks::AIR);
-    registerBlock("bedrock", VanillaBlocks::BEDROCK);
-    registerBlock("grass", VanillaBlocks::GRASS);
-    registerBlock("grass_block", VanillaBlocks::GRASS);
-    registerBlock("stone", VanillaBlocks::STONE);
+    for (size_t index = 0; index < BlockDataTable::getCount(); ++index) {
+        const BlockData &data = BlockDataTable::getEntries()[index];
+        registerBlock(data.mIdentifier, [&data]() {
+            return VanillaBlocks::fromData(data);
+        });
+    }
 
-    registerItem("stick", VanillaItems::STICK);
+    registerBlock("air", VanillaBlocks::AIR);
+    registerBlock("grass", VanillaBlocks::GRASS);
+
+    for (size_t i = 0; i < ItemDataTable::getCount(); ++i) {
+        const ItemData &data = ItemDataTable::at(i);
+        registerItem(data.mIdentifier, [&data]() {
+            return Item(data);
+        });
+    }
 }
 
 bool StringToItemParser::parse(const std::string &input, Item &out) const {

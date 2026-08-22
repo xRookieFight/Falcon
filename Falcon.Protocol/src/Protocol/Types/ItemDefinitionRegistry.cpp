@@ -3,6 +3,7 @@
 void ItemDefinitionRegistry::registerDefinition(std::shared_ptr<ItemDefinition> definition) {
     int runtimeId = definition->getRuntimeId();
     const std::string &identifier = definition->getIdentifier();
+    mOrdered.push_back(definition);
     mByIdentifier.try_emplace(identifier, definition);
     mByRuntimeId[runtimeId] = std::move(definition);
 }
@@ -18,11 +19,5 @@ std::shared_ptr<ItemDefinition> ItemDefinitionRegistry::getDefinition(const std:
 }
 
 std::vector<std::shared_ptr<ItemDefinition>> ItemDefinitionRegistry::getAll() const {
-    std::vector<std::shared_ptr<ItemDefinition>> definitions;
-    definitions.reserve(mByRuntimeId.size());
-
-    for (const auto &entry: mByRuntimeId)
-        definitions.push_back(entry.second);
-
-    return definitions;
+    return mOrdered;
 }

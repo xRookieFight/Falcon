@@ -20,3 +20,16 @@ bool DeopCommand::execute(CommandSender &sender, const std::vector<std::string> 
     sender.sendMessage("Deopped " + arguments[0]);
     return true;
 }
+
+std::vector<CommandOverloadData> DeopCommand::getOverloads() const {
+    CommandParamData playerParameter;
+    playerParameter.mName = "player";
+    playerParameter.mHasEnumData = true;
+    playerParameter.mEnumData.mName = "OperatorTarget";
+    playerParameter.mEnumData.mIsSoft = true;
+    playerParameter.mEnumData.mValues = mHandler.getOpList().getNames();
+
+    CommandOverloadData overload;
+    overload.mParameters.push_back(playerParameter);
+    return {overload};
+}

@@ -13,10 +13,10 @@ enum class EntityFlag : int {
     CanWalk = 22,
     Gliding = 32,
     Breathing = 35,
-    HasCollision = 47,
-    HasGravity = 48,
-    Swimming = 56,
-    Crawling = 95,
+    HasCollision = 48,
+    HasGravity = 49,
+    Swimming = 57,
+    Crawling = 114,
 };
 
 class EntityFlags {

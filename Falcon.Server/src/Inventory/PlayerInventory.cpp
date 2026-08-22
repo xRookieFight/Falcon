@@ -1,5 +1,7 @@
 #include "Inventory/PlayerInventory.h"
 
+#include "Item/ItemData.h"
+
 #include <utility>
 
 namespace {
@@ -145,13 +147,28 @@ bool PlayerInventory::canStack(const ItemStack &left, const ItemStack &right) {
 }
 
 int PlayerInventory::getMaxStackSize(const ItemStack &item) {
-    (void) item;
-    return DEFAULT_MAX_STACK_SIZE;
+    if (item.isAir())
+        return DEFAULT_MAX_STACK_SIZE;
+
+    const ItemData *data = ItemDataTable::find(item.mDefinition->getIdentifier());
+    if (data == nullptr)
+        return DEFAULT_MAX_STACK_SIZE;
+
+    return data->mMaxStackSize > 0 ? data->mMaxStackSize : DEFAULT_MAX_STACK_SIZE;
 }
 
 bool PlayerInventory::addItem(const ItemStack &item) {
+    std::vector<int> touchedSlots;
+    return addItem(item, touchedSlots);
+}
+
+bool PlayerInventory::addItem(const ItemStack &item, std::vector<int> &outTouchedSlots) {
+    return addItemPartial(item, outTouchedSlots) == 0;
+}
+
+int PlayerInventory::addItemPartial(const ItemStack &item, std::vector<int> &outTouchedSlots) {
     if (item.isAir() || item.mCount <= 0) {
-        return true;
+        return 0;
     }
 
     int remaining = item.mCount;
@@ -172,21 +189,23 @@ bool PlayerInventory::addItem(const ItemStack &item) {
         existing.mCount += moved;
         remaining -= moved;
         assignNetId(existing);
+        outTouchedSlots.push_back(slot);
     }
 
     while (remaining > 0) {
         const int slot = getFirstEmptySlot();
         if (slot < 0) {
-            return false;
+            break;
         }
 
         ItemStack copy = item;
         copy.mCount = maxStackSize < remaining ? maxStackSize : remaining;
         remaining -= copy.mCount;
         setItem(slot, std::move(copy));
+        outTouchedSlots.push_back(slot);
     }
 
-    return true;
+    return remaining;
 }
 
 void PlayerInventory::clear() {

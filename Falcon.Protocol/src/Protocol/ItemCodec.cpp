@@ -157,7 +157,7 @@ void ItemCodec::writeNetworkItemStackDescriptor(BinaryStream &stream, const Pack
 }
 
 ItemStack ItemCodec::readNetworkItemStackDescriptor(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    int runtimeId = stream.getLShort();
+    int runtimeId = (int16_t) stream.getLShort();
     if (runtimeId == 0) {
         stream.getLShort();
         stream.getUnsignedVarInt();

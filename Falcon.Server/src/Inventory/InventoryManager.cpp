@@ -211,7 +211,9 @@ void InventoryManager::onClientOpenMainInventory() {
         return;
     }
 
-    onCurrentWindowRemove();
+    if (mMainInventoryWindowId != CONTAINER_ID_NONE) {
+        return;
+    }
 
     if (mHasPendingCloseWindow) {
         mHasPendingOpenMainInventory = true;

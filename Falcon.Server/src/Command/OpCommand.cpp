@@ -20,3 +20,9 @@ bool OpCommand::execute(CommandSender &sender, const std::vector<std::string> &a
     sender.sendMessage("Opped " + arguments[0]);
     return true;
 }
+
+std::vector<CommandOverloadData> OpCommand::getOverloads() const {
+    CommandOverloadData overload;
+    overload.mParameters.push_back(makePlayerParameter("player", mHandler.getPlayerNames()));
+    return {overload};
+}

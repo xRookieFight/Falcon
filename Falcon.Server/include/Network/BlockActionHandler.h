@@ -1,0 +1,31 @@
+#pragma once
+
+#include "Core/Math/Vector3f.h"
+#include "Core/Math/Vector3i.h"
+
+class ServerNetworkHandler;
+class ServerPlayer;
+class ItemUseTransaction;
+class Packet;
+
+class BlockActionHandler {
+public:
+    static void broadcastToViewers(ServerNetworkHandler &owner, const Vector3f &position, const Packet &packet);
+
+    static void breakBlock(ServerNetworkHandler &owner, ServerPlayer &player, const Vector3i &position);
+
+    static void startBreakingBlock(ServerNetworkHandler &owner, ServerPlayer &player, const Vector3i &position,
+                                   int32_t face);
+
+    static void continueBreakingBlock(ServerNetworkHandler &owner, ServerPlayer &player);
+
+    static void stopBreakingBlock(ServerNetworkHandler &owner, ServerPlayer &player);
+
+    static void completeBreakingBlock(ServerNetworkHandler &owner, ServerPlayer &player, const Vector3i &position);
+
+    static void sendBreakingFx(ServerNetworkHandler &owner, ServerPlayer &player);
+
+    static bool canInteractWithBlock(ServerPlayer &player, const Vector3i &position);
+
+    static void placeBlock(ServerNetworkHandler &owner, ServerPlayer &player, const ItemUseTransaction &transaction);
+};

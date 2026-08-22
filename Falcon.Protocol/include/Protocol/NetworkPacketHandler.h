@@ -78,6 +78,7 @@ class EducationSettingsPacket;
 class EduUriResourcePacket;
 class EmoteListPacket;
 class EmotePacket;
+class EntityEventPacket;
 class EntityFallPacket;
 class EntityPickRequestPacket;
 class EventPacket;
@@ -100,6 +101,8 @@ class JigsawStructureDataPacket;
 class LabTablePacket;
 class LessonProgressPacket;
 class LevelChunkPacket;
+class LevelEventPacket;
+class LevelSoundEventPacket;
 class LocatorBarPacket;
 class LoginPacket;
 class MapCreateLockedCopyPacket;
@@ -393,6 +396,8 @@ public:
 
     virtual void handle(const NetworkIdentifier &, const EmotePacket &) {}
 
+    virtual void handle(const NetworkIdentifier &, const EntityEventPacket &) {}
+
     virtual void handle(const NetworkIdentifier &, const EntityFallPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const EntityPickRequestPacket &) {}
@@ -436,6 +441,10 @@ public:
     virtual void handle(const NetworkIdentifier &, const LessonProgressPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const LevelChunkPacket &) {}
+
+    virtual void handle(const NetworkIdentifier &, const LevelEventPacket &) {}
+
+    virtual void handle(const NetworkIdentifier &, const LevelSoundEventPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const LocatorBarPacket &) {}
 

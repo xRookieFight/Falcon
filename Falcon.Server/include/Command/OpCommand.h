@@ -10,6 +10,8 @@ public:
 
     bool execute(CommandSender &sender, const std::vector<std::string> &arguments) override;
 
+    std::vector<CommandOverloadData> getOverloads() const override;
+
 private:
     ServerNetworkHandler &mHandler;
 };

@@ -76,6 +76,7 @@
 #include "Protocol/Packets/EduUriResourcePacket.h"
 #include "Protocol/Packets/EmoteListPacket.h"
 #include "Protocol/Packets/EmotePacket.h"
+#include "Protocol/Packets/EntityEventPacket.h"
 #include "Protocol/Packets/EntityFallPacket.h"
 #include "Protocol/Packets/EntityPickRequestPacket.h"
 #include "Protocol/Packets/EventPacket.h"
@@ -98,6 +99,8 @@
 #include "Protocol/Packets/LabTablePacket.h"
 #include "Protocol/Packets/LessonProgressPacket.h"
 #include "Protocol/Packets/LevelChunkPacket.h"
+#include "Protocol/Packets/LevelEventPacket.h"
+#include "Protocol/Packets/LevelSoundEventPacket.h"
 #include "Protocol/Packets/LocatorBarPacket.h"
 #include "Protocol/Packets/LoginPacket.h"
 #include "Protocol/Packets/MapCreateLockedCopyPacket.h"
@@ -343,6 +346,7 @@ void MinecraftPackets::_registerDefaultPackets() {
     registerPacket<EduUriResourcePacket>();
     registerPacket<EmoteListPacket>();
     registerPacket<EmotePacket>();
+    registerPacket<EntityEventPacket>();
     registerPacket<EntityFallPacket>();
     registerPacket<EntityPickRequestPacket>();
     registerPacket<EventPacket>();
@@ -365,6 +369,8 @@ void MinecraftPackets::_registerDefaultPackets() {
     registerPacket<LabTablePacket>();
     registerPacket<LessonProgressPacket>();
     registerPacket<LevelChunkPacket>();
+    registerPacket<LevelEventPacket>();
+    registerPacket<LevelSoundEventPacket>();
     registerPacket<LocatorBarPacket>();
     registerPacket<LoginPacket>();
     registerPacket<MapCreateLockedCopyPacket>();

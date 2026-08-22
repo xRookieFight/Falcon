@@ -1,6 +1,9 @@
 #pragma once
 
 #include "Protocol/Packet.h"
+#include "Protocol/Types/CraftingRecipeEntry.h"
+
+#include <vector>
 
 class CraftingDataPacket : public Packet {
 public:
@@ -18,5 +21,7 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
+    std::vector<CraftingRecipeEntry> mShapedRecipes;
+    std::vector<CraftingRecipeEntry> mShapelessRecipes;
     bool mCleanRecipes = false;
 };

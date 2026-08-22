@@ -50,3 +50,33 @@ float EntityAttributes::get(const std::string &name) const {
     }
     return 0.0f;
 }
+
+float EntityAttributes::getMinimum(const std::string &name) const {
+    for (const AttributeData &attribute: mAttributes) {
+        if (attribute.mName == name)
+            return attribute.mMinimum;
+    }
+    return 0.0f;
+}
+
+float EntityAttributes::getMaximum(const std::string &name) const {
+    for (const AttributeData &attribute: mAttributes) {
+        if (attribute.mName == name)
+            return attribute.mMaximum;
+    }
+    return 0.0f;
+}
+
+void EntityAttributes::setClamped(const std::string &name, float value) {
+    for (AttributeData &attribute: mAttributes) {
+        if (attribute.mName == name) {
+            if (value < attribute.mMinimum)
+                value = attribute.mMinimum;
+            if (value > attribute.mMaximum)
+                value = attribute.mMaximum;
+
+            attribute.mValue = value;
+            return;
+        }
+    }
+}

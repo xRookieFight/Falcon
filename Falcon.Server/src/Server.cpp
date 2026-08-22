@@ -6,12 +6,21 @@
 #include "Network/ServerNetworkHandler.h"
 #include "Server/PropertiesSettings.h"
 
+#include <atomic>
 #include <chrono>
+#include <csignal>
 #include <cstdlib>
 #include <iostream>
 #include <thread>
 
 static const char *PROPERTIES_FILE = "server.properties";
+
+static std::atomic<bool> gRunning(true);
+
+static void requestShutdown(int signalNumber) {
+    (void) signalNumber;
+    gRunning.store(false);
+}
 
 static void setupServerLogging() {
     BedrockLog::setLogLevel(LogLevel::Info);
@@ -72,10 +81,17 @@ void startServer(const ServerSettings &settings) {
     });
     consoleThread.detach();
 
-    for (;;) {
+    std::signal(SIGINT, requestShutdown);
+    std::signal(SIGTERM, requestShutdown);
+
+    while (gRunning.load()) {
         networkHandler.tick();
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
+
+    LOG_INFO(LogAreaID::Server, "Shutting down...");
+    networkHandler.stopServerListening();
+    BedrockLog::flush();
 }
 
 int main() {

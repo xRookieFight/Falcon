@@ -1,5 +1,7 @@
 #include "Level/SubChunk.h"
 
+#include "Block/VanillaBlocks.h"
+#include "Core/Debug/BedrockLog.h"
 #include "Core/NBT/NbtIo.h"
 
 SubChunk::SubChunk(int8_t y) : mY(y) {
@@ -157,6 +159,13 @@ bool SubChunk::readPersistent(ReadOnlyBinaryStream &stream) {
         const Tag tag = NbtIo::readTag(stream, NbtVariant::LittleEndian);
         const std::string name = tag.getString("name", "minecraft:air");
         const Tag *states = tag.get("states");
+
+        if (VanillaBlocks::fromIdentifier(name) == nullptr) {
+            LOG_ERROR(LogAreaID::Level, "Skipping unknown block %s while loading chunk data", name.c_str());
+            mPalette.push_back(BlockState("minecraft:air"));
+            continue;
+        }
+
         mPalette.push_back(states == nullptr ? BlockState(name) : BlockState(name, *states));
     }
 

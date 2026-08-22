@@ -1,5 +1,6 @@
 #include "Level/Level.h"
 
+#include "Block/BlockData.h"
 #include "Block/VanillaBlocks.h"
 #include "Core/Debug/BedrockLog.h"
 
@@ -97,6 +98,21 @@ int Level::getChunkSubChunkCount(int32_t chunkX, int32_t chunkZ) {
 
 int32_t Level::getBlock(int32_t x, int32_t y, int32_t z) {
     return getChunk(x >> 4, z >> 4).getBlock(x & 15, y, z & 15).mHash;
+}
+
+bool Level::isSolidAt(int32_t x, int32_t y, int32_t z) {
+    if (y < Chunk::MIN_Y || y > Chunk::MAX_Y)
+        return false;
+
+    const BlockState &state = getChunk(x >> 4, z >> 4).getBlock(x & 15, y, z & 15);
+    if (state.mName == "minecraft:air")
+        return false;
+
+    const BlockData *data = BlockDataTable::find(state.mName.c_str());
+    if (data == nullptr)
+        return true;
+
+    return data->mSolid;
 }
 
 void Level::setBlockState(int32_t x, int32_t y, int32_t z, const BlockState &state) {

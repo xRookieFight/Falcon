@@ -5,6 +5,10 @@
 
 namespace {
 
+    const char *EMPTY_GEOMETRY_DATA = "{}";
+    const char *GEOMETRY_ENGINE_VERSION = "0.0.0";
+    const char *DEFAULT_RESOURCE_PATCH = "{\"geometry\":{\"default\":\"geometry.humanoid.custom\"}}";
+
     int decodeBase64Char(char c) {
         if (c >= 'A' && c <= 'Z') return c - 'A';
         if (c >= 'a' && c <= 'z') return c - 'a' + 26;
@@ -246,7 +250,22 @@ SerializedSkin ConnectionRequest::buildDefaultSkin() const {
     skin.mSkinData.mData.assign(64 * 64 * 4, (char) 0xff);
     skin.mArmsWide = true;
     skin.mFullSkinId = "Falcon.Default.Steve";
+    normalizeSkin(skin);
     return skin;
+}
+
+void ConnectionRequest::normalizeSkin(SerializedSkin &skin) {
+    if (skin.mGeometryData.empty())
+        skin.mGeometryData = EMPTY_GEOMETRY_DATA;
+
+    if (skin.mGeometryDataEngineVersion.empty())
+        skin.mGeometryDataEngineVersion = GEOMETRY_ENGINE_VERSION;
+
+    if (skin.mSkinResourcePatch.empty())
+        skin.mSkinResourcePatch = DEFAULT_RESOURCE_PATCH;
+
+    if (skin.mFullSkinId.empty())
+        skin.mFullSkinId = skin.mSkinId;
 }
 
 void ConnectionRequest::parseSkin(const std::string &clientPayload) {
@@ -310,5 +329,6 @@ void ConnectionRequest::parseSkin(const std::string &clientPayload) {
         return;
     }
 
+    normalizeSkin(skin);
     mSkin = skin;
 }

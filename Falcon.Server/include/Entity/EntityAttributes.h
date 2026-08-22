@@ -14,6 +14,12 @@ public:
 
     float get(const std::string &name) const;
 
+    float getMinimum(const std::string &name) const;
+
+    float getMaximum(const std::string &name) const;
+
+    void setClamped(const std::string &name, float value);
+
     const std::vector<AttributeData> &getAll() const { return mAttributes; }
 
 private:

@@ -2,12 +2,15 @@
 
 #include <string>
 #include <unordered_set>
+#include <vector>
 
 class OpList {
 public:
     explicit OpList(const std::string &path);
 
     bool isOp(const std::string &name) const;
+
+    std::vector<std::string> getNames() const;
 
     void addOp(const std::string &name);
 

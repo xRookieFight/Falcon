@@ -1,10 +1,13 @@
 #include "Network/LoginChainVerifier.h"
 
+#include "Network/AuthKeyProvider.h"
 #include "Network/ConnectionRequest.h"
 #include "Core/Debug/BedrockLog.h"
 
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
+#include <ctime>
 
 #include <openssl/evp.h>
 #include <openssl/ec.h>
@@ -16,6 +19,13 @@ namespace {
 
     const char *MOJANG_PUBLIC_KEY_BASE64 =
             "MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAECRXueJeTDqNRRgJi/vlRufByu/2G0i2Ebt6YMar5QX/R0DIIyrJMcUpruK4QveTfJSTp3Shlq4Gk34cD/4GUWwkv0DVuzeuB+tXija7HBxii03NHDbPAD0AKnLr2wdAp";
+
+    const char *MOJANG_AUDIENCE = "api://auth-minecraft-services/multiplayer";
+
+    const long long CLOCK_DRIFT_MAX = 60;
+
+    const int AUTHENTICATION_TYPE_FULL = 0;
+    const int AUTHENTICATION_TYPE_SELF_SIGNED = 2;
 
     EVP_PKEY *parseKey(const std::string &base64) {
         const std::string der = ConnectionRequest::decodeBase64Url(base64);
@@ -80,8 +90,8 @@ namespace {
         return out;
     }
 
-    bool verifyEs384(EVP_PKEY *key, const std::string &message, const std::string &derSignature) {
-        if (key == nullptr || derSignature.empty())
+    bool verifyDigest(EVP_PKEY *key, const EVP_MD *digest, const std::string &message, const std::string &signature) {
+        if (key == nullptr || digest == nullptr || signature.empty())
             return false;
 
         EVP_MD_CTX *context = EVP_MD_CTX_new();
@@ -89,10 +99,10 @@ namespace {
             return false;
 
         bool valid = false;
-        if (EVP_DigestVerifyInit(context, nullptr, EVP_sha384(), nullptr, key) == 1 &&
+        if (EVP_DigestVerifyInit(context, nullptr, digest, nullptr, key) == 1 &&
             EVP_DigestVerifyUpdate(context, message.data(), message.size()) == 1) {
             const int result = EVP_DigestVerifyFinal(
-                    context, reinterpret_cast<const unsigned char *>(derSignature.data()), derSignature.size());
+                    context, reinterpret_cast<const unsigned char *>(signature.data()), signature.size());
             valid = result == 1;
         }
 
@@ -100,9 +110,17 @@ namespace {
         return valid;
     }
 
+    bool verifyEs384(EVP_PKEY *key, const std::string &message, const std::string &derSignature) {
+        return verifyDigest(key, EVP_sha384(), message, derSignature);
+    }
+
+    bool verifyRs256(EVP_PKEY *key, const std::string &message, const std::string &rawSignature) {
+        return verifyDigest(key, EVP_sha256(), message, rawSignature);
+    }
+
 }
 
-std::vector<std::string> LoginChainVerifier::extractChain(const std::string &authJwt) {
+std::vector<std::string> LoginChainVerifier::_extractChain(const std::string &authJwt) {
     std::vector<std::string> chain;
 
     const std::string pattern = "\"chain\"";
@@ -147,8 +165,8 @@ std::vector<std::string> LoginChainVerifier::extractChain(const std::string &aut
     return chain;
 }
 
-bool LoginChainVerifier::splitJwt(const std::string &jwt, std::string &header, std::string &payload,
-                                  std::string &signature) {
+bool LoginChainVerifier::_splitJwt(const std::string &jwt, std::string &header, std::string &payload,
+                                   std::string &signature) {
     const size_t first = jwt.find('.');
     if (first == std::string::npos)
         return false;
@@ -160,10 +178,12 @@ bool LoginChainVerifier::splitJwt(const std::string &jwt, std::string &header, s
     header = jwt.substr(0, first);
     payload = jwt.substr(first + 1, second - first - 1);
     signature = jwt.substr(second + 1);
-    return true;
+
+    return !header.empty() && !payload.empty() && !signature.empty() &&
+           jwt.find('.', second + 1) == std::string::npos;
 }
 
-std::string LoginChainVerifier::extractObject(const std::string &json, const std::string &key) {
+std::string LoginChainVerifier::_extractObject(const std::string &json, const std::string &key) {
     const std::string pattern = "\"" + key + "\"";
     size_t position = json.find(pattern);
     if (position == std::string::npos)
@@ -187,8 +207,63 @@ std::string LoginChainVerifier::extractObject(const std::string &json, const std
     return std::string();
 }
 
-void LoginChainVerifier::extractIdentity(const std::string &payload) {
-    const std::string extraData = extractObject(payload, "extraData");
+long long LoginChainVerifier::_findJsonLong(const std::string &json, const std::string &key, long long fallback) {
+    const std::string pattern = "\"" + key + "\"";
+
+    size_t position = json.find(pattern);
+    if (position == std::string::npos)
+        return fallback;
+
+    position = json.find(':', position + pattern.size());
+    if (position == std::string::npos)
+        return fallback;
+
+    position++;
+    while (position < json.size() && (json[position] == ' ' || json[position] == '\t'))
+        position++;
+
+    bool negative = false;
+    if (position < json.size() && json[position] == '-') {
+        negative = true;
+        position++;
+    }
+
+    bool hasDigit = false;
+    long long value = 0;
+    while (position < json.size() && json[position] >= '0' && json[position] <= '9') {
+        value = value * 10 + (json[position] - '0');
+        position++;
+        hasDigit = true;
+    }
+
+    if (!hasDigit)
+        return fallback;
+
+    return negative ? -value : value;
+}
+
+bool LoginChainVerifier::_fail(const std::string &reason) {
+    mFailureReason = reason;
+    mSigned = false;
+    return false;
+}
+
+bool LoginChainVerifier::_checkExpiry(const std::string &payloadJson) {
+    const long long now = (long long) std::time(nullptr);
+
+    const long long notBefore = _findJsonLong(payloadJson, "nbf", 0);
+    if (notBefore != 0 && notBefore > now + CLOCK_DRIFT_MAX)
+        return _fail("Your login token is not valid yet, check your system clock");
+
+    const long long expiry = _findJsonLong(payloadJson, "exp", 0);
+    if (expiry != 0 && expiry < now - CLOCK_DRIFT_MAX)
+        return _fail("Your login token has expired, please reconnect");
+
+    return true;
+}
+
+void LoginChainVerifier::_extractIdentity(const std::string &payload) {
+    const std::string extraData = _extractObject(payload, "extraData");
     const std::string &source = extraData.empty() ? payload : extraData;
 
     mDisplayName = ConnectionRequest::findJsonString(source, "displayName");
@@ -197,12 +272,12 @@ void LoginChainVerifier::extractIdentity(const std::string &payload) {
     mTitleId = ConnectionRequest::findJsonString(source, "titleId");
 }
 
-bool LoginChainVerifier::verifyChain(const std::vector<std::string> &chain) {
+bool LoginChainVerifier::_verifyChain(const std::vector<std::string> &chain) {
     EVP_PKEY *currentKey = nullptr;
     EVP_PKEY *mojangKey = parseKey(MOJANG_PUBLIC_KEY_BASE64);
     if (mojangKey == nullptr) {
         LOG_ERROR(LogAreaID::Network, "Failed to parse the Mojang root public key");
-        return false;
+        return _fail("The server could not verify your login");
     }
 
     bool ok = true;
@@ -213,7 +288,7 @@ bool LoginChainVerifier::verifyChain(const std::vector<std::string> &chain) {
         std::string payloadPart;
         std::string signaturePart;
 
-        if (!splitJwt(chain[i], header, payloadPart, signaturePart)) {
+        if (!_splitJwt(chain[i], header, payloadPart, signaturePart)) {
             LOG_WARN(LogAreaID::Network, "Login chain entry %u is not a valid JWT", (unsigned) i);
             ok = false;
             break;
@@ -271,90 +346,251 @@ bool LoginChainVerifier::verifyChain(const std::vector<std::string> &chain) {
         }
     }
 
-    if (ok && !lastPayload.empty()) {
-        extractIdentity(lastPayload);
-        mIdentityPublicKey = ConnectionRequest::findJsonString(lastPayload, "identityPublicKey");
-        mSigned = true;
-    }
-
     EVP_PKEY_free(currentKey);
     EVP_PKEY_free(mojangKey);
-    return ok && mSigned;
+
+    if (!ok || lastPayload.empty())
+        return _fail("Your login chain could not be verified");
+
+    if (!_checkExpiry(lastPayload))
+        return false;
+
+    _extractIdentity(lastPayload);
+    mIdentityPublicKey = ConnectionRequest::findJsonString(lastPayload, "identityPublicKey");
+    mSigned = true;
+    return true;
 }
 
-std::string LoginChainVerifier::extractToken(const std::string &authJwt) {
+std::string LoginChainVerifier::_extractToken(const std::string &authJwt) {
     return ConnectionRequest::findJsonString(authJwt, "Token");
 }
 
-bool LoginChainVerifier::verifyToken(const std::string &token) {
+bool LoginChainVerifier::_verifyClientData(const std::string &clientJwt, const std::string &expectedKeyBase64) {
     std::string header;
     std::string payloadPart;
     std::string signaturePart;
 
-    if (!splitJwt(token, header, payloadPart, signaturePart))
-        return false;
+    if (!_splitJwt(clientJwt, header, payloadPart, signaturePart))
+        return _fail("Your client data token is malformed");
 
+    const std::string headerJson = ConnectionRequest::decodeBase64Url(header);
+    const std::string x5u = ConnectionRequest::findJsonString(headerJson, "x5u");
+
+    if (x5u.empty())
+        return _fail("Your client data token has no signing key");
+
+    EVP_PKEY *headerKey = parseKey(x5u);
+    if (headerKey == nullptr)
+        return _fail("Your client data token has an invalid signing key");
+
+    EVP_PKEY *expectedKey = parseKey(expectedKeyBase64);
+    if (expectedKey == nullptr) {
+        EVP_PKEY_free(headerKey);
+        return _fail("Your login token carries an invalid client public key");
+    }
+
+    if (!keyEquals(headerKey, expectedKey)) {
+        EVP_PKEY_free(headerKey);
+        EVP_PKEY_free(expectedKey);
+        return _fail("Your client data token was not signed by the announced key");
+    }
+
+    EVP_PKEY_free(expectedKey);
+
+    const std::string message = header + "." + payloadPart;
+    const std::string derSignature = joseToDer(ConnectionRequest::decodeBase64Url(signaturePart));
+    const bool valid = verifyEs384(headerKey, message, derSignature);
+
+    EVP_PKEY_free(headerKey);
+
+    if (!valid)
+        return _fail("Your client data token has an invalid signature");
+
+    return true;
+}
+
+bool LoginChainVerifier::_verifyOpenIdToken(const std::string &token, const std::string &clientJwt) {
+    std::string header;
+    std::string payloadPart;
+    std::string signaturePart;
+
+    if (!_splitJwt(token, header, payloadPart, signaturePart))
+        return _fail("Your login token is malformed");
+
+    const std::string headerJson = ConnectionRequest::decodeBase64Url(header);
     const std::string payloadJson = ConnectionRequest::decodeBase64Url(payloadPart);
+
+    const std::string algorithm = ConnectionRequest::findJsonString(headerJson, "alg");
+    const std::string keyId = ConnectionRequest::findJsonString(headerJson, "kid");
 
     mXuid = ConnectionRequest::findJsonString(payloadJson, "xid");
     mDisplayName = ConnectionRequest::findJsonString(payloadJson, "xname");
+    mTitleId = ConnectionRequest::findJsonString(payloadJson, "tid");
     mIdentityPublicKey = ConnectionRequest::findJsonString(payloadJson, "cpk");
-    mIdentity = xuidToUuid(mXuid);
-    mSigned = !mXuid.empty();
+    mIdentity = _xuidToUuid(mXuid);
 
-    return mSigned;
+    if (mDisplayName.empty() || mXuid.empty())
+        return _fail("Your login token does not carry an Xbox Live identity");
+
+    if (algorithm != "RS256")
+        return _fail("Your login token uses an unsupported signature algorithm");
+
+    if (keyId.empty())
+        return _fail("Your login token does not announce a signing key");
+
+    std::string issuer;
+    EVP_PKEY *key = AuthKeyProvider::getInstance().acquireKey(keyId, issuer);
+
+    if (key == nullptr) {
+        LOG_WARN(LogAreaID::Network, "No authentication key matches the key id %s, the login stays unverified",
+                 keyId.c_str());
+        mSigned = false;
+        return true;
+    }
+
+    const std::string message = header + "." + payloadPart;
+    const bool valid = verifyRs256(key, message, ConnectionRequest::decodeBase64Url(signaturePart));
+
+    EVP_PKEY_free(key);
+
+    if (!valid)
+        return _fail("Your login token has an invalid signature");
+
+    if (!issuer.empty() && ConnectionRequest::findJsonString(payloadJson, "iss") != issuer)
+        return _fail("Your login token was issued by an unexpected authority");
+
+    if (ConnectionRequest::findJsonString(payloadJson, "aud") != MOJANG_AUDIENCE)
+        return _fail("Your login token was not issued for multiplayer");
+
+    if (!_checkExpiry(payloadJson))
+        return false;
+
+    if (mIdentityPublicKey.empty())
+        return _fail("Your login token does not carry a client public key");
+
+    if (!_verifyClientData(clientJwt, mIdentityPublicKey))
+        return false;
+
+    mSigned = true;
+    return true;
 }
 
-std::string LoginChainVerifier::xuidToUuid(const std::string &xuid) {
+bool LoginChainVerifier::_verifySelfSignedToken(const std::string &token, const std::string &clientJwt) {
+    std::string header;
+    std::string payloadPart;
+    std::string signaturePart;
+
+    if (!_splitJwt(token, header, payloadPart, signaturePart))
+        return _fail("Your login token is malformed");
+
+    const std::string payloadJson = ConnectionRequest::decodeBase64Url(payloadPart);
+
+    mDisplayName = ConnectionRequest::findJsonString(payloadJson, "xname");
+    mIdentity = ConnectionRequest::findJsonString(payloadJson, "leguuid");
+    mIdentityPublicKey = ConnectionRequest::findJsonString(payloadJson, "cpk");
+    mXuid.clear();
+    mTitleId.clear();
+
+    if (mDisplayName.empty())
+        return _fail("Your login token does not carry a name");
+
+    if (mIdentityPublicKey.empty())
+        return _fail("Your login token does not carry a client public key");
+
+    EVP_PKEY *selfSignedKey = parseKey(mIdentityPublicKey);
+    if (selfSignedKey == nullptr)
+        return _fail("Your login token carries an invalid client public key");
+
+    const std::string message = header + "." + payloadPart;
+    const std::string derSignature = joseToDer(ConnectionRequest::decodeBase64Url(signaturePart));
+    const bool valid = verifyEs384(selfSignedKey, message, derSignature);
+
+    EVP_PKEY_free(selfSignedKey);
+
+    if (!valid)
+        return _fail("Your login token has an invalid signature");
+
+    if (ConnectionRequest::findJsonString(payloadJson, "aud") != MOJANG_AUDIENCE)
+        return _fail("Your login token was not issued for multiplayer");
+
+    if (!_checkExpiry(payloadJson))
+        return false;
+
+    if (!_verifyClientData(clientJwt, mIdentityPublicKey))
+        return false;
+
+    mSigned = false;
+    return true;
+}
+
+std::string LoginChainVerifier::_xuidToUuid(const std::string &xuid) {
     if (xuid.empty())
         return std::string();
 
-    const std::hash<std::string> hasher;
-    const uint64_t high = hasher("falcon-xuid-high-" + xuid);
-    const uint64_t low = hasher("falcon-xuid-low-" + xuid);
+    const std::string source = "pocket-auth-1-xuid:" + xuid;
+
+    unsigned char digest[EVP_MAX_MD_SIZE];
+    unsigned int length = 0;
+
+    if (EVP_Digest(source.data(), source.size(), digest, &length, EVP_md5(), nullptr) != 1 || length != 16)
+        return std::string();
+
+    digest[6] = (unsigned char) ((digest[6] & 0x0f) | 0x30);
+    digest[8] = (unsigned char) ((digest[8] & 0x3f) | 0x80);
 
     char buffer[40];
-    snprintf(buffer, sizeof(buffer), "%08x-%04x-%04x-%04x-%012llx",
-             (unsigned int) (high >> 32),
-             (unsigned int) ((high >> 16) & 0xffff),
-             (unsigned int) (high & 0xffff),
-             (unsigned int) ((low >> 48) & 0xffff),
-             (unsigned long long) (low & 0xffffffffffffULL));
+    snprintf(buffer, sizeof(buffer), "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+             digest[0], digest[1], digest[2], digest[3], digest[4], digest[5], digest[6], digest[7],
+             digest[8], digest[9], digest[10], digest[11], digest[12], digest[13], digest[14], digest[15]);
+
     return std::string(buffer);
 }
 
-bool LoginChainVerifier::verify(const std::string &authJwt) {
+bool LoginChainVerifier::verify(const std::string &authJwt, const std::string &clientJwt) {
     mSigned = false;
     mIdentity.clear();
     mXuid.clear();
     mDisplayName.clear();
     mTitleId.clear();
     mIdentityPublicKey.clear();
+    mFailureReason.clear();
 
-    const std::string token = extractToken(authJwt);
-    if (!token.empty())
-        return verifyToken(token);
+    const std::string token = _extractToken(authJwt);
 
-    const std::vector<std::string> chain = extractChain(authJwt);
+    if (!token.empty()) {
+        const int authenticationType = ConnectionRequest::findJsonInt(authJwt, "AuthenticationType",
+                                                                     AUTHENTICATION_TYPE_FULL);
+
+        if (authenticationType == AUTHENTICATION_TYPE_SELF_SIGNED)
+            return _verifySelfSignedToken(token, clientJwt);
+
+        return _verifyOpenIdToken(token, clientJwt);
+    }
+
+    const std::vector<std::string> chain = _extractChain(authJwt);
 
     if (chain.size() == 1) {
         std::string header;
         std::string payloadPart;
         std::string signaturePart;
 
-        if (!splitJwt(chain[0], header, payloadPart, signaturePart))
-            return false;
+        if (!_splitJwt(chain[0], header, payloadPart, signaturePart))
+            return _fail("Your login chain is malformed");
 
         const std::string payloadJson = ConnectionRequest::decodeBase64Url(payloadPart);
-        extractIdentity(payloadJson);
+        _extractIdentity(payloadJson);
         mIdentityPublicKey = ConnectionRequest::findJsonString(payloadJson, "identityPublicKey");
         mSigned = false;
-        return !mDisplayName.empty() || !mIdentity.empty();
+
+        if (mDisplayName.empty() && mIdentity.empty())
+            return _fail("Your login chain does not carry an identity");
+
+        return true;
     }
 
     if (chain.size() == 3)
-        return verifyChain(chain);
+        return _verifyChain(chain);
 
     LOG_WARN(LogAreaID::Network, "Unexpected login chain length %u", (unsigned) chain.size());
-    return false;
+    return _fail("Your login chain has an unexpected length");
 }

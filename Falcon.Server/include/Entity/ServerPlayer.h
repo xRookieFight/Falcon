@@ -1,7 +1,8 @@
 #pragma once
 
+#include "Core/Math/Vector3i.h"
 #include "Core/NBT/Tag.h"
-#include "Entity/Entity.h"
+#include "Entity/LivingEntity.h"
 #include "Inventory/InventoryManager.h"
 #include "Inventory/PlayerInventory.h"
 #include "Network/NetworkIdentifier.h"
@@ -14,7 +15,7 @@
 #include <unordered_set>
 
 // One connected client and where it is in the login sequence.
-class ServerPlayer : public Entity {
+class ServerPlayer : public LivingEntity {
 public:
     enum class LoginState : int {
         Connecting = 0,
@@ -67,7 +68,13 @@ public:
 
     bool isFlying() const { return mFlying; }
 
-    void setFlying(bool flying) { mFlying = flying; }
+    void setFlying(bool flying) {
+        if (mFlying == flying)
+            return;
+
+        resetFallDistance();
+        mFlying = flying;
+    }
 
     CommandPermission getCommandPermission() const {
         return mIsOp ? CommandPermission::GameDirectors : CommandPermission::Any;
@@ -98,6 +105,63 @@ public:
     void sendTitle(const std::string &title, const std::string &subtitle = "", int32_t fadeInTime = 10,
                    int32_t stayTime = 70, int32_t fadeOutTime = 20);
 
+    bool hasPendingMove() const { return mHasPendingMove; }
+
+    const Vector3f &getPendingMovePosition() const { return mPendingMovePosition; }
+
+    const Vector3f &getPendingMoveRotation() const { return mPendingMoveRotation; }
+
+    void queueMove(const Vector3f &position, const Vector3f &rotation, uint64_t clientTick, bool jumping) {
+        mPendingMovePosition = position;
+        mPendingMoveRotation = rotation;
+        mPendingMoveClientTick = clientTick;
+        mPendingMoveJumping = jumping;
+        mHasPendingMove = true;
+    }
+
+    uint64_t getPendingMoveClientTick() const { return mPendingMoveClientTick; }
+
+    bool isPendingMoveJumping() const { return mPendingMoveJumping; }
+
+    void clearPendingMove() { mHasPendingMove = false; }
+
+    int64_t getItemUseStartTick() const { return mItemUseStartTick; }
+
+    void setItemUseStartTick(int64_t tick) { mItemUseStartTick = tick; }
+
+    bool isBreakingBlock() const { return mIsBreakingBlock; }
+
+    const Vector3i &getBreakingBlockPosition() const { return mBreakingBlockPosition; }
+
+    int32_t getBreakingFace() const { return mBreakingFace; }
+
+    double getBreakProgress() const { return mBreakProgress; }
+
+    void addBreakProgress(double amount) { mBreakProgress += amount; }
+
+    void startBreakingBlock(const Vector3i &position, int32_t face) {
+        mIsBreakingBlock = true;
+        mBreakingBlockPosition = position;
+        mBreakingFace = face;
+        mBreakProgress = 0.0;
+        mBreakingFxTicker = 0;
+    }
+
+    void stopBreakingBlock() {
+        mIsBreakingBlock = false;
+        mBreakProgress = 0.0;
+    }
+
+    int getBreakingFxTicker() { return mBreakingFxTicker++; }
+
+    bool hasSeenNonZeroClientTick() const { return mSawNonZeroClientTick; }
+
+    void markNonZeroClientTickSeen() { mSawNonZeroClientTick = true; }
+
+    bool hasForceMoveSync() const { return mForceMoveSync; }
+
+    void setForceMoveSync(bool forceMoveSync) { mForceMoveSync = forceMoveSync; }
+
     std::unordered_set<int64_t> &getSentChunks() { return mSentChunks; }
 
     size_t getSentChunkCount() const { return mSentChunkCount; }
@@ -127,6 +191,19 @@ private:
     std::string mUuid;
     std::string mXuid;
     int mBuildPlatform = -1;
+    bool mForceMoveSync = false;
+    int64_t mItemUseStartTick = 0;
+    bool mHasPendingMove = false;
+    Vector3f mPendingMovePosition;
+    Vector3f mPendingMoveRotation;
+    uint64_t mPendingMoveClientTick = 0;
+    bool mPendingMoveJumping = false;
+    bool mIsBreakingBlock = false;
+    Vector3i mBreakingBlockPosition;
+    int32_t mBreakingFace = 0;
+    double mBreakProgress = 0.0;
+    int mBreakingFxTicker = 0;
+    bool mSawNonZeroClientTick = false;
     std::unordered_set<int64_t> mSentChunks;
     size_t mSentChunkCount = 0;
     bool mSpawnChunksReady = false;

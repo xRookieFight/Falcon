@@ -33,6 +33,7 @@ namespace {
         }
 
         file << "\n\n";
+        file.flush();
     }
 
 }

@@ -1,5 +1,7 @@
 #include "Inventory/ItemStackNbt.h"
 
+#include "Core/Debug/BedrockLog.h"
+
 namespace {
     const char *TAG_SLOT = "Slot";
     const char *TAG_NAME = "Name";
@@ -97,6 +99,7 @@ ItemStack ItemStackNbt::read(const Tag &data, const PacketCodecContext &context)
 
     std::shared_ptr<ItemDefinition> definition = context.getItemDefinitions().getDefinition(name);
     if (definition == nullptr) {
+        LOG_ERROR(LogAreaID::Server, "Skipping unknown item %s while loading saved data", name.c_str());
         return ItemStack::air();
     }
 
@@ -113,6 +116,9 @@ ItemStack ItemStackNbt::read(const Tag &data, const PacketCodecContext &context)
     const std::string blockName = data.getString(TAG_BLOCK_NAME);
     if (!blockName.empty()) {
         item.mBlockDefinition = context.getBlockDefinitions().getDefinition(blockName);
+
+        if (item.mBlockDefinition == nullptr)
+            LOG_ERROR(LogAreaID::Server, "Unknown block %s on saved item %s", blockName.c_str(), name.c_str());
     }
 
     readStringList(data, TAG_CAN_PLACE, item.mCanPlace);
