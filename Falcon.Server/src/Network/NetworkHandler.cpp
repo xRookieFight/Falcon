@@ -15,15 +15,16 @@ namespace {
     void logPacketToFile(const char *direction, const Packet &packet, const std::string &payload) {
         std::lock_guard<std::mutex> lock(gPacketLogMutex);
 
-        std::ofstream file("packet.txt", std::ios::app);
+        static std::ofstream file("packet.txt", std::ios::trunc);
         if (!file.is_open())
             return;
 
         file << direction << " " << packet.getName() << " id=" << (int) packet.getId()
              << " size=" << payload.size() << "\n";
 
+        const size_t limit = payload.size() < 256 ? payload.size() : 256;
         char hex[4];
-        for (size_t i = 0; i < payload.size(); i++) {
+        for (size_t i = 0; i < limit; i++) {
             snprintf(hex, sizeof(hex), "%02x ", (unsigned char) payload[i]);
             file << hex;
 

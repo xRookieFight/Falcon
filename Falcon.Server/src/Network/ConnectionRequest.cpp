@@ -1,6 +1,7 @@
 #include "Network/ConnectionRequest.h"
 
 #include <cstdint>
+#include <vector>
 
 namespace {
 
@@ -11,6 +12,56 @@ namespace {
         if (c == '+' || c == '-') return 62;
         if (c == '/' || c == '_') return 63;
         return -1;
+    }
+
+    std::vector<std::string> extractJsonArrayObjects(const std::string &json, const std::string &key) {
+        std::vector<std::string> objects;
+
+        const std::string pattern = "\"" + key + "\"";
+        size_t position = json.find(pattern);
+        if (position == std::string::npos)
+            return objects;
+
+        position = json.find('[', position + pattern.size());
+        if (position == std::string::npos)
+            return objects;
+
+        int arrayDepth = 0;
+        int objectDepth = 0;
+        size_t objectStart = std::string::npos;
+
+        for (size_t i = position; i < json.size(); i++) {
+            const char c = json[i];
+
+            if (c == '[') {
+                arrayDepth++;
+                continue;
+            }
+
+            if (c == ']') {
+                arrayDepth--;
+                if (arrayDepth == 0)
+                    break;
+                continue;
+            }
+
+            if (c == '{') {
+                if (objectDepth == 0)
+                    objectStart = i;
+                objectDepth++;
+                continue;
+            }
+
+            if (c == '}') {
+                objectDepth--;
+                if (objectDepth == 0 && objectStart != std::string::npos) {
+                    objects.push_back(json.substr(objectStart, i - objectStart + 1));
+                    objectStart = std::string::npos;
+                }
+            }
+        }
+
+        return objects;
     }
 
 }
@@ -49,6 +100,65 @@ std::string ConnectionRequest::readJwtPayload(const std::string &jwt) {
         return std::string();
 
     return decodeBase64Url(jwt.substr(first + 1, second - first - 1));
+}
+
+int ConnectionRequest::findJsonInt(const std::string &json, const std::string &key, int fallback) {
+    const std::string pattern = "\"" + key + "\"";
+
+    size_t position = json.find(pattern);
+    if (position == std::string::npos)
+        return fallback;
+
+    position = json.find(':', position + pattern.size());
+    if (position == std::string::npos)
+        return fallback;
+
+    position++;
+    while (position < json.size() && (json[position] == ' ' || json[position] == '\t'))
+        position++;
+
+    bool negative = false;
+    if (position < json.size() && json[position] == '-') {
+        negative = true;
+        position++;
+    }
+
+    bool hasDigit = false;
+    long value = 0;
+    while (position < json.size() && json[position] >= '0' && json[position] <= '9') {
+        value = value * 10 + (json[position] - '0');
+        position++;
+        hasDigit = true;
+    }
+
+    if (!hasDigit)
+        return fallback;
+
+    return (int) (negative ? -value : value);
+}
+
+bool ConnectionRequest::findJsonBool(const std::string &json, const std::string &key, bool fallback) {
+    const std::string pattern = "\"" + key + "\"";
+
+    size_t position = json.find(pattern);
+    if (position == std::string::npos)
+        return fallback;
+
+    position = json.find(':', position + pattern.size());
+    if (position == std::string::npos)
+        return fallback;
+
+    position++;
+    while (position < json.size() && (json[position] == ' ' || json[position] == '\t'))
+        position++;
+
+    if (json.compare(position, 4, "true") == 0)
+        return true;
+
+    if (json.compare(position, 5, "false") == 0)
+        return false;
+
+    return fallback;
 }
 
 std::string ConnectionRequest::findJsonString(const std::string &json, const std::string &key) {
@@ -114,10 +224,91 @@ bool ConnectionRequest::parse(const std::string &authJwt, const std::string &cli
     if (!clientPayload.empty()) {
         mDeviceId = findJsonString(clientPayload, "DeviceId");
         mTitleId = findJsonString(clientPayload, "TitleID");
+        mBuildPlatform = findJsonInt(clientPayload, "DeviceOS", -1);
 
         if (mDisplayName.empty())
             mDisplayName = findJsonString(clientPayload, "ThirdPartyName");
+
+        parseSkin(clientPayload);
+    } else {
+        mSkin = buildDefaultSkin();
     }
 
     return !mDisplayName.empty();
+}
+
+SerializedSkin ConnectionRequest::buildDefaultSkin() const {
+    SerializedSkin skin;
+    skin.mSkinId = "Falcon.Default.Steve";
+    skin.mSkinResourcePatch = "{\"geometry\":{\"default\":\"geometry.humanoid.custom\"}}";
+    skin.mSkinData.mWidth = 64;
+    skin.mSkinData.mHeight = 64;
+    skin.mSkinData.mData.assign(64 * 64 * 4, (char) 0xff);
+    skin.mArmsWide = true;
+    skin.mFullSkinId = "Falcon.Default.Steve";
+    return skin;
+}
+
+void ConnectionRequest::parseSkin(const std::string &clientPayload) {
+    SerializedSkin skin;
+
+    skin.mSkinId = findJsonString(clientPayload, "SkinId");
+    skin.mPlayFabId = findJsonString(clientPayload, "PlayFabId");
+    skin.mSkinResourcePatch = decodeBase64Url(findJsonString(clientPayload, "SkinResourcePatch"));
+
+    skin.mSkinData.mWidth = findJsonInt(clientPayload, "SkinImageWidth");
+    skin.mSkinData.mHeight = findJsonInt(clientPayload, "SkinImageHeight");
+    skin.mSkinData.mData = decodeBase64Url(findJsonString(clientPayload, "SkinData"));
+
+    skin.mCapeData.mWidth = findJsonInt(clientPayload, "CapeImageWidth");
+    skin.mCapeData.mHeight = findJsonInt(clientPayload, "CapeImageHeight");
+    skin.mCapeData.mData = decodeBase64Url(findJsonString(clientPayload, "CapeData"));
+
+    skin.mGeometryData = decodeBase64Url(findJsonString(clientPayload, "SkinGeometryData"));
+    skin.mGeometryDataEngineVersion = decodeBase64Url(findJsonString(clientPayload, "SkinGeometryDataEngineVersion"));
+    skin.mAnimationData = decodeBase64Url(findJsonString(clientPayload, "SkinAnimationData"));
+
+    skin.mCapeId = findJsonString(clientPayload, "CapeId");
+    skin.mFullSkinId = findJsonString(clientPayload, "FullSkinId");
+    skin.mArmsWide = findJsonString(clientPayload, "ArmSize") != "slim";
+
+    skin.mPremium = findJsonBool(clientPayload, "PremiumSkin");
+    skin.mPersona = findJsonBool(clientPayload, "PersonaSkin");
+    skin.mCapeOnClassic = findJsonBool(clientPayload, "CapeOnClassicSkin");
+
+    for (const std::string &object: extractJsonArrayObjects(clientPayload, "AnimatedImageData")) {
+        SkinAnimationData animation;
+        animation.mImage.mWidth = findJsonInt(object, "ImageWidth");
+        animation.mImage.mHeight = findJsonInt(object, "ImageHeight");
+        animation.mImage.mData = decodeBase64Url(findJsonString(object, "Image"));
+        animation.mTextureType = findJsonInt(object, "Type");
+        animation.mFrames = (float) findJsonInt(object, "Frames");
+        animation.mExpressionType = findJsonInt(object, "AnimationExpression");
+        skin.mAnimations.push_back(animation);
+    }
+
+    for (const std::string &object: extractJsonArrayObjects(clientPayload, "PersonaPieces")) {
+        PersonaPieceData piece;
+        piece.mId = findJsonString(object, "PieceId");
+        piece.mPieceType = 0;
+        piece.mPackId = Uuid::fromString(findJsonString(object, "PackId"));
+        piece.mProductId = findJsonString(object, "ProductId");
+        piece.mIsDefault = findJsonBool(object, "IsDefault");
+        skin.mPersonaPieces.push_back(piece);
+    }
+
+    for (const std::string &object: extractJsonArrayObjects(clientPayload, "PieceTintColors")) {
+        PersonaPieceTintData tint;
+        tint.mType = findJsonString(object, "PieceType");
+        tint.mColors.assign(4, 0);
+        skin.mTintColors.push_back(tint);
+    }
+
+    if (skin.mSkinData.mData.empty() || skin.mSkinData.mWidth <= 0 || skin.mSkinData.mHeight <= 0) {
+        mSkin = buildDefaultSkin();
+        mSkin.mSkinId = skin.mSkinId.empty() ? mSkin.mSkinId : skin.mSkinId;
+        return;
+    }
+
+    mSkin = skin;
 }

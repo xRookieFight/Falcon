@@ -24,9 +24,9 @@ void SkinCodec::writeAnimation(BinaryStream &stream, const SkinAnimationData &an
 SkinAnimationData SkinCodec::readAnimation(ReadOnlyBinaryStream &stream) {
     SkinAnimationData animation;
     animation.mImage = readImage(stream);
-    animation.mTextureType = (AnimatedTextureType) stream.getUnsignedVarInt();
+    animation.mTextureType = (int32_t) stream.getUnsignedVarInt();
     animation.mFrames = stream.getLFloat();
-    animation.mExpressionType = (AnimationExpressionType) stream.getUnsignedVarInt();
+    animation.mExpressionType = (int32_t) stream.getUnsignedVarInt();
     return animation;
 }
 
@@ -37,9 +37,8 @@ void SkinCodec::writeSkin(BinaryStream &stream, const SerializedSkin &skin) {
     writeImage(stream, skin.mSkinData);
 
     stream.putUnsignedVarInt((uint32_t) skin.mAnimations.size());
-    for (const SkinAnimationData &animation: skin.mAnimations) {
+    for (const SkinAnimationData &animation: skin.mAnimations)
         writeAnimation(stream, animation);
-    }
 
     writeImage(stream, skin.mCapeData);
     stream.putString(skin.mGeometryData);
@@ -62,11 +61,11 @@ void SkinCodec::writeSkin(BinaryStream &stream, const SerializedSkin &skin) {
 
     stream.putUnsignedVarInt((uint32_t) skin.mTintColors.size());
     for (const PersonaPieceTintData &tint: skin.mTintColors) {
-        stream.putString(tint.mPieceType);
-        stream.putLInt((uint32_t) tint.mColor0Argb);
-        stream.putLInt((uint32_t) tint.mColor1Argb);
-        stream.putLInt((uint32_t) tint.mColor2Argb);
-        stream.putLInt((uint32_t) tint.mColor3Argb);
+        stream.putString(tint.mType);
+        for (int i = 0; i < 4; i++) {
+            const uint32_t color = i < (int) tint.mColors.size() ? (uint32_t) tint.mColors[i] : 0u;
+            stream.putLInt(color);
+        }
     }
 
     stream.putBool(skin.mPremium);
@@ -86,11 +85,10 @@ SerializedSkin SkinCodec::readSkin(ReadOnlyBinaryStream &stream) {
     skin.mSkinResourcePatch = stream.getString();
     skin.mSkinData = readImage(stream);
 
-    uint32_t animationCount = stream.getUnsignedVarInt();
+    const uint32_t animationCount = stream.getUnsignedVarInt();
     skin.mAnimations.reserve(animationCount);
-    for (uint32_t i = 0; i < animationCount; i++) {
+    for (uint32_t i = 0; i < animationCount; i++)
         skin.mAnimations.push_back(readAnimation(stream));
-    }
 
     skin.mCapeData = readImage(stream);
     skin.mGeometryData = stream.getString();
@@ -99,30 +97,29 @@ SerializedSkin SkinCodec::readSkin(ReadOnlyBinaryStream &stream) {
     skin.mCapeId = stream.getString();
     skin.mFullSkinId = stream.getString();
 
-    skin.mArmsWide = stream.getByte() == 1;
+    skin.mArmsWide = stream.getByte() != 0;
     skin.mColorArgb = (int32_t) stream.getLInt();
 
-    uint32_t pieceCount = stream.getUnsignedVarInt();
+    const uint32_t pieceCount = stream.getUnsignedVarInt();
     skin.mPersonaPieces.reserve(pieceCount);
     for (uint32_t i = 0; i < pieceCount; i++) {
         PersonaPieceData piece;
         piece.mId = stream.getString();
-        piece.mPieceType = (PersonaPieceType) stream.getLInt();
+        piece.mPieceType = (int32_t) stream.getLInt();
         piece.mPackId = stream.getUuid();
         piece.mIsDefault = stream.getBool();
         piece.mProductId = stream.getString();
         skin.mPersonaPieces.push_back(piece);
     }
 
-    uint32_t tintCount = stream.getUnsignedVarInt();
+    const uint32_t tintCount = stream.getUnsignedVarInt();
     skin.mTintColors.reserve(tintCount);
     for (uint32_t i = 0; i < tintCount; i++) {
         PersonaPieceTintData tint;
-        tint.mPieceType = stream.getString();
-        tint.mColor0Argb = (int32_t) stream.getLInt();
-        tint.mColor1Argb = (int32_t) stream.getLInt();
-        tint.mColor2Argb = (int32_t) stream.getLInt();
-        tint.mColor3Argb = (int32_t) stream.getLInt();
+        tint.mType = stream.getString();
+        tint.mColors.reserve(4);
+        for (int j = 0; j < 4; j++)
+            tint.mColors.push_back((int32_t) stream.getLInt());
         skin.mTintColors.push_back(tint);
     }
 

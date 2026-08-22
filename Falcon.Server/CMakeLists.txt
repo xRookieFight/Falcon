@@ -24,6 +24,7 @@ add_executable(FalconServer
         src/Network/RakPeerHelper.cpp
         src/Network/ServerNetworkHandler.cpp
         src/Network/ConnectionRequest.cpp
+        src/Network/LoginChainVerifier.cpp
         src/Command/Command.cpp
         src/Command/ConsoleCommandSender.cpp
         src/Command/DeopCommand.cpp
@@ -37,6 +38,7 @@ add_executable(FalconServer
         src/Entity/ItemEntity.cpp
         src/Entity/ServerPlayer.cpp
         src/Level/FlatChunkGenerator.cpp
+        src/Level/BiomeRegistry.cpp
         src/Level/Level.cpp
         src/Player/PlayerDataProvider.cpp
         src/Server/OpList.cpp
@@ -44,13 +46,15 @@ add_executable(FalconServer
 )
 
 find_package(ZLIB REQUIRED)
+find_package(OpenSSL REQUIRED)
 
-target_include_directories(FalconServer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include ${ZLIB_INCLUDE_DIRS})
+target_include_directories(FalconServer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include ${ZLIB_INCLUDE_DIRS}
+        ${OPENSSL_INCLUDE_DIR})
 target_link_libraries(FalconServer PRIVATE FalconNetwork FalconProtocol)
 
 if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_link_options(FalconServer PRIVATE -static)
-    target_link_libraries(FalconServer PRIVATE z)
+    target_link_options(FalconServer PRIVATE -static -fuse-ld=lld)
+    target_link_libraries(FalconServer PRIVATE z crypto ws2_32 crypt32)
 else()
-    target_link_libraries(FalconServer PRIVATE ZLIB::ZLIB)
+    target_link_libraries(FalconServer PRIVATE ZLIB::ZLIB OpenSSL::Crypto)
 endif()

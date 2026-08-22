@@ -55,6 +55,7 @@ void EntityCodec::writeEntityData(BinaryStream &stream, const EntityDataMap &ent
     for (const EntityDataEntry &entry: entityData.mEntries) {
         stream.putUnsignedVarInt((uint32_t) entry.mId);
         stream.putUnsignedVarInt((uint32_t) entry.mFormat);
+        stream.putByte((unsigned char) entry.mFormat);
 
         switch (entry.mFormat) {
             case EntityDataFormat::Byte:
@@ -98,6 +99,7 @@ EntityDataMap EntityCodec::readEntityData(ReadOnlyBinaryStream &stream) {
         EntityDataEntry entry;
         entry.mId = (int32_t) stream.getUnsignedVarInt();
         entry.mFormat = (EntityDataFormat) stream.getUnsignedVarInt();
+        stream.getByte();
 
         switch (entry.mFormat) {
             case EntityDataFormat::Byte:

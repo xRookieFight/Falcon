@@ -7,6 +7,7 @@
 #include "Command/PlayerCommandSender.h"
 #include "Core/Debug/BedrockLog.h"
 #include "Network/ConnectionRequest.h"
+#include "Network/LoginChainVerifier.h"
 #include "Core/Utility/ReadOnlyBinaryStream.h"
 #include "Protocol/MinecraftPackets.h"
 #include "Protocol/Packets/DisconnectPacket.h"
@@ -15,6 +16,9 @@
 #include "Protocol/Packets/NetworkChunkPublisherUpdatePacket.h"
 #include "Protocol/Packets/NetworkSettingsPacket.h"
 #include "Protocol/Packets/PlayStatusPacket.h"
+#include "Protocol/Packets/RequestChunkRadiusPacket.h"
+#include "Protocol/Packets/RequestAbilityPacket.h"
+#include "Protocol/Packets/ChunkRadiusUpdatedPacket.h"
 #include "Protocol/Packets/RequestNetworkSettingsPacket.h"
 #include "Protocol/Packets/ResourcePackClientResponsePacket.h"
 #include "Protocol/Packets/ResourcePackStackPacket.h"
@@ -22,6 +26,8 @@
 #include "Protocol/Packets/SetLocalPlayerAsInitializedPacket.h"
 #include "Protocol/Packets/PlayerAuthInputPacket.h"
 #include "Protocol/Packets/AvailableCommandsPacket.h"
+#include "Protocol/Packets/BiomeDefinitionListPacket.h"
+#include "Protocol/Packets/CreativeContentPacket.h"
 #include "Protocol/Packets/CommandOutputPacket.h"
 #include "Protocol/Packets/CommandRequestPacket.h"
 #include "Protocol/Packets/SetEntityDataPacket.h"
@@ -287,9 +293,28 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const LoginPacket
         return;
     }
 
-    player->setName(request.getDisplayName());
-    player->setUuid(request.getIdentity());
-    player->setXuid(request.getXuid());
+    LoginChainVerifier verifier;
+    const bool verified = verifier.verify(packet.mAuthJwt);
+
+    if (mProperties.getXboxAuthRequired() && (!verified || !verifier.isSigned())) {
+        LOG_WARN(LogAreaID::Network, "%s failed Xbox Live authentication", id.getAddress().c_str());
+        _disconnect(id, "You must be authenticated with Xbox Live to join");
+        mPlayers.erase(id);
+        return;
+    }
+
+    if (verified && verifier.isSigned()) {
+        player->setName(verifier.getDisplayName());
+        player->setUuid(verifier.getIdentity());
+        player->setXuid(verifier.getXuid());
+    } else {
+        player->setName(request.getDisplayName());
+        player->setUuid(request.getIdentity());
+        player->setXuid(request.getXuid());
+    }
+
+    player->setSkin(request.getSkin());
+    player->setBuildPlatform(request.getBuildPlatform());
     player->setLoginState(ServerPlayer::LoginState::LoggedIn);
 
     LOG_INFO(LogAreaID::Server, "Player %s logged in, uuid %s, xuid %s", player->getName().c_str(),
@@ -383,12 +408,9 @@ void ServerNetworkHandler::_sendStartGame(ServerPlayer &player) {
     _sendAttributes(player);
     _sendEntityData(player);
     _sendAbilities(player);
+    _sendBiomeDefinitions(player);
     _sendAvailableCommands(player);
-    _sendChunks(player);
-
-    PlayStatusPacket spawn;
-    spawn.mStatus = PlayStatusPacket::Status::PlayerSpawn;
-    mNetworkHandler->send(id, spawn, mCodecContext);
+    _sendCreativeContent(player);
 }
 
 void ServerNetworkHandler::_sendEntityData(ServerPlayer &player) {
@@ -414,6 +436,14 @@ void ServerNetworkHandler::_sendEntityData(ServerPlayer &player) {
 void ServerNetworkHandler::setPlayerOp(ServerPlayer &player, bool isOp) {
     player.setOp(isOp);
     _sendAbilities(player);
+
+    if (player.isSpawned())
+        _sendAvailableCommands(player);
+
+    if (isOp)
+        player.sendMessage("§eYou are now an operator");
+    else
+        player.sendMessage("§eYou are no longer an operator");
 }
 
 void ServerNetworkHandler::queueConsoleCommand(const std::string &commandLine) {
@@ -478,6 +508,9 @@ void ServerNetworkHandler::_sendAbilities(ServerPlayer &player) {
         abilityValues |= 1u << (int) PlayerAbility::Teleport;
     }
 
+    if (player.isFlying())
+        abilityValues |= 1u << (int) PlayerAbility::Flying;
+
     AbilityLayer layer;
     layer.mLayerType = 1;
     layer.mAbilitiesSet = abilitiesSet;
@@ -495,6 +528,19 @@ void ServerNetworkHandler::_sendAbilities(ServerPlayer &player) {
     abilities.mAbilities.mAbilityLayers.push_back(layer);
 
     mNetworkHandler->send(player.getNetworkIdentifier(), abilities, mCodecContext);
+}
+
+void ServerNetworkHandler::_sendBiomeDefinitions(ServerPlayer &player) {
+    BiomeDefinitionListPacket biomes;
+    biomes.mBiomes = mBiomes.getBiomes();
+
+    mNetworkHandler->send(player.getNetworkIdentifier(), biomes, mCodecContext);
+}
+
+void ServerNetworkHandler::_sendCreativeContent(ServerPlayer &player) {
+    CreativeContentPacket creative;
+
+    mNetworkHandler->send(player.getNetworkIdentifier(), creative, mCodecContext);
 }
 
 void ServerNetworkHandler::_sendAvailableCommands(ServerPlayer &player) {
@@ -571,14 +617,29 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const SetLocalPla
     LOG_INFO(LogAreaID::Server, "Player %s spawned", player->getName().c_str());
 
     broadcastSystemMessage("§e" + player->getName() + " joined the game");
-    _addToPlayerList(*player);
+}
+
+static Uuid listUuidFor(const ServerPlayer &player) {
+    Uuid parsed = Uuid::fromString(player.getUuid());
+    if (parsed.mostSignificantBits != 0 || parsed.leastSignificantBits != 0)
+        return parsed;
+
+    const std::hash<std::string> hasher;
+    uint64_t most = hasher(player.getName() + "-most");
+    const uint64_t least = hasher(player.getName() + "-least");
+    if (most == 0)
+        most = 1;
+
+    return Uuid(most, least);
 }
 
 void ServerNetworkHandler::_addToPlayerList(ServerPlayer &player) {
-    PlayerListPacket::Entry newEntry(Uuid::fromString(player.getUuid()));
+    PlayerListPacket::Entry newEntry(listUuidFor(player));
     newEntry.mEntityId = player.getUniqueId();
     newEntry.mName = player.getName();
     newEntry.mXuid = player.getXuid();
+    newEntry.mSkin = player.getSkin();
+    newEntry.mBuildPlatform = player.getBuildPlatform();
 
     PlayerListPacket announce;
     announce.mEntries.push_back(newEntry);
@@ -592,10 +653,12 @@ void ServerNetworkHandler::_addToPlayerList(ServerPlayer &player) {
         mNetworkHandler->send(entry.second.getNetworkIdentifier(), announce, mCodecContext);
 
         if (&entry.second != &player) {
-            PlayerListPacket::Entry existingEntry(Uuid::fromString(entry.second.getUuid()));
+            PlayerListPacket::Entry existingEntry(listUuidFor(entry.second));
             existingEntry.mEntityId = entry.second.getUniqueId();
             existingEntry.mName = entry.second.getName();
             existingEntry.mXuid = entry.second.getXuid();
+            existingEntry.mSkin = entry.second.getSkin();
+            existingEntry.mBuildPlatform = entry.second.getBuildPlatform();
             existing.mEntries.push_back(existingEntry);
         }
     }
@@ -605,7 +668,7 @@ void ServerNetworkHandler::_addToPlayerList(ServerPlayer &player) {
 }
 
 void ServerNetworkHandler::_removeFromPlayerList(ServerPlayer &player) {
-    PlayerListPacket::Entry removalEntry(Uuid::fromString(player.getUuid()));
+    PlayerListPacket::Entry removalEntry(listUuidFor(player));
     removalEntry.mAction = PlayerListPacket::Action::Remove;
 
     PlayerListPacket removal;
@@ -778,6 +841,52 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const TextPacket 
         if (entry.second.isSpawned())
             mNetworkHandler->send(entry.second.getNetworkIdentifier(), chat, mCodecContext);
     }
+}
+
+void ServerNetworkHandler::handle(const NetworkIdentifier &id, const RequestChunkRadiusPacket &packet) {
+    ServerPlayer *player = _getPlayer(id);
+    if (player == nullptr)
+        return;
+
+    int32_t granted = packet.mRadius;
+    if (granted > DEFAULT_VIEW_DISTANCE)
+        granted = DEFAULT_VIEW_DISTANCE;
+    if (granted < 1)
+        granted = 1;
+
+    ChunkRadiusUpdatedPacket radius;
+    radius.mRadius = granted;
+    mNetworkHandler->send(id, radius, mCodecContext);
+
+    LOG_INFO(LogAreaID::Server, "%s requested chunk radius %d, granted %d", player->getName().c_str(),
+             packet.mRadius, granted);
+
+    _sendChunks(*player);
+
+    PlayStatusPacket spawn;
+    spawn.mStatus = PlayStatusPacket::Status::PlayerSpawn;
+    mNetworkHandler->send(id, spawn, mCodecContext);
+}
+
+void ServerNetworkHandler::handle(const NetworkIdentifier &id, const RequestAbilityPacket &packet) {
+    ServerPlayer *player = _getPlayer(id);
+    if (player == nullptr)
+        return;
+
+    if (packet.mAbility != Ability::Flying || packet.mType != AbilityValueType::Boolean)
+        return;
+
+    const int32_t gameType = player->getGameType();
+    const bool mayFly = gameType == (int32_t) GameType::Creative || gameType == (int32_t) GameType::Spectator;
+
+    if (!packet.mBoolValue && !mayFly) {
+        _disconnect(id, "Flying is not enabled on this server");
+        mPlayers.erase(id);
+        return;
+    }
+
+    player->setFlying(packet.mBoolValue);
+    _sendAbilities(*player);
 }
 
 void ServerNetworkHandler::handle(const NetworkIdentifier &id, const PacketViolationWarningPacket &packet) {

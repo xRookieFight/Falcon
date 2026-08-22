@@ -5,6 +5,7 @@
 #include "Network/NetworkIdentifier.h"
 #include "Network/PacketSender.h"
 #include "Protocol/Types/AdventureSettingData.h"
+#include "Protocol/Types/SerializedSkin.h"
 
 #include <string>
 
@@ -44,6 +45,14 @@ public:
 
     void setXuid(const std::string &xuid) { mXuid = xuid; }
 
+    const SerializedSkin &getSkin() const { return mSkin; }
+
+    void setSkin(const SerializedSkin &skin) { mSkin = skin; }
+
+    int getBuildPlatform() const { return mBuildPlatform; }
+
+    void setBuildPlatform(int platform) { mBuildPlatform = platform; }
+
     int32_t getGameType() const { return mGameType; }
 
     void setGameType(int32_t gameType) { mGameType = gameType; }
@@ -51,6 +60,10 @@ public:
     bool isOp() const { return mIsOp; }
 
     void setOp(bool isOp) { mIsOp = isOp; }
+
+    bool isFlying() const { return mFlying; }
+
+    void setFlying(bool flying) { mFlying = flying; }
 
     CommandPermission getCommandPermission() const {
         return mIsOp ? CommandPermission::GameDirectors : CommandPermission::Any;
@@ -79,8 +92,11 @@ private:
     std::string mName;
     std::string mUuid;
     std::string mXuid;
+    int mBuildPlatform = -1;
+    SerializedSkin mSkin;
     int32_t mGameType = 0;
     int64_t mFirstPlayed = 0;
     bool mIsOp = false;
+    bool mFlying = false;
     PacketSender *mSender;
 };

@@ -1,6 +1,9 @@
 @echo off
 setlocal
 
+set LOG=build.txt
+break > "%LOG%"
+
 where cmake >nul 2>nul
 if errorlevel 1 (
     echo [ERROR] cmake not found in PATH.
@@ -19,26 +22,31 @@ if errorlevel 1 (
     exit /b 1
 )
 
-
 echo [2/3] Configuring project with CMake...
-cmake -B build -G Ninja -DCMAKE_CXX_COMPILER=g++ -DCMAKE_MAKE_PROGRAM=ninja
+cmake -B build -G Ninja -DCMAKE_CXX_COMPILER=g++ -DCMAKE_MAKE_PROGRAM=ninja >> "%LOG%" 2>&1
 if errorlevel 1 (
-    echo [ERROR] CMake configuration failed.
+    echo [ERROR] CMake configuration failed. See %LOG% for details.
+    type "%LOG%"
     exit /b 1
 )
 
 echo [3/3] Building FalconServer...
-cmake --build build --config Release
-if errorlevel 1 (
-    echo [ERROR] Build failed.
+cmake --build build --config Release >> "%LOG%" 2>&1
+set BUILD_RESULT=%errorlevel%
+
+type "%LOG%"
+
+if not "%BUILD_RESULT%"=="0" (
+    echo [ERROR] Build failed. Full output saved to %LOG%.
     exit /b 1
 )
 
 if not exist build\Falcon.Server\FalconServer.exe (
-    echo [ERROR] Build reported success but FalconServer.exe was not produced.
+    echo [ERROR] Build reported success but FalconServer.exe was not produced. See %LOG%.
     exit /b 1
 )
 
 echo.
 echo Build succeeded: build\Falcon.Server\FalconServer.exe
+echo Full build log saved to %LOG%
 endlocal

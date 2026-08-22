@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Level/BiomeRegistry.h"
 #include "Level/Level.h"
 #include "Network/NetworkHandler.h"
 #include "Network/PingedCompatibleServer.h"
@@ -101,6 +102,10 @@ private:
 
     void handle(const NetworkIdentifier &id, const PacketViolationWarningPacket &packet) override;
 
+    void handle(const NetworkIdentifier &id, const RequestChunkRadiusPacket &packet) override;
+
+    void handle(const NetworkIdentifier &id, const RequestAbilityPacket &packet) override;
+
     ServerPlayer *_getPlayer(const NetworkIdentifier &id);
 
     void _sendStartGame(ServerPlayer &player);
@@ -125,6 +130,10 @@ private:
 
     void _sendChunks(ServerPlayer &player);
 
+    void _sendBiomeDefinitions(ServerPlayer &player);
+
+    void _sendCreativeContent(ServerPlayer &player);
+
     void _sendAvailableCommands(ServerPlayer &player);
 
     void _disconnect(const NetworkIdentifier &id, const std::string &reason);
@@ -143,6 +152,7 @@ private:
     static const int DEFAULT_VIEW_DISTANCE = 4;
 
     Level mLevel;
+    BiomeRegistry mBiomes;
     PlayerDataProvider mPlayerData;
     OpList mOps;
     CommandMap mCommands;

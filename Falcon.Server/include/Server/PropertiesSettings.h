@@ -60,6 +60,8 @@ public:
 
     bool getOnlineMode() const { return getBool("online-mode", true); }
 
+    bool getXboxAuthRequired() const { return getBool("xbox-auth-required", true); }
+
     bool getAllowList() const { return getBool("allow-list", false); }
 
     unsigned short getServerPort() const { return (unsigned short) getInt("server-port", 19132); }
@@ -98,7 +100,7 @@ public:
 
     bool getDisablePlayerInteraction() const { return getBool("disable-player-interaction", false); }
 
-    bool getClientSideChunkGenerationEnabled() const { return getBool("client-side-chunk-generation-enabled", true); }
+    bool getClientSideChunkGenerationEnabled() const { return getBool("client-side-chunk-generation-enabled", false); }
 
     bool getBlockNetworkIdsAreHashes() const { return getBool("block-network-ids-are-hashes", true); }
 

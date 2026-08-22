@@ -1,7 +1,9 @@
 #pragma once
 
-#include "Core/NBT/Tag.h"
 #include "Protocol/Packet.h"
+#include "Protocol/Types/BiomeDefinitionData.h"
+
+#include <vector>
 
 class BiomeDefinitionListPacket : public Packet {
 public:
@@ -19,5 +21,5 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    Tag mDefinitions;
+    std::vector<BiomeDefinitionData> mBiomes;
 };

@@ -13,62 +13,18 @@ public:
     std::string mData;
 };
 
-enum class AnimatedTextureType : int32_t {
-    None = 0,
-    Face = 1,
-    Body32x32 = 2,
-    Body128x128 = 3
-};
-
-enum class AnimationExpressionType : int32_t {
-    Linear = 0,
-    Blinking = 1
-};
-
 class SkinAnimationData {
 public:
     SkinImageData mImage;
-    AnimatedTextureType mTextureType = AnimatedTextureType::None;
+    int32_t mTextureType = 0;
     float mFrames = 0.0f;
-    AnimationExpressionType mExpressionType = AnimationExpressionType::Linear;
-};
-
-enum class PersonaPieceType : int32_t {
-    Unknown = 0,
-    Skeleton = 1,
-    Body = 2,
-    Skin = 3,
-    Bottom = 4,
-    Feet = 5,
-    Dress = 6,
-    Top = 7,
-    HighPants = 8,
-    Hands = 9,
-    Outerwear = 10,
-    FacialHair = 11,
-    Mouth = 12,
-    Eyes = 13,
-    Hair = 14,
-    Hood = 15,
-    Back = 16,
-    FaceAccessory = 17,
-    Head = 18,
-    Legs = 19,
-    LeftLeg = 20,
-    RightLeg = 21,
-    Arms = 22,
-    LeftArm = 23,
-    RightArm = 24,
-    Capes = 25,
-    ClassicSkin = 26,
-    Emote = 27,
-    Unsupported = 28
+    int32_t mExpressionType = 0;
 };
 
 class PersonaPieceData {
 public:
     std::string mId;
-    PersonaPieceType mPieceType = PersonaPieceType::Unknown;
+    int32_t mPieceType = 0;
     Uuid mPackId;
     bool mIsDefault = false;
     std::string mProductId;
@@ -76,11 +32,8 @@ public:
 
 class PersonaPieceTintData {
 public:
-    std::string mPieceType;
-    int32_t mColor0Argb = 0;
-    int32_t mColor1Argb = 0;
-    int32_t mColor2Argb = 0;
-    int32_t mColor3Argb = 0;
+    std::string mType;
+    std::vector<int32_t> mColors;
 };
 
 class SerializedSkin {
@@ -103,8 +56,8 @@ public:
     bool mPremium = false;
     bool mPersona = false;
     bool mCapeOnClassic = false;
-    bool mPrimaryUser = false;
-    bool mOverridingPlayerAppearance = false;
+    bool mPrimaryUser = true;
+    bool mOverridingPlayerAppearance = true;
     bool mTrusted = true;
     std::string mProfileHash;
 };

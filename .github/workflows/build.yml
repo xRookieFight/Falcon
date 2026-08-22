@@ -18,9 +18,11 @@ jobs:
           cache: true
           install: >-
             mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-lld
             mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-ninja
             mingw-w64-ucrt-x86_64-zlib
+            mingw-w64-ucrt-x86_64-openssl
 
       - name: Cache build directory
         uses: actions/cache@v4
