@@ -483,6 +483,7 @@ void ServerNetworkHandler::_sendAbilities(ServerPlayer &player) {
     layer.mAbilityValues = abilityValues;
     layer.mWalkSpeed = 0.1f;
     layer.mFlySpeed = 0.05f;
+    layer.mVerticalFlySpeed = 1.0f;
 
     UpdateAbilitiesPacket abilities;
     abilities.mAbilities.mUniqueEntityId = player.getUniqueId();

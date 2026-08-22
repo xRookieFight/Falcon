@@ -55,7 +55,6 @@ void EntityCodec::writeEntityData(BinaryStream &stream, const EntityDataMap &ent
     for (const EntityDataEntry &entry: entityData.mEntries) {
         stream.putUnsignedVarInt((uint32_t) entry.mId);
         stream.putUnsignedVarInt((uint32_t) entry.mFormat);
-        stream.putByte((unsigned char) entry.mFormat);
 
         switch (entry.mFormat) {
             case EntityDataFormat::Byte:
@@ -98,13 +97,7 @@ EntityDataMap EntityCodec::readEntityData(ReadOnlyBinaryStream &stream) {
     for (uint32_t i = 0; i < length; i++) {
         EntityDataEntry entry;
         entry.mId = (int32_t) stream.getUnsignedVarInt();
-        uint32_t oneOf = stream.getUnsignedVarInt();
-        unsigned char type = stream.getByte();
-        if (oneOf != type) {
-            throw BinaryDataException("Entity data format mismatch: " + std::to_string(oneOf) + " != " + std::to_string((int) type));
-        }
-
-        entry.mFormat = (EntityDataFormat) type;
+        entry.mFormat = (EntityDataFormat) stream.getUnsignedVarInt();
 
         switch (entry.mFormat) {
             case EntityDataFormat::Byte:
@@ -135,7 +128,7 @@ EntityDataMap EntityCodec::readEntityData(ReadOnlyBinaryStream &stream) {
                 entry.mVector3fValue = stream.getVector3f();
                 break;
             default:
-                throw BinaryDataException("Unknown entity data format " + std::to_string((int) type));
+                throw BinaryDataException("Unknown entity data format " + std::to_string((int) entry.mFormat));
         }
 
         map.mEntries.push_back(entry);
@@ -213,6 +206,7 @@ void EntityCodec::writePlayerAbilities(BinaryStream &stream, const PlayerAbility
         stream.putLInt(layer.mAbilitiesSet);
         stream.putLInt(layer.mAbilityValues);
         stream.putLFloat(layer.mFlySpeed);
+        stream.putLFloat(layer.mVerticalFlySpeed);
         stream.putLFloat(layer.mWalkSpeed);
     }
 }
@@ -231,6 +225,7 @@ PlayerAbilityData EntityCodec::readPlayerAbilities(ReadOnlyBinaryStream &stream)
         layer.mAbilitiesSet = stream.getLInt();
         layer.mAbilityValues = stream.getLInt();
         layer.mFlySpeed = stream.getLFloat();
+        layer.mVerticalFlySpeed = stream.getLFloat();
         layer.mWalkSpeed = stream.getLFloat();
         abilities.mAbilityLayers.push_back(layer);
     }

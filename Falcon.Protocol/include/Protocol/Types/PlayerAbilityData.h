@@ -9,6 +9,7 @@ public:
     uint32_t mAbilitiesSet = 0;
     uint32_t mAbilityValues = 0;
     float mFlySpeed = 0.0f;
+    float mVerticalFlySpeed = 0.0f;
     float mWalkSpeed = 0.0f;
 };
 
