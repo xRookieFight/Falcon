@@ -22,12 +22,49 @@ std::string PropertiesSettings::_trim(const std::string &value) {
     return value.substr(start, end - start);
 }
 
+void PropertiesSettings::_writeDefault(const std::string &path) {
+    std::ofstream file(path);
+    if (!file.is_open())
+        return;
+
+    file << "server-name=Falcon Server\n";
+    file << "gamemode=survival\n";
+    file << "force-gamemode=false\n";
+    file << "difficulty=easy\n";
+    file << "allow-cheats=true\n";
+    file << "max-players=20\n";
+    file << "online-mode=true\n";
+    file << "xbox-auth-required=true\n";
+    file << "allow-list=false\n";
+    file << "server-port=19132\n";
+    file << "server-portv6=19133\n";
+    file << "enable-lan-visibility=true\n";
+    file << "view-distance=10\n";
+    file << "tick-distance=4\n";
+    file << "player-idle-timeout=30\n";
+    file << "level-name=Bedrock level\n";
+    file << "level-seed=\n";
+    file << "default-player-permission-level=member\n";
+    file << "texturepack-required=false\n";
+    file << "content-log-file-enabled=false\n";
+    file << "compression-algorithm=zlib\n";
+    file << "server-authoritative-movement=server-auth\n";
+    file << "client-side-chunk-generation-enabled=false\n";
+    file << "block-network-ids-are-hashes=true\n";
+    file << "disable-custom-skins=false\n";
+}
+
 bool PropertiesSettings::load(const std::string &path) {
     mPath = path;
     mProperties.clear();
     mLoaded = false;
 
     std::ifstream file(path);
+    if (!file.is_open()) {
+        _writeDefault(path);
+        file.open(path);
+    }
+
     if (!file.is_open())
         return false;
 

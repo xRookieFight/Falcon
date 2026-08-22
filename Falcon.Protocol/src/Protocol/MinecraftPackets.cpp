@@ -185,6 +185,7 @@
 #include "Protocol/Packets/SetHudPacket.h"
 #include "Protocol/Packets/SetLastHurtByPacket.h"
 #include "Protocol/Packets/SetLocalPlayerAsInitializedPacket.h"
+#include "Protocol/Packets/SetMovementAuthorityPacket.h"
 #include "Protocol/Packets/SetPlayerGameTypePacket.h"
 #include "Protocol/Packets/SetPlayerInventoryOptionsPacket.h"
 #include "Protocol/Packets/SetScorePacket.h"
@@ -451,6 +452,7 @@ void MinecraftPackets::_registerDefaultPackets() {
     registerPacket<SetHudPacket>();
     registerPacket<SetLastHurtByPacket>();
     registerPacket<SetLocalPlayerAsInitializedPacket>();
+    registerPacket<SetMovementAuthorityPacket>();
     registerPacket<SetPlayerGameTypePacket>();
     registerPacket<SetPlayerInventoryOptionsPacket>();
     registerPacket<SetScorePacket>();

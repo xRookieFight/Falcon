@@ -22,6 +22,9 @@ void BatchedNetworkPeer::sendPacket(const std::string &data, Reliability reliabi
 
     mBatchBuffer.append(stream.getBuffer());
     mBatchBuffer.append(data);
+
+    if (mBatchBuffer.size() >= MAX_BATCH_SIZE)
+        flush();
 }
 
 void BatchedNetworkPeer::flush() {

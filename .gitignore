@@ -3,3 +3,8 @@
 /cmake-build-debug
 /server.properties
 /.github/workflows
+/build.txt
+/bds_links.json
+/worlds
+/players
+/ops.txt

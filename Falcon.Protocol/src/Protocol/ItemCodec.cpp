@@ -32,12 +32,14 @@ void ItemCodec::writeItemInstance(BinaryStream &stream, const PacketCodecContext
 
     userData.putLInt((uint32_t) item.mCanPlace.size());
     for (const std::string &entry: item.mCanPlace) {
-        userData.putString(entry);
+        userData.putLShort((uint16_t) entry.size());
+        userData.put(entry);
     }
 
     userData.putLInt((uint32_t) item.mCanBreak.size());
     for (const std::string &entry: item.mCanBreak) {
-        userData.putString(entry);
+        userData.putLShort((uint16_t) entry.size());
+        userData.put(entry);
     }
 
     if (item.mDefinition->getIdentifier() == BLOCKING_ID) {
@@ -86,13 +88,13 @@ ItemStack ItemCodec::readItemInstance(ReadOnlyBinaryStream &stream, const Packet
     uint32_t canPlaceLength = userData.getLInt();
     item.mCanPlace.reserve(canPlaceLength);
     for (uint32_t i = 0; i < canPlaceLength; i++) {
-        item.mCanPlace.push_back(userData.getString());
+        item.mCanPlace.push_back(userData.get(userData.getLShort()));
     }
 
     uint32_t canBreakLength = userData.getLInt();
     item.mCanBreak.reserve(canBreakLength);
     for (uint32_t i = 0; i < canBreakLength; i++) {
-        item.mCanBreak.push_back(userData.getString());
+        item.mCanBreak.push_back(userData.get(userData.getLShort()));
     }
 
     if (item.mDefinition != nullptr && item.mDefinition->getIdentifier() == BLOCKING_ID
@@ -136,12 +138,14 @@ void ItemCodec::writeNetworkItemStackDescriptor(BinaryStream &stream, const Pack
 
     userData.putLInt((uint32_t) item.mCanPlace.size());
     for (const std::string &entry: item.mCanPlace) {
-        userData.putString(entry);
+        userData.putLShort((uint16_t) entry.size());
+        userData.put(entry);
     }
 
     userData.putLInt((uint32_t) item.mCanBreak.size());
     for (const std::string &entry: item.mCanBreak) {
-        userData.putString(entry);
+        userData.putLShort((uint16_t) entry.size());
+        userData.put(entry);
     }
 
     if (item.mDefinition->getIdentifier() == BLOCKING_ID) {
@@ -196,13 +200,13 @@ ItemStack ItemCodec::readNetworkItemStackDescriptor(ReadOnlyBinaryStream &stream
     uint32_t canPlaceLength = userData.getLInt();
     item.mCanPlace.reserve(canPlaceLength);
     for (uint32_t i = 0; i < canPlaceLength; i++) {
-        item.mCanPlace.push_back(userData.getString());
+        item.mCanPlace.push_back(userData.get(userData.getLShort()));
     }
 
     uint32_t canBreakLength = userData.getLInt();
     item.mCanBreak.reserve(canBreakLength);
     for (uint32_t i = 0; i < canBreakLength; i++) {
-        item.mCanBreak.push_back(userData.getString());
+        item.mCanBreak.push_back(userData.get(userData.getLShort()));
     }
 
     if (item.mDefinition != nullptr && item.mDefinition->getIdentifier() == BLOCKING_ID

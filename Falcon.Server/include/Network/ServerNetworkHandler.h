@@ -15,7 +15,10 @@
 #include "Player/PlayerDataProvider.h"
 #include "Server/OpList.h"
 #include "Server/PropertiesSettings.h"
+#include "Server/ResourcePackManager.h"
 #include "Entity/ServerPlayer.h"
+#include "Protocol/Types/ContainerSlotType.h"
+#include "Protocol/Packets/CreativeContentPacket.h"
 
 #include <mutex>
 #include <queue>
@@ -92,6 +95,8 @@ private:
 
     void handle(const NetworkIdentifier &id, const ResourcePackClientResponsePacket &packet) override;
 
+    void handle(const NetworkIdentifier &id, const ResourcePackChunkRequestPacket &packet) override;
+
     void handle(const NetworkIdentifier &id, const SetLocalPlayerAsInitializedPacket &packet) override;
 
     void handle(const NetworkIdentifier &id, const PlayerAuthInputPacket &packet) override;
@@ -106,7 +111,23 @@ private:
 
     void handle(const NetworkIdentifier &id, const RequestAbilityPacket &packet) override;
 
+    void handle(const NetworkIdentifier &id, const MobEquipmentPacket &packet) override;
+
+    void handle(const NetworkIdentifier &id, const PlayerHotbarPacket &packet) override;
+
+    void handle(const NetworkIdentifier &id, const ItemStackRequestPacket &packet) override;
+
+    void handle(const NetworkIdentifier &id, const InventoryTransactionPacket &packet) override;
+
+    void handle(const NetworkIdentifier &id, const ContainerClosePacket &packet) override;
+
+    void handle(const NetworkIdentifier &id, const InteractPacket &packet) override;
+
     ServerPlayer *_getPlayer(const NetworkIdentifier &id);
+
+    int _getServerViewDistance() const;
+
+    void _registerVanillaDefinitions();
 
     void _sendStartGame(ServerPlayer &player);
 
@@ -130,9 +151,27 @@ private:
 
     void _sendChunks(ServerPlayer &player);
 
+    void _checkTerrainReady(ServerPlayer &player);
+
     void _sendBiomeDefinitions(ServerPlayer &player);
 
+    void _sendItemComponents(ServerPlayer &player);
+
+    void _sendActorIdentifiers(ServerPlayer &player);
+
+    void _sendCraftingData(ServerPlayer &player);
+
+    void _buildCreativeContent();
+
     void _sendCreativeContent(ServerPlayer &player);
+
+    void _sendInventory(ServerPlayer &player);
+
+    void _sendArmorContent(ServerPlayer &player);
+
+    void _sendOffhandContent(ServerPlayer &player);
+
+    void _sendHeldItem(ServerPlayer &player);
 
     void _sendAvailableCommands(ServerPlayer &player);
 
@@ -150,11 +189,17 @@ private:
 
     PropertiesSettings mProperties;
     static const int DEFAULT_VIEW_DISTANCE = 4;
+    static const int MAX_VIEW_DISTANCE = 12;
+    static const unsigned CHUNKS_PER_TICK = 32;
+    static const size_t SPAWN_CHUNK_THRESHOLD = 56;
 
     Level mLevel;
     BiomeRegistry mBiomes;
+    std::vector<CreativeItemGroup> mCreativeGroups;
+    std::vector<CreativeItemData> mCreativeItems;
     PlayerDataProvider mPlayerData;
     OpList mOps;
+    ResourcePackManager mResourcePacks;
     CommandMap mCommands;
     PingedCompatibleServer mAnnouncement;
     int mMaxPlayers;

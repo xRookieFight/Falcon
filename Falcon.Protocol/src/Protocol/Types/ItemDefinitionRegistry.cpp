@@ -16,3 +16,13 @@ std::shared_ptr<ItemDefinition> ItemDefinitionRegistry::getDefinition(const std:
     auto it = mByIdentifier.find(identifier);
     return it == mByIdentifier.end() ? nullptr : it->second;
 }
+
+std::vector<std::shared_ptr<ItemDefinition>> ItemDefinitionRegistry::getAll() const {
+    std::vector<std::shared_ptr<ItemDefinition>> definitions;
+    definitions.reserve(mByRuntimeId.size());
+
+    for (const auto &entry: mByRuntimeId)
+        definitions.push_back(entry.second);
+
+    return definitions;
+}

@@ -205,6 +205,7 @@ enum class MinecraftPacketIds : int {
     CameraAimAssist = 316,
     ContainerRegistryCleanup = 317,
     MovementEffect = 318,
+    SetMovementAuthority = 319,
     CameraAimAssistPresets = 320,
     CameraAimAssistInstruction = 321,
     MovementPredictionSync = 322,

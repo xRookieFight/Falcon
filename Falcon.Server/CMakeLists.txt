@@ -32,17 +32,28 @@ add_executable(FalconServer
         src/Command/CommandMap.cpp
         src/Command/GameModeCommand.cpp
         src/Command/PlayerCommandSender.cpp
+        src/Block/VanillaBlocks.cpp
         src/Entity/Entity.cpp
         src/Entity/EntityAttributes.cpp
         src/Entity/EntityFlags.cpp
         src/Entity/ItemEntity.cpp
         src/Entity/ServerPlayer.cpp
+        src/Item/StringToItemParser.cpp
+        src/Item/VanillaItems.cpp
+        src/Inventory/InventoryManager.cpp
+        src/Inventory/ItemStackNbt.cpp
+        src/Inventory/ItemStackRequestHandler.cpp
+        src/Inventory/PlayerInventory.cpp
         src/Level/FlatChunkGenerator.cpp
         src/Level/BiomeRegistry.cpp
+        src/Level/Chunk.cpp
+        src/Level/LevelStorage.cpp
+        src/Level/SubChunk.cpp
         src/Level/Level.cpp
         src/Player/PlayerDataProvider.cpp
         src/Server/OpList.cpp
         src/Server/PropertiesSettings.cpp
+        src/Server/ResourcePackManager.cpp
 )
 
 find_package(ZLIB REQUIRED)
@@ -50,7 +61,7 @@ find_package(OpenSSL REQUIRED)
 
 target_include_directories(FalconServer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include ${ZLIB_INCLUDE_DIRS}
         ${OPENSSL_INCLUDE_DIR})
-target_link_libraries(FalconServer PRIVATE FalconNetwork FalconProtocol)
+target_link_libraries(FalconServer PRIVATE FalconNetwork FalconProtocol leveldb)
 
 if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_link_options(FalconServer PRIVATE -static -fuse-ld=lld)

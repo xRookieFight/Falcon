@@ -44,3 +44,11 @@ ItemStackRequestActionType itemStackRequestActionTypeFromId(int32_t id) {
     }
     return TYPES_BY_ID[id];
 }
+
+int32_t itemStackRequestActionTypeToLegacyId(int32_t id) {
+    const int32_t LAB_TABLE_COMBINE = 7;
+    if (id >= LAB_TABLE_COMBINE) {
+        return id + 2;
+    }
+    return id;
+}

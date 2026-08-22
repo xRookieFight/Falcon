@@ -28,15 +28,20 @@ namespace {
         stream.putByte((unsigned char) entry.mHotbarSlot);
         stream.putByte((unsigned char) entry.mCount);
 
-        stream.putBool(true);
-        bool hasStackNetworkId = entry.mStackNetworkId > 0;
-        stream.putBool(hasStackNetworkId);
+        const bool hasStackNetworkId = entry.mStackNetworkId != 0;
+        stream.putOptionalPresent(hasStackNetworkId);
         if (hasStackNetworkId) {
+            stream.putBool(true);
             stream.putVarInt(entry.mStackNetworkId);
         }
 
         stream.putString(entry.mCustomName);
-        stream.putString(entry.mFilteredCustomName);
+
+        stream.putOptionalPresent(!entry.mFilteredCustomName.empty());
+        if (!entry.mFilteredCustomName.empty()) {
+            stream.putString(entry.mFilteredCustomName);
+        }
+
         stream.putVarInt(entry.mDurabilityCorrection);
     }
 
@@ -46,11 +51,18 @@ namespace {
         entry.mHotbarSlot = stream.getByte();
         entry.mCount = stream.getByte();
 
-        bool hasStackNetworkId = stream.getBool() && stream.getBool();
-        entry.mStackNetworkId = hasStackNetworkId ? stream.getVarInt() : 0;
+        if (stream.getOptionalPresent()) {
+            if (stream.getBool()) {
+                entry.mStackNetworkId = stream.getVarInt();
+            }
+        }
 
         entry.mCustomName = stream.getString();
-        entry.mFilteredCustomName = stream.getString();
+
+        if (stream.getOptionalPresent()) {
+            entry.mFilteredCustomName = stream.getString();
+        }
+
         entry.mDurabilityCorrection = stream.getVarInt();
         return entry;
     }
@@ -85,9 +97,8 @@ void ItemStackResponsePacket::write(BinaryStream &stream, const PacketCodecConte
         stream.putByte((unsigned char) entry.mResult);
         stream.putVarInt(entry.mRequestId);
 
-        stream.putBool(true);
+        stream.putOptionalPresent(!entry.mContainers.empty());
         if (entry.mContainers.empty()) {
-            stream.putBool(false);
             continue;
         }
 
@@ -107,8 +118,7 @@ void ItemStackResponsePacket::read(ReadOnlyBinaryStream &stream, const PacketCod
         entry.mResult = stream.getByte();
         entry.mRequestId = stream.getVarInt();
 
-        bool hasContainers = stream.getBool() && stream.getBool();
-        if (hasContainers) {
+        if (stream.getOptionalPresent() && stream.getBool()) {
             uint32_t containerCount = stream.getArrayLength();
             entry.mContainers.reserve(containerCount);
             for (uint32_t j = 0; j < containerCount; j++) {

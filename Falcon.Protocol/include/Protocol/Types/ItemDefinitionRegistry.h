@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 class ItemDefinitionRegistry {
 public:
@@ -13,6 +14,8 @@ public:
     std::shared_ptr<ItemDefinition> getDefinition(int runtimeId) const;
 
     std::shared_ptr<ItemDefinition> getDefinition(const std::string &identifier) const;
+
+    std::vector<std::shared_ptr<ItemDefinition>> getAll() const;
 
     size_t size() const { return mByRuntimeId.size(); }
 

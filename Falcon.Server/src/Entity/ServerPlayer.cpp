@@ -1,9 +1,11 @@
 #include "Entity/ServerPlayer.h"
 
+#include "Inventory/ItemStackNbt.h"
 #include "Protocol/Packets/SetTitlePacket.h"
 #include "Protocol/Packets/TextPacket.h"
 
 #include <chrono>
+#include <utility>
 
 namespace {
     const char *TAG_POS = "Pos";
@@ -16,6 +18,9 @@ namespace {
     const char *TAG_LAST_PLAYED = "lastPlayed";
     const char *TAG_LAST_KNOWN_XUID = "LastKnownXUID";
     const char *TAG_NAME = "NameTag";
+    const char *TAG_INVENTORY = "Inventory";
+    const char *TAG_OFF_INVENTORY = "OffInventory";
+    const char *TAG_SELECTED_SLOT = "SelectedInventorySlot";
 
     int64_t currentTimeMillis() {
         using namespace std::chrono;
@@ -112,10 +117,28 @@ Tag ServerPlayer::saveNbt(const std::string &levelName) const {
     data.putString(TAG_LAST_KNOWN_XUID, mXuid);
     data.putString(TAG_NAME, mName);
 
+    Tag inventory = Tag::ofList(Tag::Type::Compound);
+
+    for (int slot = 0; slot < PlayerInventory::CONTAINER_SIZE; slot++) {
+        const ItemStack &item = mInventory.getItem(slot);
+        if (!item.isAir())
+            inventory.addToList(ItemStackNbt::write(item, slot));
+    }
+
+    for (int slot = 0; slot < PlayerInventory::ARMOR_SIZE; slot++) {
+        const ItemStack &item = mInventory.getArmor(slot);
+        if (!item.isAir())
+            inventory.addToList(ItemStackNbt::write(item, PlayerInventory::CONTAINER_SIZE + slot));
+    }
+
+    data.put(TAG_INVENTORY, inventory);
+    data.put(TAG_OFF_INVENTORY, ItemStackNbt::write(mInventory.getOffhand(), 0));
+    data.putInt(TAG_SELECTED_SLOT, mInventory.getSelectedSlot());
+
     return data;
 }
 
-void ServerPlayer::loadNbt(const Tag &data) {
+void ServerPlayer::loadNbt(const Tag &data, const PacketCodecContext &context) {
     if (data.getType() != Tag::Type::Compound)
         return;
 
@@ -134,4 +157,30 @@ void ServerPlayer::loadNbt(const Tag &data) {
     mAttributes.set("minecraft:health", data.getFloat(TAG_HEALTH, 20.0f));
     mGameType = data.getInt(TAG_GAME_MODE, mGameType);
     mFirstPlayed = data.getLong(TAG_FIRST_PLAYED, 0);
+
+    mInventory.clear();
+
+    const Tag *inventory = data.get(TAG_INVENTORY);
+    if (inventory != nullptr && inventory->getType() == Tag::Type::List) {
+        for (const Tag &entry: inventory->getList()) {
+            const int slot = ItemStackNbt::readSlot(entry);
+            if (slot < 0)
+                continue;
+
+            ItemStack item = ItemStackNbt::read(entry, context);
+            if (item.isAir())
+                continue;
+
+            if (slot < PlayerInventory::CONTAINER_SIZE)
+                mInventory.setItem(slot, std::move(item));
+            else if (slot < PlayerInventory::SAVED_SIZE)
+                mInventory.setArmor(slot - PlayerInventory::CONTAINER_SIZE, std::move(item));
+        }
+    }
+
+    const Tag *offhand = data.get(TAG_OFF_INVENTORY);
+    if (offhand != nullptr && offhand->getType() == Tag::Type::Compound)
+        mInventory.setOffhand(ItemStackNbt::read(*offhand, context));
+
+    mInventory.setSelectedSlot(data.getInt(TAG_SELECTED_SLOT, 0));
 }

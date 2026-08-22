@@ -2,12 +2,16 @@
 
 #include "Core/NBT/Tag.h"
 #include "Entity/Entity.h"
+#include "Inventory/InventoryManager.h"
+#include "Inventory/PlayerInventory.h"
 #include "Network/NetworkIdentifier.h"
 #include "Network/PacketSender.h"
+#include "Protocol/PacketCodecContext.h"
 #include "Protocol/Types/AdventureSettingData.h"
 #include "Protocol/Types/SerializedSkin.h"
 
 #include <string>
+#include <unordered_set>
 
 // One connected client and where it is in the login sequence.
 class ServerPlayer : public Entity {
@@ -73,9 +77,17 @@ public:
 
     void setFirstPlayed(int64_t firstPlayed) { mFirstPlayed = firstPlayed; }
 
+    PlayerInventory &getInventory() { return mInventory; }
+
+    const PlayerInventory &getInventory() const { return mInventory; }
+
+    InventoryManager &getInventoryManager() { return mInventoryManager; }
+
+    PacketSender *getPacketSender() const { return mSender; }
+
     Tag saveNbt(const std::string &levelName) const;
 
-    void loadNbt(const Tag &data);
+    void loadNbt(const Tag &data, const PacketCodecContext &context);
 
     void sendMessage(const std::string &message);
 
@@ -86,6 +98,28 @@ public:
     void sendTitle(const std::string &title, const std::string &subtitle = "", int32_t fadeInTime = 10,
                    int32_t stayTime = 70, int32_t fadeOutTime = 20);
 
+    std::unordered_set<int64_t> &getSentChunks() { return mSentChunks; }
+
+    size_t getSentChunkCount() const { return mSentChunkCount; }
+
+    void addSentChunkCount(size_t count) { mSentChunkCount += count; }
+
+    bool hasSpawnChunksReady() const { return mSpawnChunksReady; }
+
+    void setSpawnChunksReady(bool ready) { mSpawnChunksReady = ready; }
+
+    bool hasChunkPosition() const { return mHasChunkPosition; }
+
+    int32_t getLastChunkX() const { return mLastChunkX; }
+
+    int32_t getLastChunkZ() const { return mLastChunkZ; }
+
+    void setLastChunkPosition(int32_t chunkX, int32_t chunkZ) {
+        mLastChunkX = chunkX;
+        mLastChunkZ = chunkZ;
+        mHasChunkPosition = true;
+    }
+
 private:
     NetworkIdentifier mId;
     LoginState mLoginState;
@@ -93,10 +127,18 @@ private:
     std::string mUuid;
     std::string mXuid;
     int mBuildPlatform = -1;
+    std::unordered_set<int64_t> mSentChunks;
+    size_t mSentChunkCount = 0;
+    bool mSpawnChunksReady = false;
+    int32_t mLastChunkX = 0;
+    int32_t mLastChunkZ = 0;
+    bool mHasChunkPosition = false;
     SerializedSkin mSkin;
     int32_t mGameType = 0;
     int64_t mFirstPlayed = 0;
     bool mIsOp = false;
     bool mFlying = false;
+    PlayerInventory mInventory;
+    InventoryManager mInventoryManager;
     PacketSender *mSender;
 };

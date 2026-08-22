@@ -24,6 +24,7 @@ enum class ContainerSlotType {
     RecipeItems,
     RecipeSearch,
     RecipeSearchBar,
+    RecipeEquipment,
     RecipeBook,
     EnchantingInput,
     EnchantingMaterial,

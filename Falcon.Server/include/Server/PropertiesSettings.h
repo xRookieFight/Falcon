@@ -109,6 +109,8 @@ public:
 private:
     static std::string _trim(const std::string &value);
 
+    static void _writeDefault(const std::string &path);
+
     std::string mPath;
     bool mLoaded;
     std::unordered_map<std::string, std::string> mProperties;

@@ -33,6 +33,8 @@ int32_t itemStackRequestActionTypeToId(ItemStackRequestActionType type);
 
 ItemStackRequestActionType itemStackRequestActionTypeFromId(int32_t id);
 
+int32_t itemStackRequestActionTypeToLegacyId(int32_t id);
+
 class ItemStackRequestAction {
 public:
     ItemStackRequestActionType mType = ItemStackRequestActionType::Take;

@@ -2,7 +2,9 @@
 
 #include "Core/Math/Vector3f.h"
 #include "Core/Math/Vector3i.h"
+#include "Level/Chunk.h"
 #include "Level/FlatChunkGenerator.h"
+#include "Level/LevelStorage.h"
 
 #include <cstdint>
 #include <string>
@@ -24,28 +26,42 @@ public:
 
     int getDimensionId() const { return 0; }
 
+    bool openStorage(const std::string &worldsDirectory);
+
+    void saveAll();
+
+    void closeStorage();
+
     Vector3i getSpawnPosition() const;
 
     Vector3f getSpawnPositionForPlayer() const;
 
     std::vector<ChunkPosition> getChunksAround(int32_t centerChunkX, int32_t centerChunkZ) const;
 
-    const std::string &getChunkData() const { return mChunkData; }
+    Chunk &getChunk(int32_t chunkX, int32_t chunkZ);
 
-    uint32_t getSubChunkCount() const { return FlatChunkGenerator::SUB_CHUNK_COUNT; }
+    std::string getChunkData(int32_t chunkX, int32_t chunkZ);
 
-    int32_t getBlock(int32_t x, int32_t y, int32_t z) const;
+    int getChunkSubChunkCount(int32_t chunkX, int32_t chunkZ);
+
+    uint32_t getSubChunkCount() const { return Chunk::SUB_CHUNK_COUNT; }
+
+    int32_t getBlock(int32_t x, int32_t y, int32_t z);
 
     void setBlock(int32_t x, int32_t y, int32_t z, int32_t blockHash);
+
+    void setBlockState(int32_t x, int32_t y, int32_t z, const BlockState &state);
 
     int32_t getAirHash() const { return mGenerator.getAirHash(); }
 
 private:
-    static int64_t _packPosition(int32_t x, int32_t y, int32_t z);
+    static int64_t _packChunk(int32_t x, int32_t z);
+
+    void _generate(Chunk &chunk);
 
     std::string mName;
     int mViewDistance;
     FlatChunkGenerator mGenerator;
-    std::string mChunkData;
-    std::unordered_map<int64_t, int32_t> mBlockOverrides;
+    LevelStorage mStorage;
+    std::unordered_map<int64_t, Chunk> mChunks;
 };

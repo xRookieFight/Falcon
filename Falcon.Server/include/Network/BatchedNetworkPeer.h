@@ -24,6 +24,8 @@ private:
 
     std::shared_ptr<NetworkPeer> mPeer;
 
+    static const size_t MAX_BATCH_SIZE = 1024 * 1024;
+
     std::string mBatchBuffer;
     Reliability mBatchReliability;
     Compressibility mBatchCompressibility;
