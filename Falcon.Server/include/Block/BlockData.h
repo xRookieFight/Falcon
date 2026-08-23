@@ -60,6 +60,7 @@ struct BlockData {
     uint8_t mDropMax;
     const BlockStateValue *mStates;
     size_t mStateCount;
+    const char *mBehaviorIdentifier = nullptr;
 };
 
 class BlockDataTable {

@@ -1,9 +1,7 @@
 #include "Network/BlockActionHandler.h"
 
 #include "Block/BlockData.h"
-#include "Core/Debug/BedrockLog.h"
 #include "Actor/ServerPlayer.h"
-#include "Network/BreakDebug.h"
 #include "Item/ItemData.h"
 #include "Item/ItemEnchantments.h"
 #include "Item/ItemNetworkIdTable.h"
@@ -18,9 +16,9 @@
 #include "Protocol/Types/ItemUseTransaction.h"
 #include "Protocol/Types/StartGameTypes.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
-#include <sstream>
 #include <string>
 
 namespace {
@@ -57,17 +55,11 @@ namespace {
 
     double calculateBreakSeconds(ServerPlayer &player, const BlockData *blockData) {
         if (blockData == nullptr) {
-            BreakDebug::log("calculateBreakSeconds: missing BlockData, fallback=0.05", &player);
             return 0.05;
         }
 
-        if (blockData->mHardness < 0.0f) {
-            std::ostringstream details;
-            details << "block=" << blockData->mIdentifier << " hardness=" << blockData->mHardness
-                    << " result=unbreakable";
-            BreakDebug::log("calculateBreakSeconds", &player, details.str());
+        if (blockData->mHardness < 0.0f)
             return -1.0;
-        }
 
         const double blockHardness = (double) blockData->mHardness;
         const ItemStack &heldItem = player.getInventory().getItemInHand();
@@ -113,17 +105,6 @@ namespace {
         if (inWater && !hasAquaAffinity)
             seconds *= 5.0;
 
-        std::ostringstream details;
-        details << "block=" << blockData->mIdentifier << " hardness=" << blockData->mHardness
-                << " toolType=" << (int) blockData->mToolType << " toolTier=" << (int) blockData->mToolTier
-                << " handHarvest=" << (blockData->mHandHarvest ? 1 : 0) << " matchesTool=" << (matchesTool ? 1 : 0)
-                << " canHarvest=" << (canHarvest ? 1 : 0) << " speedMultiplier=" << speedMultiplier
-                << " efficiency=" << efficiencyLevel << " haste=" << (haste == nullptr ? 0 : haste->level())
-                << " miningFatigue=" << (fatigue == nullptr ? 0 : fatigue->level())
-                << " onGround=" << (player.isOnGround() ? 1 : 0) << " flying=" << (player.isFlying() ? 1 : 0)
-                << " inWater=" << (inWater ? 1 : 0) << " aquaAffinity=" << (hasAquaAffinity ? 1 : 0)
-                << " resultSeconds=" << seconds;
-        BreakDebug::log("calculateBreakSeconds", &player, details.str());
         return seconds;
     }
 
@@ -142,18 +123,11 @@ void BlockActionHandler::broadcastToViewers(ServerNetworkHandler &owner, const V
     const int32_t chunkZ = (int32_t) std::floor(position.z) >> 4;
     const int64_t key = ((int64_t) chunkX << 32) | (uint32_t) chunkZ;
 
-    int recipients = 0;
     for (auto &entry: owner.getPlayers()) {
         if (entry.second.getSentChunks().count(key) != 0) {
             owner.getNetworkHandler().send(entry.first, packet, owner.getCodecContext());
-            ++recipients;
         }
     }
-
-    std::ostringstream details;
-    details << "packet=" << packet.getName() << " position=(" << position.x << ',' << position.y << ',' << position.z
-            << ") chunk=(" << chunkX << ',' << chunkZ << ") key=" << key << " recipients=" << recipients;
-    BreakDebug::log("broadcastToViewers", nullptr, details.str());
 }
 
 bool BlockActionHandler::canInteractWithBlock(ServerPlayer &player, const Vector3i &position) {
@@ -168,13 +142,8 @@ bool BlockActionHandler::canInteractWithBlock(ServerPlayer &player, const Vector
     const float dz = target.z - eyePosition.z;
 
     const float distanceSquared = dx * dx + dy * dy + dz * dz;
-    if (distanceSquared > maxDistance * maxDistance) {
-        std::ostringstream details;
-        details << "block=(" << position.x << ',' << position.y << ',' << position.z << ") distanceSquared="
-                << distanceSquared << " maxDistanceSquared=" << maxDistance * maxDistance << " result=too_far";
-        BreakDebug::log("canInteractWithBlock", &player, details.str());
+    if (distanceSquared > maxDistance * maxDistance)
         return false;
-    }
 
     const float yawRad = player.getRotation().y * 3.14159265f / 180.0f;
     const float halfPi = 1.57079633f;
@@ -191,42 +160,21 @@ bool BlockActionHandler::canInteractWithBlock(ServerPlayer &player, const Vector
     const float dot1 = directionX * target.x + directionZ * target.z;
 
     const bool result = (dot1 - dot) >= -REACH_MAX_DIFF;
-    std::ostringstream details;
-    details << "block=(" << position.x << ',' << position.y << ',' << position.z << ") distanceSquared="
-            << distanceSquared << " maxDistance=" << maxDistance << " yaw=" << player.getRotation().y
-            << " direction=(" << directionX << ',' << directionZ << ") dotDelta=" << (dot1 - dot)
-            << " reachMaxDiff=" << REACH_MAX_DIFF << " result=" << (result ? "allowed" : "bad_aim");
-    BreakDebug::log("canInteractWithBlock", &player, details.str());
     return result;
 }
 
 void BlockActionHandler::breakBlock(ServerNetworkHandler &owner, ServerPlayer &player, const Vector3i &position) {
     Level &level = owner.getLevel();
 
-    {
-        std::ostringstream details;
-        details << "position=(" << position.x << ',' << position.y << ',' << position.z << ") phase=begin";
-        BreakDebug::log("breakBlock", &player, details.str());
-    }
-
     const BlockState brokenState = level.getChunk(position.x >> 4, position.z >> 4)
                                          .getBlock(position.x & 15, position.y, position.z & 15);
 
     if (brokenState.mName == "minecraft:air") {
-        BreakDebug::log("breakBlock: target is air, no mutation", &player);
         return;
     }
 
     const int32_t brokenHash = BlockStateHasher::hash(brokenState.mName, brokenState.mStates);
     const BlockData *brokenData = BlockDataTable::find(brokenState.mName.c_str());
-
-    {
-        std::ostringstream details;
-        details << "position=(" << position.x << ',' << position.y << ',' << position.z << ") block="
-                << brokenState.mName << " hash=" << brokenHash << " blockData=" << (brokenData == nullptr ? "null" : "ok")
-                << " gamemode=" << player.getGameType();
-        BreakDebug::log("breakBlock: resolved target", &player, details.str());
-    }
 
     const int32_t airHash = level.getAirHash();
     level.setBlockState(position.x, position.y, position.z, BlockState("minecraft:air"));
@@ -257,12 +205,6 @@ void BlockActionHandler::breakBlock(ServerNetworkHandler &owner, ServerPlayer &p
         if (!dropIdentifier.empty() && dropCount > 0) {
             Item parsedItem;
             const bool parsed = StringToItemParser::getInstance().parse(dropIdentifier, parsedItem);
-            {
-                std::ostringstream details;
-                details << "dropCandidate=" << dropIdentifier << " count=" << dropCount << " silkTouch="
-                        << (silkTouch ? 1 : 0) << " fortune=" << fortuneLevel << " parsed=" << (parsed ? 1 : 0);
-                BreakDebug::log("breakBlock: drop resolution", &player, details.str());
-            }
             if (parsed) {
                 ItemStack drop;
                 drop.mDefinition = owner.getItemDefinitions().getDefinition(parsedItem.getIdentifier());
@@ -272,17 +214,8 @@ void BlockActionHandler::breakBlock(ServerNetworkHandler &owner, ServerPlayer &p
                 const Vector3f dropPosition((float) position.x + 0.5f, (float) position.y + 0.5f,
                                             (float) position.z + 0.5f);
                 owner.dropItem(dropPosition, drop, randomDropMotion(), ItemActor::DEFAULT_PICKUP_DELAY);
-                BreakDebug::log("breakBlock: drop spawned", &player,
-                                "identifier=" + parsedItem.getIdentifier() + " count=" + std::to_string(dropCount));
             }
-        } else {
-            std::ostringstream details;
-            details << "dropCandidate=" << (dropIdentifier.empty() ? "<none>" : dropIdentifier)
-                    << " count=" << dropCount << " reason=no_drop";
-            BreakDebug::log("breakBlock: no drop", &player, details.str());
         }
-    } else {
-        BreakDebug::log("breakBlock: creative or missing BlockData, drops skipped", &player);
     }
 
     UpdateBlockPacket update;
@@ -301,38 +234,21 @@ void BlockActionHandler::breakBlock(ServerNetworkHandler &owner, ServerPlayer &p
 
     player.exhaust(0.005f);
 
-    BreakDebug::log("breakBlock: block set to air and packets sent", &player,
-                    "position=(" + std::to_string(position.x) + "," + std::to_string(position.y) + "," +
-                            std::to_string(position.z) + ") airHash=" + std::to_string(airHash));
-
-    LOG_INFO(LogAreaID::Server, "%s broke block at %d %d %d", player.getName().c_str(), position.x, position.y,
-             position.z);
 }
 
 void BlockActionHandler::startBreakingBlock(ServerNetworkHandler &owner, ServerPlayer &player,
                                             const Vector3i &position, int32_t face) {
-    {
-        std::ostringstream details;
-        details << "requestedPosition=(" << position.x << ',' << position.y << ',' << position.z << ") face=" << face;
-        BreakDebug::log("startBreakingBlock: received", &player, details.str());
-    }
-
-    if (player.isBreakingBlock() && player.getBreakingBlockPosition() == position) {
-        BreakDebug::log("startBreakingBlock: duplicate target ignored", &player);
+    if (player.isBreakingBlock() && player.getBreakingBlockPosition() == position)
         return;
-    }
 
-    if (player.isBreakingBlock()) {
-        BreakDebug::log("startBreakingBlock: stopping previous target", &player);
+    if (player.isBreakingBlock())
         stopBreakingBlock(owner, player);
-    }
 
     Level &level = owner.getLevel();
     const BlockState &state = level.getChunk(position.x >> 4, position.z >> 4)
                                     .getBlock(position.x & 15, position.y, position.z & 15);
 
     if (state.mName == "minecraft:air") {
-        BreakDebug::log("startBreakingBlock: target is air", &player);
         return;
     }
 
@@ -340,8 +256,6 @@ void BlockActionHandler::startBreakingBlock(ServerNetworkHandler &owner, ServerP
     const double seconds = calculateBreakSeconds(player, blockData);
 
     if (seconds < 0.0) {
-        BreakDebug::log("startBreakingBlock: target is unbreakable", &player,
-                        "block=" + state.mName);
         return;
     }
 
@@ -355,18 +269,11 @@ void BlockActionHandler::startBreakingBlock(ServerNetworkHandler &owner, ServerP
     start.mData = 65535 / ticks;
 
     broadcastToViewers(owner, start.mPosition, start);
-
-    std::ostringstream details;
-    details << "position=(" << position.x << ',' << position.y << ',' << position.z << ") block=" << state.mName
-            << " face=" << face << " seconds=" << seconds << " ticks=" << ticks << " startData=" << start.mData;
-    BreakDebug::log("startBreakingBlock: state started", &player, details.str());
 }
 
 void BlockActionHandler::continueBreakingBlock(ServerNetworkHandler &owner, ServerPlayer &player) {
-    if (!player.isBreakingBlock()) {
-        BreakDebug::log("continueBreakingBlock: no active break", &player);
+    if (!player.isBreakingBlock())
         return;
-    }
 
     const Vector3i position = player.getBreakingBlockPosition();
     Level &level = owner.getLevel();
@@ -374,7 +281,6 @@ void BlockActionHandler::continueBreakingBlock(ServerNetworkHandler &owner, Serv
                                     .getBlock(position.x & 15, position.y, position.z & 15);
 
     if (state.mName == "minecraft:air") {
-        BreakDebug::log("continueBreakingBlock: target became air", &player);
         stopBreakingBlock(owner, player);
         return;
     }
@@ -383,45 +289,33 @@ void BlockActionHandler::continueBreakingBlock(ServerNetworkHandler &owner, Serv
     const double seconds = calculateBreakSeconds(player, blockData);
 
     if (seconds < 0.0) {
-        BreakDebug::log("continueBreakingBlock: target became unbreakable", &player,
-                        "block=" + state.mName);
         stopBreakingBlock(owner, player);
         return;
     }
 
     const int ticks = calculateBreakTicks(seconds);
-    const double previousProgress = player.getBreakProgress();
     const double progressDelta = 1.0 / (double) ticks;
     player.addBreakProgress(progressDelta);
 
-    std::ostringstream details;
-    details << "position=(" << position.x << ',' << position.y << ',' << position.z << ") block=" << state.mName
-            << " seconds=" << seconds << " ticks=" << ticks << " previousProgress=" << previousProgress
-            << " delta=" << progressDelta << " newProgress=" << player.getBreakProgress();
-    BreakDebug::log("continueBreakingBlock: progress", &player, details.str());
+    LevelEventPacket update;
+    update.mEventId = LevelEventPacket::Event::BlockUpdateBreak;
+    update.mPosition = Vector3f((float) position.x + 0.5f, (float) position.y + 0.5f,
+                                (float) position.z + 0.5f);
+    update.mData = (int32_t) std::clamp(65535.0 * progressDelta, 1.0, 65535.0);
+    broadcastToViewers(owner, update.mPosition, update);
 
     if (player.getBreakProgress() >= BREAK_PROGRESS_COMPLETE) {
-        BreakDebug::log("continueBreakingBlock: completion threshold reached", &player,
-                        "threshold=" + std::to_string(BREAK_PROGRESS_COMPLETE));
         completeBreakingBlock(owner, player, position);
     }
 }
 
 void BlockActionHandler::completeBreakingBlock(ServerNetworkHandler &owner, ServerPlayer &player,
                                                const Vector3i &position) {
-    const int32_t face = player.getBreakingFace();
-    std::ostringstream details;
-    details << "requestedPosition=(" << position.x << ',' << position.y << ',' << position.z << ") face=" << face;
-    BreakDebug::log("completeBreakingBlock: requested", &player, details.str());
-
     stopBreakingBlock(owner, player);
 
-    if (!canInteractWithBlock(player, position)) {
-        BreakDebug::log("completeBreakingBlock: rejected by interaction check", &player);
+    if (!canInteractWithBlock(player, position))
         return;
-    }
 
-    BreakDebug::log("completeBreakingBlock: interaction accepted", &player);
     breakBlock(owner, player, position);
 }
 
@@ -431,10 +325,8 @@ void BlockActionHandler::sendBreakingFx(ServerNetworkHandler &owner, ServerPlaye
     const BlockState &state = level.getChunk(position.x >> 4, position.z >> 4)
                                     .getBlock(position.x & 15, position.y, position.z & 15);
 
-    if (state.mName == "minecraft:air") {
-        BreakDebug::log("sendBreakingFx: target is air", &player);
+    if (state.mName == "minecraft:air")
         return;
-    }
 
     const int32_t blockHash = BlockStateHasher::hash(state.mName, state.mStates);
     const Vector3f center((float) position.x + 0.5f, (float) position.y + 0.5f, (float) position.z + 0.5f);
@@ -453,20 +345,13 @@ void BlockActionHandler::sendBreakingFx(ServerNetworkHandler &owner, ServerPlaye
     hit.mActorUniqueId = -1;
     broadcastToViewers(owner, center, hit);
 
-    std::ostringstream details;
-    details << "position=(" << position.x << ',' << position.y << ',' << position.z << ") block=" << state.mName
-            << " hash=" << blockHash << " face=" << player.getBreakingFace();
-    BreakDebug::log("sendBreakingFx: hit and punch sent", &player, details.str());
 }
 
 void BlockActionHandler::stopBreakingBlock(ServerNetworkHandler &owner, ServerPlayer &player) {
-    if (!player.isBreakingBlock()) {
-        BreakDebug::log("stopBreakingBlock: no active break", &player);
+    if (!player.isBreakingBlock())
         return;
-    }
 
     const Vector3i position = player.getBreakingBlockPosition();
-    const double progress = player.getBreakProgress();
     player.stopBreakingBlock();
 
     LevelEventPacket stop;
@@ -476,13 +361,12 @@ void BlockActionHandler::stopBreakingBlock(ServerNetworkHandler &owner, ServerPl
 
     broadcastToViewers(owner, stop.mPosition, stop);
 
-    std::ostringstream details;
-    details << "position=(" << position.x << ',' << position.y << ',' << position.z << ") progressBefore=" << progress;
-    BreakDebug::log("stopBreakingBlock: state stopped", &player, details.str());
 }
 
 void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &player,
                                     const ItemUseTransaction &transaction) {
+    (void) player;
+
     if (transaction.mItemInHand.mBlockDefinition == nullptr)
         return;
 
@@ -518,6 +402,4 @@ void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &p
     placeSound.mActorUniqueId = -1;
     broadcastToViewers(owner, targetCenter, placeSound);
 
-    LOG_INFO(LogAreaID::Server, "%s placed %s at %d %d %d", player.getName().c_str(),
-             definition.getIdentifier().c_str(), target.x, target.y, target.z);
 }

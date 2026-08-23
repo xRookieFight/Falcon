@@ -234,7 +234,7 @@ Vector3i ReadOnlyBinaryStream::getVector3i() {
 
 Vector3i ReadOnlyBinaryStream::getBlockPosition() {
     const int32_t x = getVarInt();
-    const int32_t y = (int32_t) getUnsignedVarInt();
+    const int32_t y = getVarInt();
     const int32_t z = getVarInt();
     return Vector3i(x, y, z);
 }

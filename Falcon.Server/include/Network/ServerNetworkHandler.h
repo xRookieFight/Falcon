@@ -33,6 +33,7 @@
 
 class ItemUseTransaction;
 class CommandSender;
+class Block;
 
 class ServerNetworkHandler : public NetworkHandler::Listener,
                              public NetworkPacketHandler,
@@ -60,6 +61,8 @@ public:
     const PropertiesSettings &getProperties() const { return mProperties; }
 
     int getActivePlayerCount() const { return (int) mNetworkHandler->getConnectionCount(); }
+
+    int64_t getCurrentTick() const { return mCurrentTick; }
 
     int getMaxPlayers() const { return mMaxPlayers; }
 
@@ -134,7 +137,7 @@ public:
 
     void _sendChunks(ServerPlayer &player);
 
-    void _handleFallDamage(ServerPlayer &player);
+    void _handleFallDamage(ServerPlayer &player, const Block *supportBlock = nullptr);
 
     void _disconnect(const NetworkIdentifier &id, const std::string &reason);
 

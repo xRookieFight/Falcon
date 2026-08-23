@@ -2,18 +2,18 @@
 
 #include "Actor/ActorFlags.h"
 #include "Actor/ServerPlayer.h"
+#include "Block/Block.h"
 #include "Level/Level.h"
 #include "Network/BadPacketCheck.h"
 #include "Network/BlockActionHandler.h"
-#include "Network/BreakDebug.h"
 #include "Network/NetworkHandler.h"
 #include "Network/ServerNetworkHandler.h"
 #include "Protocol/Packets/MovePlayerPacket.h"
 #include "Protocol/Packets/PlayerAuthInputPacket.h"
+#include "Protocol/Packets/SetEntityMotionPacket.h"
 #include "Protocol/Types/StartGameTypes.h"
 
 #include <cmath>
-#include <sstream>
 
 namespace {
     const float PLAYER_BASE_OFFSET = 1.62f;
@@ -27,21 +27,6 @@ namespace {
     const float PLAYER_JUMP_VELOCITY = 0.42f;
     const float PLAYER_HORIZONTAL_FRICTION = 0.91f;
     const float AABB_EPSILON = 0.001f;
-
-    const char *actionName(PlayerActionType action) {
-        switch (action) {
-            case PlayerActionType::StartBreak: return "StartBreak";
-            case PlayerActionType::AbortBreak: return "AbortBreak";
-            case PlayerActionType::StopBreak: return "StopBreak";
-            case PlayerActionType::ContinueBreak: return "ContinueBreak";
-            case PlayerActionType::BlockPredictDestroy: return "BlockPredictDestroy";
-            case PlayerActionType::BlockContinueDestroy: return "BlockContinueDestroy";
-            case PlayerActionType::DimensionChangeRequestOrCreativeDestroyBlock:
-                return "DimensionChangeRequestOrCreativeDestroyBlock";
-            case PlayerActionType::Jump: return "Jump";
-            default: return "Other";
-        }
-    }
 
     float sweepAxisX(ServerNetworkHandler &owner, const Vector3f &feet, float deltaX) {
         if (deltaX == 0.0f)
@@ -238,6 +223,53 @@ namespace {
         owner.getNetworkHandler().send(player.getNetworkIdentifier(), revert, owner.getCodecContext());
         player.setForceMoveSync(true);
     }
+
+    bool findSupportBlock(ServerNetworkHandler &owner, const Vector3f &feetPosition, BlockState &support) {
+        Level &level = owner.getLevel();
+        const int32_t lowestY = (int32_t) std::floor(feetPosition.y - GROUND_PROBE_DEPTH);
+        const int32_t highestY = (int32_t) std::floor(feetPosition.y);
+        const int32_t minX = (int32_t) std::floor(feetPosition.x - PLAYER_HALF_WIDTH + AABB_EPSILON);
+        const int32_t maxX = (int32_t) std::floor(feetPosition.x + PLAYER_HALF_WIDTH - AABB_EPSILON);
+        const int32_t minZ = (int32_t) std::floor(feetPosition.z - PLAYER_HALF_WIDTH + AABB_EPSILON);
+        const int32_t maxZ = (int32_t) std::floor(feetPosition.z + PLAYER_HALF_WIDTH - AABB_EPSILON);
+
+        for (int32_t y = highestY; y >= lowestY; --y) {
+            BlockState firstSolid;
+            bool foundSolid = false;
+
+            for (int32_t x = minX; x <= maxX; ++x) {
+                for (int32_t z = minZ; z <= maxZ; ++z) {
+                    if (!level.isSolidAt(x, y, z))
+                        continue;
+
+                    const BlockState state = level.getBlockState(x, y, z);
+                    if (!foundSolid)
+                        firstSolid = state;
+                    foundSolid = true;
+                }
+            }
+
+            if (foundSolid) {
+                support = firstSolid;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool applyLandingBehavior(ServerNetworkHandler &owner, ServerPlayer &player, const Block &support,
+                              float downwardVelocity) {
+        if (!support.onEntityLand(player, downwardVelocity))
+            return false;
+
+        SetEntityMotionPacket motion;
+        motion.mRuntimeEntityId = player.getRuntimeId();
+        motion.mMotion = player.getMotion();
+        motion.mTick = (uint64_t) owner.getCurrentTick();
+        owner.getNetworkHandler().send(player.getNetworkIdentifier(), motion, owner.getCodecContext());
+        return true;
+    }
 }
 
 bool MovementHandler::checkGroundState(ServerNetworkHandler &owner, const Vector3f &feetPosition) {
@@ -299,8 +331,16 @@ void MovementHandler::handleMovement(ServerNetworkHandler &owner, ServerPlayer &
     player.setOnGround(onGround);
 
     if (onGround) {
-        if (!wasOnGround)
-            owner._handleFallDamage(player);
+        BlockState support;
+        const bool hasSupport = findSupportBlock(owner, feetPosition, support);
+        const Block supportBlock = hasSupport ? Block(support) : Block();
+
+        if (!wasOnGround) {
+            const bool landedOnSpecialBlock = hasSupport && applyLandingBehavior(owner, player, supportBlock,
+                                                                                 std::min(0.0f, requestedY));
+            if (!landedOnSpecialBlock)
+                owner._handleFallDamage(player, hasSupport ? &supportBlock : nullptr);
+        }
 
         player.resetFallDistance();
     } else {
@@ -314,16 +354,6 @@ void MovementHandler::handleMovement(ServerNetworkHandler &owner, ServerPlayer &
 void MovementHandler::handlePlayerAuthInput(ServerNetworkHandler &owner, const NetworkIdentifier &id,
                                             ServerPlayer &player, const PlayerAuthInputPacket &packet) {
     const Vector3f feetPosition(packet.mPosition.x, packet.mPosition.y - PLAYER_BASE_OFFSET, packet.mPosition.z);
-
-    if (!packet.mPlayerActions.empty() || player.isBreakingBlock()) {
-        std::ostringstream details;
-        details << "clientTick=" << packet.mTick << " packetPosition=(" << packet.mPosition.x << ','
-                << packet.mPosition.y << ',' << packet.mPosition.z << ") feetPosition=(" << feetPosition.x << ','
-                << feetPosition.y << ',' << feetPosition.z << ") rotation=(" << packet.mRotation.x << ','
-                << packet.mRotation.y << ',' << packet.mRotation.z << ") actionCount=" << packet.mPlayerActions.size()
-                << " hasItemUseTransaction=" << (packet.mHasItemUseTransaction ? 1 : 0);
-        BreakDebug::log("handlePlayerAuthInput: breaking input", &player, details.str());
-    }
 
     const bool jumping = packet.hasInputFlag((int32_t) PlayerAuthInputData::StartJumping)
                         || packet.hasInputFlag((int32_t) PlayerAuthInputData::Jumping);
@@ -370,12 +400,6 @@ void MovementHandler::handlePlayerAuthInput(ServerNetworkHandler &owner, const N
         owner._sendEntityData(player);
 
     for (const PlayerBlockActionData &action: packet.mPlayerActions) {
-        std::ostringstream details;
-        details << "action=" << actionName(action.mAction) << " actionValue=" << (int) action.mAction
-                << " position=(" << action.mBlockPosition.x << ',' << action.mBlockPosition.y << ','
-                << action.mBlockPosition.z << ") face=" << action.mFace;
-        BreakDebug::log("handlePlayerAuthInput: dispatch action", &player, details.str());
-
         if (action.mAction == PlayerActionType::StartBreak ||
             action.mAction == PlayerActionType::BlockContinueDestroy) {
             BlockActionHandler::startBreakingBlock(owner, player, action.mBlockPosition, action.mFace);
@@ -388,20 +412,9 @@ void MovementHandler::handlePlayerAuthInput(ServerNetworkHandler &owner, const N
         } else if (action.mAction == PlayerActionType::Jump) {
             player.exhaust(player.getFlags().get(ActorFlag::Sprinting) ? 0.2f : 0.05f);
         }
-
-        BreakDebug::log("handlePlayerAuthInput: action completed", &player,
-                        std::string("action=") + actionName(action.mAction));
     }
 
     if (packet.mHasItemUseTransaction) {
-        std::ostringstream details;
-        details << "actionType=" << packet.mItemUseTransaction.mActionType << " transactionType="
-                << (int) packet.mItemUseTransaction.mTriggerType << " blockPosition=("
-                << packet.mItemUseTransaction.mBlockPosition.x << ',' << packet.mItemUseTransaction.mBlockPosition.y
-                << ',' << packet.mItemUseTransaction.mBlockPosition.z << ") blockFace="
-                << packet.mItemUseTransaction.mBlockFace;
-        BreakDebug::log("handlePlayerAuthInput: item use transaction", &player, details.str());
-
         if (packet.mItemUseTransaction.mActionType == 0)
             BlockActionHandler::placeBlock(owner, player, packet.mItemUseTransaction);
         else if (packet.mItemUseTransaction.mActionType == 1)

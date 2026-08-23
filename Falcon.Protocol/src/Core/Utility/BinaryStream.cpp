@@ -142,7 +142,7 @@ void BinaryStream::putVector3i(const Vector3i &value) {
 
 void BinaryStream::putBlockPosition(const Vector3i &value) {
     putVarInt(value.x);
-    putUnsignedVarInt((uint32_t) value.y);
+    putVarInt(value.y);
     putVarInt(value.z);
 }
 

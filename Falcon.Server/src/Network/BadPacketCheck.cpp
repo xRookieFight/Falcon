@@ -1,7 +1,6 @@
 #include "Network/BadPacketCheck.h"
 
 #include "Actor/ServerPlayer.h"
-#include "Network/BreakDebug.h"
 #include "Protocol/Packets/InventoryTransactionPacket.h"
 #include "Protocol/Packets/ItemStackRequestPacket.h"
 #include "Protocol/Packets/MobEquipmentPacket.h"
@@ -10,7 +9,6 @@
 #include "Protocol/Types/StartGameTypes.h"
 
 #include <cmath>
-#include <sstream>
 
 namespace {
     const int MINIMUM_CHUNK_RADIUS = 1;
@@ -30,18 +28,9 @@ namespace {
 }
 
 bool BadPacketCheck::inspect(ServerPlayer &player, const PlayerAuthInputPacket &packet, std::string &outReason) {
-    if (!packet.mPlayerActions.empty()) {
-        std::ostringstream details;
-        details << "clientTick=" << packet.mTick << " actionCount=" << packet.mPlayerActions.size()
-                << " position=(" << packet.mPosition.x << ',' << packet.mPosition.y << ',' << packet.mPosition.z
-                << ") motion=(" << packet.mMotionX << ',' << packet.mMotionY << ")";
-        BreakDebug::log("BadPacketCheck: inspect PlayerAuthInput", &player, details.str());
-    }
-
     const int64_t tick = packet.mTick;
     if (tick == 0 && player.hasSeenNonZeroClientTick()) {
         outReason = "input tick returned to zero";
-        BreakDebug::log("BadPacketCheck: rejected input tick", &player, "reason=" + outReason);
         return true;
     }
     if (tick != 0)
@@ -53,7 +42,6 @@ bool BadPacketCheck::inspect(ServerPlayer &player, const PlayerAuthInputPacket &
                                      : validMoveComponent(packet.mMotionY);
     if (!validMoveComponent(packet.mMotionX) || !validVerticalMotion) {
         outReason = "invalid move vector";
-        BreakDebug::log("BadPacketCheck: rejected motion", &player, "reason=" + outReason);
         return true;
     }
 
@@ -63,41 +51,29 @@ bool BadPacketCheck::inspect(ServerPlayer &player, const PlayerAuthInputPacket &
 
     if (!std::isfinite(positionX) || !std::isfinite(positionY) || !std::isfinite(positionZ)) {
         outReason = "invalid position";
-        BreakDebug::log("BadPacketCheck: rejected position", &player, "reason=" + outReason);
         return true;
     }
 
     if (packet.mHasItemUseTransaction) {
         if (packet.mItemUseTransaction.mActionType == 0 && !validFace(packet.mItemUseTransaction.mBlockFace)) {
             outReason = "invalid block face";
-            BreakDebug::log("BadPacketCheck: rejected item transaction face", &player, "reason=" + outReason);
             return true;
         }
     }
 
     for (const PlayerBlockActionData &action: packet.mPlayerActions) {
-        std::ostringstream details;
-        details << "action=" << (int) action.mAction << " position=(" << action.mBlockPosition.x << ','
-                << action.mBlockPosition.y << ',' << action.mBlockPosition.z << ") face=" << action.mFace;
-        BreakDebug::log("BadPacketCheck: inspect block action", &player, details.str());
-
         if (action.mAction == PlayerActionType::DimensionChangeRequestOrCreativeDestroyBlock &&
             player.getGameType() != (int32_t) GameType::Creative) {
             outReason = "creative destroy outside creative";
-            BreakDebug::log("BadPacketCheck: rejected creative destroy", &player, "reason=" + outReason);
             return true;
         }
 
         if (action.mAction != PlayerActionType::AbortBreak && action.mAction != PlayerActionType::StopBreak &&
             !validFace(action.mFace)) {
             outReason = "invalid block action face";
-            BreakDebug::log("BadPacketCheck: rejected action face", &player, "reason=" + outReason);
             return true;
         }
     }
-
-    if (!packet.mPlayerActions.empty())
-        BreakDebug::log("BadPacketCheck: accepted PlayerAuthInput actions", &player);
 
     return false;
 }

@@ -41,7 +41,6 @@ add_executable(FalconServer
         src/Network/LoginChainVerifier.cpp
         src/Network/AuthKeyProvider.cpp
         src/Network/BadPacketCheck.cpp
-        src/Network/BreakDebug.cpp
         src/Network/BlockActionHandler.cpp
         src/Network/ChatHandler.cpp
         src/Network/InventoryHandler.cpp
@@ -60,7 +59,11 @@ add_executable(FalconServer
         src/Command/KillCommand.cpp
         src/Command/PlayerCommandSender.cpp
         src/Block/BlockData.cpp
+        src/Block/Block.cpp
+        src/Block/BlockBehavior.cpp
+        src/Block/BlockBehaviorRegistry.cpp
         src/Block/CreativeContentTable.cpp
+        src/Block/SlimeBlockBehavior.cpp
         src/Block/VanillaBlocks.cpp
         src/Actor/Actor.cpp
         src/Actor/ActorAttributes.cpp

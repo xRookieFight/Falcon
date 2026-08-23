@@ -14,7 +14,6 @@
 #include "Network/AuthKeyProvider.h"
 #include "Network/BadPacketCheck.h"
 #include "Network/BlockActionHandler.h"
-#include "Network/BreakDebug.h"
 #include "Network/ChatHandler.h"
 #include "Network/InventoryHandler.h"
 #include "Network/ItemActorHandler.h"
@@ -26,6 +25,7 @@
 #include "Protocol/MinecraftPackets.h"
 #include "Protocol/Packets/DisconnectPacket.h"
 #include "Protocol/Packets/LevelChunkPacket.h"
+#include "Protocol/Packets/LevelSoundEventPacket.h"
 #include "Protocol/Packets/LoginPacket.h"
 #include "Protocol/Packets/NetworkChunkPublisherUpdatePacket.h"
 #include "Protocol/Packets/NetworkSettingsPacket.h"
@@ -82,6 +82,7 @@
 #include "Protocol/Packets/MobEquipmentPacket.h"
 #include "Protocol/Packets/PlayerHotbarPacket.h"
 #include "Block/CreativeContentTable.h"
+#include "Block/Block.h"
 #include "Block/VanillaBlocks.h"
 #include "Item/CraftingRecipeTable.h"
 #include "Item/ItemNetworkIdTable.h"
@@ -89,9 +90,11 @@
 #include "Core/NBT/NbtIo.h"
 
 #include <cmath>
+#include <algorithm>
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <unordered_set>
@@ -497,16 +500,7 @@ void ServerNetworkHandler::tick() {
             const float dy = feet.y - breakingCenter.y;
             const float dz = feet.z - breakingCenter.z;
 
-            {
-                std::ostringstream details;
-                details << "serverTick=" << mCurrentTick << " target=(" << breakingPosition.x << ','
-                        << breakingPosition.y << ',' << breakingPosition.z << ") distanceSquared="
-                        << (dx * dx + dy * dy + dz * dz);
-                BreakDebug::log("ServerNetworkHandler::tick: active break", &player, details.str());
-            }
-
             if (dx * dx + dy * dy + dz * dz > 256.0f) {
-                BreakDebug::log("ServerNetworkHandler::tick: break stopped for distance", &player);
                 BlockActionHandler::stopBreakingBlock(*this, player);
             } else {
                 BlockActionHandler::continueBreakingBlock(*this, player);
@@ -632,8 +626,6 @@ void ServerNetworkHandler::onDataReceived(const NetworkIdentifier &id, const std
         packet->mClientSubId = clientSubId;
         packet->read(stream, mCodecContext);
 
-        if (packetId != MinecraftPacketIds::PlayerAuthInput)
-            LOG_INFO(LogAreaID::Network, "RECV %s (id %d)", packet->getName(), (int) packetId);
         packet->handle(id, *this);
     } catch (const BinaryDataException &exception) {
         LOG_WARN(LogAreaID::Network, "Malformed packet from %s: %s", id.getAddress().c_str(), exception.what());
@@ -797,11 +789,17 @@ void ServerNetworkHandler::_broadcastEntityEvent(const Actor &entity, uint8_t ev
     }
 }
 
-void ServerNetworkHandler::_handleFallDamage(ServerPlayer &player) {
+void ServerNetworkHandler::_handleFallDamage(ServerPlayer &player, const Block *supportBlock) {
     if (player.isFlying() || player.isDead())
         return;
 
-    const float damage = player.computeFallDamage();
+    float damage = player.computeFallDamage();
+    if (supportBlock != nullptr) {
+        const std::optional<float> blockDamage = supportBlock->getFallDamage(player, damage);
+        if (blockDamage.has_value())
+            damage = std::max(0.0f, *blockDamage);
+    }
+
     if (damage < 1.0f)
         return;
 
@@ -962,13 +960,6 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const PlayerActio
     if (player == nullptr || !player->isSpawned())
         return;
 
-    {
-        std::ostringstream details;
-        details << "action=" << (int) packet.mAction << " position=(" << packet.mBlockPosition.x << ','
-                << packet.mBlockPosition.y << ',' << packet.mBlockPosition.z << ") face=" << packet.mFace;
-        BreakDebug::log("ServerNetworkHandler::handle PlayerActionPacket", player, details.str());
-    }
-
     const bool legacyBreakAction = packet.mAction == PlayerActionType::StartBreak ||
                                    packet.mAction == PlayerActionType::ContinueBreak ||
                                    packet.mAction == PlayerActionType::BlockContinueDestroy ||
@@ -979,8 +970,6 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const PlayerActio
     if (legacyBreakAction ||
         (packet.mAction == PlayerActionType::DimensionChangeRequestOrCreativeDestroyBlock &&
          player->getGameType() != (int32_t) GameType::Creative)) {
-        BreakDebug::log("PlayerActionPacket: legacy/invalid break channel rejected", player,
-                        "action=" + std::to_string((int) packet.mAction));
         _disconnect(id, "Bad packet: invalid break channel");
         return;
     }
@@ -1262,23 +1251,14 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const PlayerAuthI
     if (player == nullptr || player->isDead())
         return;
 
-    if (!packet.mPlayerActions.empty()) {
-        std::ostringstream details;
-        details << "clientTick=" << packet.mTick << " actionCount=" << packet.mPlayerActions.size();
-        BreakDebug::log("ServerNetworkHandler::handle PlayerAuthInputPacket", player, details.str());
-    }
-
     if (!std::isfinite(packet.mPosition.x) || !std::isfinite(packet.mPosition.y) ||
         !std::isfinite(packet.mPosition.z) || !std::isfinite(packet.mRotation.x) ||
         !std::isfinite(packet.mRotation.y) || !std::isfinite(packet.mRotation.z)) {
-        BreakDebug::log("PlayerAuthInputPacket: rejected non-finite position/rotation", player);
         return;
     }
 
     std::string badPacketReason;
     if (BadPacketCheck::inspect(*player, packet, badPacketReason)) {
-        BreakDebug::log("PlayerAuthInputPacket: disconnected by BadPacketCheck", player,
-                        "reason=" + badPacketReason);
         _disconnect(id, "Bad packet: " + badPacketReason);
         return;
     }
@@ -1436,6 +1416,17 @@ void ServerNetworkHandler::_consumeHeldItem(ServerPlayer &player) {
     } else {
         player.consumeFood(data->mNutrition, data->mSaturation);
         applyFoodEffects(player, data->mIdentifier);
+
+        LevelSoundEventPacket burp;
+        burp.mSound = "burp";
+        burp.mPosition = player.getPosition();
+        burp.mExtraData = -1;
+        burp.mEntityType = ":";
+        burp.mIsBabyMob = false;
+        burp.mDisableRelativeVolume = false;
+        burp.mActorUniqueId = -1;
+        burp.mHasFirePosition = false;
+        BlockActionHandler::broadcastToViewers(*this, player.getPosition(), burp);
     }
 
     ItemStack remaining = inventory.getItemInHand();
