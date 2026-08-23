@@ -1,6 +1,6 @@
 #include "Inventory/InventoryManager.h"
 
-#include "Entity/ServerPlayer.h"
+#include "Actor/ServerPlayer.h"
 #include "Network/PacketSender.h"
 #include "Protocol/Packets/ContainerClosePacket.h"
 #include "Protocol/Packets/ContainerOpenPacket.h"
@@ -22,6 +22,8 @@ namespace {
                 return inventory.getArmor(slot);
             case InventoryManager::InventoryId::Cursor:
                 return inventory.getCursor();
+            case InventoryManager::InventoryId::CraftingInput:
+                return inventory.getCraftingItem(slot);
         }
         return PlayerInventory::getEmptyItem();
     }
@@ -65,6 +67,8 @@ int InventoryManager::_getWindowId(InventoryId inventory) const {
             return CONTAINER_ID_ARMOR;
         case InventoryId::Cursor:
             return CONTAINER_ID_UI;
+        case InventoryId::CraftingInput:
+            return CONTAINER_ID_UI;
     }
     return CONTAINER_ID_NONE;
 }
@@ -78,6 +82,8 @@ int InventoryManager::_getSize(InventoryId inventory) const {
         case InventoryId::Offhand:
         case InventoryId::Cursor:
             return 1;
+        case InventoryId::CraftingInput:
+            return PlayerInventory::CRAFTING_SIZE;
     }
     return 0;
 }
@@ -128,6 +134,13 @@ void InventoryManager::syncContents(InventoryId inventory) {
         return;
     }
 
+    if (inventory == InventoryId::CraftingInput) {
+        for (int slot = 0; slot < PlayerInventory::CRAFTING_SIZE; slot++) {
+            _sendSlotPackets(CONTAINER_ID_UI, PlayerInventory::CRAFTING_NETWORK_SLOT_FIRST + slot, inventory, slot);
+        }
+        return;
+    }
+
     _sendContentPackets(_getWindowId(inventory), inventory);
 }
 
@@ -138,6 +151,14 @@ void InventoryManager::syncSlot(InventoryId inventory, int slot) {
 
     if (inventory == InventoryId::Cursor) {
         _sendSlotPackets(CONTAINER_ID_UI, UI_SLOT_CURSOR, inventory, 0);
+        return;
+    }
+
+    if (inventory == InventoryId::CraftingInput) {
+        if (slot < 0 || slot >= PlayerInventory::CRAFTING_SIZE) {
+            return;
+        }
+        _sendSlotPackets(CONTAINER_ID_UI, PlayerInventory::CRAFTING_NETWORK_SLOT_FIRST + slot, inventory, slot);
         return;
     }
 
@@ -157,6 +178,7 @@ void InventoryManager::syncAll() {
     syncContents(InventoryId::Inventory);
     syncContents(InventoryId::Offhand);
     syncContents(InventoryId::Armor);
+    syncContents(InventoryId::CraftingInput);
     syncContents(InventoryId::Cursor);
 }
 

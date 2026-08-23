@@ -1,10 +1,11 @@
 #include "Network/MovementHandler.h"
 
-#include "Entity/EntityFlags.h"
-#include "Entity/ServerPlayer.h"
+#include "Actor/ActorFlags.h"
+#include "Actor/ServerPlayer.h"
 #include "Level/Level.h"
 #include "Network/BadPacketCheck.h"
 #include "Network/BlockActionHandler.h"
+#include "Network/BreakDebug.h"
 #include "Network/NetworkHandler.h"
 #include "Network/ServerNetworkHandler.h"
 #include "Protocol/Packets/MovePlayerPacket.h"
@@ -12,6 +13,7 @@
 #include "Protocol/Types/StartGameTypes.h"
 
 #include <cmath>
+#include <sstream>
 
 namespace {
     const float PLAYER_BASE_OFFSET = 1.62f;
@@ -19,12 +21,27 @@ namespace {
     const float PLAYER_HEIGHT = 1.8f;
     const float GROUND_PROBE_DEPTH = 0.5f;
     const float MOVE_CORRECTION_EPSILON = 0.00001f;
-    const float MAX_MOVE_DISTANCE_SQUARED = 225.0f;
+    const float MAX_MOVE_DISTANCE = 15.0f;
     const float PLAYER_GRAVITY = 0.08f;
     const float PLAYER_VERTICAL_DRAG = 0.98f;
     const float PLAYER_JUMP_VELOCITY = 0.42f;
     const float PLAYER_HORIZONTAL_FRICTION = 0.91f;
     const float AABB_EPSILON = 0.001f;
+
+    const char *actionName(PlayerActionType action) {
+        switch (action) {
+            case PlayerActionType::StartBreak: return "StartBreak";
+            case PlayerActionType::AbortBreak: return "AbortBreak";
+            case PlayerActionType::StopBreak: return "StopBreak";
+            case PlayerActionType::ContinueBreak: return "ContinueBreak";
+            case PlayerActionType::BlockPredictDestroy: return "BlockPredictDestroy";
+            case PlayerActionType::BlockContinueDestroy: return "BlockContinueDestroy";
+            case PlayerActionType::DimensionChangeRequestOrCreativeDestroyBlock:
+                return "DimensionChangeRequestOrCreativeDestroyBlock";
+            case PlayerActionType::Jump: return "Jump";
+            default: return "Other";
+        }
+    }
 
     float sweepAxisX(ServerNetworkHandler &owner, const Vector3f &feet, float deltaX) {
         if (deltaX == 0.0f)
@@ -157,7 +174,11 @@ namespace {
                 velocity.y = PLAYER_JUMP_VELOCITY;
                 outJumped = true;
             } else {
-                velocity.y -= PLAYER_GRAVITY;
+                if (player.getFlags().get(ActorFlag::HasGravity)) {
+                    const float gravity = player.hasEffect(MobEffectId::SlowFalling)
+                                          ? PLAYER_GRAVITY * 0.01f : PLAYER_GRAVITY;
+                    velocity.y -= gravity;
+                }
             }
 
             velocity.y *= PLAYER_VERTICAL_DRAG;
@@ -249,18 +270,23 @@ void MovementHandler::handleMovement(ServerNetworkHandler &owner, ServerPlayer &
     const float requestedX = feetPosition.x - previous.x;
     const float requestedY = feetPosition.y - previous.y;
     const float requestedZ = feetPosition.z - previous.z;
-    const float distanceSquared = requestedX * requestedX + requestedY * requestedY + requestedZ * requestedZ;
+    const float horizontalDistanceSquared = requestedX * requestedX + requestedZ * requestedZ;
+    const float speedAllowance = std::min(4.0f, std::max(1.0f, player.getMovementSpeedMultiplier()));
+    const float jumpAllowance = std::min(4.0f, std::max(1.0f, player.getJumpVelocityMultiplier()));
+    const float maxHorizontalDistance = MAX_MOVE_DISTANCE * speedAllowance;
+    const float maxVerticalDistance = MAX_MOVE_DISTANCE * jumpAllowance;
 
     player.setRotation(rotation);
 
-    if (distanceSquared > MAX_MOVE_DISTANCE_SQUARED) {
+    if (horizontalDistanceSquared > maxHorizontalDistance * maxHorizontalDistance
+        || std::fabs(requestedY) > maxVerticalDistance) {
         player.setMotion(Vector3f(0.0f, 0.0f, 0.0f));
         player.resetFallDistance();
         sendMovementCorrection(owner, player, previous);
         return;
     }
 
-    if (player.getFlags().get(EntityFlag::Sprinting)) {
+    if (player.getFlags().get(ActorFlag::Sprinting)) {
         const float horizontalDistance = std::sqrt(requestedX * requestedX + requestedZ * requestedZ);
         if (horizontalDistance > 0.0f)
             player.exhaust(0.01f * horizontalDistance);
@@ -289,6 +315,16 @@ void MovementHandler::handlePlayerAuthInput(ServerNetworkHandler &owner, const N
                                             ServerPlayer &player, const PlayerAuthInputPacket &packet) {
     const Vector3f feetPosition(packet.mPosition.x, packet.mPosition.y - PLAYER_BASE_OFFSET, packet.mPosition.z);
 
+    if (!packet.mPlayerActions.empty() || player.isBreakingBlock()) {
+        std::ostringstream details;
+        details << "clientTick=" << packet.mTick << " packetPosition=(" << packet.mPosition.x << ','
+                << packet.mPosition.y << ',' << packet.mPosition.z << ") feetPosition=(" << feetPosition.x << ','
+                << feetPosition.y << ',' << feetPosition.z << ") rotation=(" << packet.mRotation.x << ','
+                << packet.mRotation.y << ',' << packet.mRotation.z << ") actionCount=" << packet.mPlayerActions.size()
+                << " hasItemUseTransaction=" << (packet.mHasItemUseTransaction ? 1 : 0);
+        BreakDebug::log("handlePlayerAuthInput: breaking input", &player, details.str());
+    }
+
     const bool jumping = packet.hasInputFlag((int32_t) PlayerAuthInputData::StartJumping)
                         || packet.hasInputFlag((int32_t) PlayerAuthInputData::Jumping);
 
@@ -302,38 +338,44 @@ void MovementHandler::handlePlayerAuthInput(ServerNetworkHandler &owner, const N
             owner._sendChunks(player);
     }
 
-    EntityFlags &flags = player.getFlags();
-    const EntityFlags previous = flags;
+    ActorFlags &flags = player.getFlags();
+    const ActorFlags previous = flags;
 
     if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StartSprinting))
-        flags.set(EntityFlag::Sprinting, true);
+        flags.set(ActorFlag::Sprinting, true);
     if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StopSprinting))
-        flags.set(EntityFlag::Sprinting, false);
+        flags.set(ActorFlag::Sprinting, false);
 
     if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StartSneaking))
-        flags.set(EntityFlag::Sneaking, true);
+        flags.set(ActorFlag::Sneaking, true);
     if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StopSneaking))
-        flags.set(EntityFlag::Sneaking, false);
+        flags.set(ActorFlag::Sneaking, false);
 
     if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StartSwimming))
-        flags.set(EntityFlag::Swimming, true);
+        flags.set(ActorFlag::Swimming, true);
     if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StopSwimming))
-        flags.set(EntityFlag::Swimming, false);
+        flags.set(ActorFlag::Swimming, false);
 
     if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StartGliding))
-        flags.set(EntityFlag::Gliding, true);
+        flags.set(ActorFlag::Gliding, true);
     if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StopGliding))
-        flags.set(EntityFlag::Gliding, false);
+        flags.set(ActorFlag::Gliding, false);
 
     if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StartCrawling))
-        flags.set(EntityFlag::Crawling, true);
+        flags.set(ActorFlag::Crawling, true);
     if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StopCrawling))
-        flags.set(EntityFlag::Crawling, false);
+        flags.set(ActorFlag::Crawling, false);
 
     if (flags.getLowBits() != previous.getLowBits() || flags.getHighBits() != previous.getHighBits())
         owner._sendEntityData(player);
 
     for (const PlayerBlockActionData &action: packet.mPlayerActions) {
+        std::ostringstream details;
+        details << "action=" << actionName(action.mAction) << " actionValue=" << (int) action.mAction
+                << " position=(" << action.mBlockPosition.x << ',' << action.mBlockPosition.y << ','
+                << action.mBlockPosition.z << ") face=" << action.mFace;
+        BreakDebug::log("handlePlayerAuthInput: dispatch action", &player, details.str());
+
         if (action.mAction == PlayerActionType::StartBreak ||
             action.mAction == PlayerActionType::BlockContinueDestroy) {
             BlockActionHandler::startBreakingBlock(owner, player, action.mBlockPosition, action.mFace);
@@ -344,11 +386,22 @@ void MovementHandler::handlePlayerAuthInput(ServerNetworkHandler &owner, const N
                   action.mAction == PlayerActionType::DimensionChangeRequestOrCreativeDestroyBlock) {
             BlockActionHandler::completeBreakingBlock(owner, player, action.mBlockPosition);
         } else if (action.mAction == PlayerActionType::Jump) {
-            player.exhaust(player.getFlags().get(EntityFlag::Sprinting) ? 0.2f : 0.05f);
+            player.exhaust(player.getFlags().get(ActorFlag::Sprinting) ? 0.2f : 0.05f);
         }
+
+        BreakDebug::log("handlePlayerAuthInput: action completed", &player,
+                        std::string("action=") + actionName(action.mAction));
     }
 
     if (packet.mHasItemUseTransaction) {
+        std::ostringstream details;
+        details << "actionType=" << packet.mItemUseTransaction.mActionType << " transactionType="
+                << (int) packet.mItemUseTransaction.mTriggerType << " blockPosition=("
+                << packet.mItemUseTransaction.mBlockPosition.x << ',' << packet.mItemUseTransaction.mBlockPosition.y
+                << ',' << packet.mItemUseTransaction.mBlockPosition.z << ") blockFace="
+                << packet.mItemUseTransaction.mBlockFace;
+        BreakDebug::log("handlePlayerAuthInput: item use transaction", &player, details.str());
+
         if (packet.mItemUseTransaction.mActionType == 0)
             BlockActionHandler::placeBlock(owner, player, packet.mItemUseTransaction);
         else if (packet.mItemUseTransaction.mActionType == 1)

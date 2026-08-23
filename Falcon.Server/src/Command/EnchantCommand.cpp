@@ -1,13 +1,13 @@
 #include "Command/EnchantCommand.h"
 
-#include "Entity/ServerPlayer.h"
+#include "Actor/ServerPlayer.h"
 #include "Item/ItemEnchantments.h"
 #include "Network/ServerNetworkHandler.h"
 
 #include <cstdlib>
 
 EnchantCommand::EnchantCommand(ServerNetworkHandler &handler)
-        : Command("enchant", "Adds an enchantment to a player's held item",
+        : Command("enchant", "commands.enchant.description",
                   "/enchant <player> <enchantment> [level]"),
           mHandler(handler) {}
 
@@ -28,31 +28,30 @@ bool EnchantCommand::_parseLevel(const std::string &value, int32_t &out) {
 
 bool EnchantCommand::execute(CommandSender &sender, const std::vector<std::string> &arguments) {
     if (arguments.size() < 2) {
-        sender.sendMessage("Usage: " + getUsage());
+        sender.sendTranslation("commands.generic.usage", {getUsage()});
         return false;
     }
 
     ServerPlayer *target = mHandler.getPlayerByName(arguments[0]);
     if (target == nullptr) {
-        sender.sendMessage("§cNo targets matched selector");
+        sender.sendTranslation("commands.generic.player.notFound", {});
         return false;
     }
 
     const EnchantmentData *enchantment = EnchantmentTable::find(arguments[1]);
     if (enchantment == nullptr) {
-        sender.sendMessage("§cUnknown enchantment " + arguments[1]);
+        sender.sendTranslation("commands.enchant.notFound", {arguments[1]});
         return false;
     }
 
     int32_t level = 1;
     if (arguments.size() > 2 && !_parseLevel(arguments[2], level)) {
-        sender.sendMessage("§cLevel must be a number");
+        sender.sendTranslation("commands.generic.usage", {getUsage()});
         return false;
     }
 
     if (level < 1 || level > enchantment->mMaxLevel) {
-        sender.sendMessage("§cLevel for " + std::string(enchantment->mDisplayName) + " must be between 1 and " +
-                           std::to_string(enchantment->mMaxLevel));
+        sender.sendTranslation("commands.generic.usage", {getUsage()});
         return false;
     }
 
@@ -60,7 +59,7 @@ bool EnchantCommand::execute(CommandSender &sender, const std::vector<std::strin
     ItemStack item = inventory.getItemInHand();
 
     if (item.isAir() || item.mCount <= 0) {
-        sender.sendMessage("§c" + target->getName() + " is not holding any item");
+        sender.sendTranslation("commands.enchant.noItem", {target->getName()});
         return false;
     }
 
@@ -77,32 +76,27 @@ bool EnchantCommand::execute(CommandSender &sender, const std::vector<std::strin
     const EnchantmentApplyResult result = ItemEnchantments::apply(item, *enchantment, level, &conflict);
 
     if (result == EnchantmentApplyResult::IncompatibleItem) {
-        sender.sendMessage("§c" + std::string(enchantment->mDisplayName) + " cannot be applied to " +
-                           item.mDefinition->getIdentifier());
+        sender.sendTranslation("commands.enchant.noItem", {target->getName()});
         return false;
     }
 
     if (result == EnchantmentApplyResult::IncompatibleEnchantment) {
-        const std::string conflictName = conflict != nullptr ? conflict->mDisplayName : "another enchantment";
-        sender.sendMessage("§c" + std::string(enchantment->mDisplayName) + " cannot be combined with " + conflictName);
+        sender.sendTranslation("commands.enchant.notFound", {enchantment->mDisplayName});
         return false;
     }
 
     if (result != EnchantmentApplyResult::Success) {
-        sender.sendMessage("§cLevel for " + std::string(enchantment->mDisplayName) + " must be between 1 and " +
-                           std::to_string(enchantment->mMaxLevel));
+        sender.sendTranslation("commands.generic.usage", {getUsage()});
         return false;
     }
 
     inventory.setItemInHand(item);
     target->getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, inventory.getSelectedSlot());
 
-    const std::string applied = std::string(enchantment->mDisplayName) + " " + std::to_string(level);
-
-    sender.sendMessage("Applied " + applied + " to " + target->getName() + "'s held item");
+    sender.sendTranslation("commands.enchant.success", {target->getName()});
 
     if (target != sender.asPlayer()) {
-        target->sendMessage("§eYour held item was enchanted with " + applied);
+        target->sendTranslation("commands.enchant.success", {target->getName()});
     }
 
     return true;

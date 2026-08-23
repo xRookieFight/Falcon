@@ -51,12 +51,12 @@ bool CommandMap::dispatch(CommandSender &sender, const std::string &commandLine)
 
     Command *command = getCommand(tokens[0]);
     if (command == nullptr) {
-        sender.sendMessage("Unknown command: " + tokens[0]);
+        sender.sendTranslation("commands.generic.unknown", {tokens[0]});
         return false;
     }
 
     if ((int) sender.getCommandPermission() < (int) command->getRequiredPermission()) {
-        sender.sendMessage("§cYou do not have permission to use this command");
+        sender.sendTranslation("commands.generic.permission", {});
         return false;
     }
 

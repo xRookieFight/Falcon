@@ -1,8 +1,8 @@
 #pragma once
 
+#include "Actor/Actor.h"
 #include "Core/Math/Vector3i.h"
 #include "Core/NBT/Tag.h"
-#include "Entity/LivingEntity.h"
 #include "Inventory/InventoryManager.h"
 #include "Inventory/PlayerInventory.h"
 #include "Network/NetworkIdentifier.h"
@@ -10,12 +10,13 @@
 #include "Protocol/PacketCodecContext.h"
 #include "Protocol/Types/AdventureSettingData.h"
 #include "Protocol/Types/SerializedSkin.h"
+#include "Actor/MobEffect.h"
 
 #include <string>
+#include <vector>
 #include <unordered_set>
 
-// One connected client and where it is in the login sequence.
-class ServerPlayer : public LivingEntity {
+class ServerPlayer : public Actor {
 public:
     enum class LoginState : int {
         Connecting = 0,
@@ -92,11 +93,17 @@ public:
 
     PacketSender *getPacketSender() const { return mSender; }
 
+    void setEffectsNetworkReady(bool ready) { mEffectsNetworkReady = ready; }
+
+    void syncEffects();
+
     Tag saveNbt(const std::string &levelName) const;
 
     void loadNbt(const Tag &data, const PacketCodecContext &context);
 
     void sendMessage(const std::string &message);
+
+    void sendTranslation(const std::string &key, const std::vector<std::string> &parameters = {});
 
     void sendTip(const std::string &message);
 
@@ -218,4 +225,5 @@ private:
     PlayerInventory mInventory;
     InventoryManager mInventoryManager;
     PacketSender *mSender;
+    bool mEffectsNetworkReady = false;
 };

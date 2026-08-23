@@ -11,6 +11,7 @@ public:
     static const int HOTBAR_SIZE = 9;
     static const int CONTAINER_SIZE = 36;
     static const int ARMOR_SIZE = 4;
+    static const int CRAFTING_SIZE = 4;
     static const int SAVED_SIZE = CONTAINER_SIZE + ARMOR_SIZE;
 
     static const int CONTAINER_ID_INVENTORY = 0;
@@ -19,6 +20,7 @@ public:
     static const int CONTAINER_ID_UI = 124;
 
     static const int OFFHAND_NETWORK_SLOT = 1;
+    static const int CRAFTING_NETWORK_SLOT_FIRST = 28;
 
     static const int ARMOR_HEAD = 0;
     static const int ARMOR_TORSO = 1;
@@ -33,6 +35,10 @@ public:
 
     const std::vector<ItemStack> &getArmorContents() const { return mArmor; }
 
+    const std::vector<ItemStack> &getCraftingContents() const {
+        return mCrafting;
+    }
+
     const ItemStack &getItem(int slot) const;
 
     void setItem(int slot, ItemStack item);
@@ -40,6 +46,10 @@ public:
     const ItemStack &getArmor(int slot) const;
 
     void setArmor(int slot, ItemStack item);
+
+    const ItemStack &getCraftingItem(int slot) const;
+
+    void setCraftingItem(int slot, ItemStack item);
 
     const ItemStack &getOffhand() const { return mOffhand; }
 
@@ -80,6 +90,7 @@ public:
 private:
     std::vector<ItemStack> mItems;
     std::vector<ItemStack> mArmor;
+    std::vector<ItemStack> mCrafting;
     ItemStack mOffhand;
     ItemStack mCursor;
     int mSelectedSlot;

@@ -4,13 +4,15 @@
 
 #include <vector>
 
-class EntityAttributes {
+class ActorAttributes {
 public:
-    EntityAttributes();
+    ActorAttributes();
 
-    static EntityAttributes createPlayerDefaults();
+    static ActorAttributes createPlayerDefaults();
 
     void set(const std::string &name, float value);
+
+    void addMaximum(const std::string &name, float amount);
 
     float get(const std::string &name) const;
 

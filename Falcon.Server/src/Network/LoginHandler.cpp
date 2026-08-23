@@ -6,15 +6,15 @@
 #include "Core/Debug/BedrockLog.h"
 #include "Core/NBT/NbtIo.h"
 #include "Core/Utility/ReadOnlyBinaryStream.h"
-#include "Entity/EntityAttributes.h"
-#include "Entity/PlayerAbility.h"
-#include "Entity/ServerPlayer.h"
+#include "Actor/ActorAttributes.h"
+#include "Actor/PlayerAbility.h"
+#include "Actor/ServerPlayer.h"
 #include "Item/CraftingRecipeTable.h"
 #include "Item/ItemNetworkIdTable.h"
 #include "Level/Level.h"
 #include "Network/ConnectionRequest.h"
 #include "Network/InventoryHandler.h"
-#include "Network/ItemEntityHandler.h"
+#include "Network/ItemActorHandler.h"
 #include "Network/LoginChainVerifier.h"
 #include "Network/NetworkHandler.h"
 #include "Network/ServerNetworkHandler.h"
@@ -57,6 +57,15 @@ namespace {
             most = 1;
 
         return Uuid(most, least);
+    }
+
+    std::string packRecipeId(uint32_t value) {
+        std::string result(4, '\0');
+        result[0] = (char) (value >> 24);
+        result[1] = (char) (value >> 16);
+        result[2] = (char) (value >> 8);
+        result[3] = (char) value;
+        return result;
     }
 }
 
@@ -116,9 +125,9 @@ void LoginHandler::handleRequestNetworkSettings(ServerNetworkHandler &owner, con
                                                 settings.mCompressionThreshold);
 
     owner.getPlayers().erase(id);
-    ServerPlayer player(id, owner.allocateRuntimeId(), &owner);
+    auto inserted = owner.getPlayers().try_emplace(id, id, owner.allocateRuntimeId(), &owner);
+    ServerPlayer &player = inserted.first->second;
     player.setLoginState(ServerPlayer::LoginState::NetworkSettingsSent);
-    owner.getPlayers().insert(std::make_pair(id, player));
 }
 
 void LoginHandler::handleLogin(ServerNetworkHandler &owner, const NetworkIdentifier &id, ServerPlayer &player,
@@ -277,7 +286,7 @@ void LoginHandler::sendStartGame(ServerNetworkHandler &owner, ServerPlayer &play
     const NetworkIdentifier &id = player.getNetworkIdentifier();
 
     player.getFlags().applyPlayerDefaults();
-    player.getAttributes() = EntityAttributes::createPlayerDefaults();
+    player.getAttributes() = ActorAttributes::createPlayerDefaults();
     player.setGameType((int32_t) owner.getProperties().getGameType());
     owner._loadPlayerData(player);
     player.setHungerEnabled(player.getGameType() == (int32_t) GameType::Survival);
@@ -335,6 +344,7 @@ void LoginHandler::sendStartGame(ServerNetworkHandler &owner, ServerPlayer &play
     player.getInventoryManager().syncSelectedHotbarSlot();
 
     sendCreativeContent(owner, player);
+    owner._sendCraftingData(player);
 
     addToPlayerList(owner, player);
 }
@@ -458,14 +468,14 @@ void LoginHandler::buildCraftingData(ServerNetworkHandler &owner) {
         const CraftingRecipeData &source = recipes[index];
 
         CraftingRecipeEntry entry;
-        entry.mRecipeId = source.mRecipeId;
         entry.mWidth = source.mWidth;
         entry.mHeight = source.mHeight;
-        entry.mUuid = Uuid::fromString(source.mUuid);
+        entry.mUuid = Uuid();
         entry.mBlockName = "crafting_table";
-        entry.mPriority = source.mPriority;
-        entry.mSymmetric = false;
+        entry.mPriority = 50;
+        entry.mSymmetric = source.mWidth > 0;
         entry.mRecipeNetId = (int32_t) recipeOutputs.size() + 1;
+        entry.mRecipeId = packRecipeId((uint32_t) entry.mRecipeNetId);
 
         for (uint32_t i = 0; i < source.mIngredientCount; ++i) {
             const CraftingIngredientData &ingredient = ingredients[source.mIngredientOffset + i];
@@ -474,10 +484,10 @@ void LoginHandler::buildCraftingData(ServerNetworkHandler &owner) {
             if (ingredient.mItemId != nullptr) {
                 parsed.mHasItem = true;
                 parsed.mItemId = ingredient.mItemId;
-                parsed.mAuxValue = ingredient.mAuxValue;
+                parsed.mAuxValue = ingredient.mAuxValue < 0 ? 0x7fff : ingredient.mAuxValue;
                 parsed.mCount = ingredient.mCount;
             } else {
-                parsed.mCount = 1;
+                parsed.mCount = 0;
             }
 
             entry.mInputs.push_back(parsed);
@@ -496,6 +506,9 @@ void LoginHandler::buildCraftingData(ServerNetworkHandler &owner) {
             parsedOutput.mRuntimeId = networkEntry->mNetworkId;
             parsedOutput.mCount = output.mCount;
             parsedOutput.mMeta = 0;
+            parsedOutput.mIsShield = std::string(output.mItemId) == "minecraft:shield";
+            const auto blockDefinition = owner.getBlockDefinitions().getDefinition(output.mItemId);
+            parsedOutput.mBlockRuntimeId = blockDefinition == nullptr ? 0 : blockDefinition->getRuntimeId();
             entry.mOutputs.push_back(parsedOutput);
 
             if (i == 0) {
@@ -668,11 +681,14 @@ void LoginHandler::handleSetLocalPlayerAsInitialized(ServerNetworkHandler &owner
     player.setLoginState(ServerPlayer::LoginState::Spawned);
     LOG_INFO(LogAreaID::Server, "Player %s spawned", player.getName().c_str());
 
+    player.setEffectsNetworkReady(true);
+    player.syncEffects();
+
     owner._sendInventory(player);
     owner._sendHealth(player);
-    ItemEntityHandler::sendItemEntitiesTo(owner, player);
+    ItemActorHandler::sendItemActorsTo(owner, player);
 
-    owner.broadcastSystemMessage("§e" + player.getName() + " joined the game");
+    owner.broadcastTranslation("multiplayer.player.joined", {player.getName()});
 }
 
 void LoginHandler::checkTerrainReady(ServerNetworkHandler &owner, ServerPlayer &player) {

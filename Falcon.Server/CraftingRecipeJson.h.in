@@ -1,0 +1,11 @@
+#pragma once
+
+namespace FalconCraftingData {
+    inline constexpr const char kRecipesJson[] = R"FCR(
+@FALCON_RECIPES_JSON_CONTENT@
+)FCR";
+
+    inline constexpr const char kItemTagsJson[] = R"FIT(
+@FALCON_ITEM_TAGS_JSON_CONTENT@
+)FIT";
+}

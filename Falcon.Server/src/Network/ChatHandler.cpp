@@ -1,7 +1,7 @@
 #include "Network/ChatHandler.h"
 
 #include "Core/Debug/BedrockLog.h"
-#include "Entity/ServerPlayer.h"
+#include "Actor/ServerPlayer.h"
 #include "Network/NetworkHandler.h"
 #include "Network/ServerNetworkHandler.h"
 #include "Protocol/Packets/TextPacket.h"

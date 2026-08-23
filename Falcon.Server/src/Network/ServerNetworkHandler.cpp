@@ -3,6 +3,7 @@
 #include "Command/ConsoleCommandSender.h"
 #include "Command/DeopCommand.h"
 #include "Command/EnchantCommand.h"
+#include "Command/EffectCommand.h"
 #include "Command/GameModeCommand.h"
 #include "Command/GiveCommand.h"
 #include "Command/KillCommand.h"
@@ -13,13 +14,15 @@
 #include "Network/AuthKeyProvider.h"
 #include "Network/BadPacketCheck.h"
 #include "Network/BlockActionHandler.h"
+#include "Network/BreakDebug.h"
 #include "Network/ChatHandler.h"
 #include "Network/InventoryHandler.h"
-#include "Network/ItemEntityHandler.h"
+#include "Network/ItemActorHandler.h"
 #include "Network/LoginChainVerifier.h"
 #include "Network/LoginHandler.h"
 #include "Network/MovementHandler.h"
 #include "Core/Utility/ReadOnlyBinaryStream.h"
+#include "Level/Chunk.h"
 #include "Protocol/MinecraftPackets.h"
 #include "Protocol/Packets/DisconnectPacket.h"
 #include "Protocol/Packets/LevelChunkPacket.h"
@@ -54,13 +57,20 @@
 #include "Protocol/Packets/PlayerListPacket.h"
 #include "Protocol/Packets/TextPacket.h"
 #include "Protocol/Packets/UpdateAbilitiesPacket.h"
-#include "Entity/PlayerAbility.h"
+#include "Actor/PlayerAbility.h"
 #include "Protocol/Packets/StartGamePacket.h"
 #include "Protocol/Packets/AvailableEntityIdentifiersPacket.h"
 #include "Protocol/Packets/DeathInfoPacket.h"
 #include "Protocol/Packets/EntityEventPacket.h"
 #include "Protocol/Packets/PlayerActionPacket.h"
 #include "Protocol/Packets/RespawnPacket.h"
+#include "Protocol/Packets/BlockEntityDataPacket.h"
+#include "Protocol/Packets/BlockPickRequestPacket.h"
+#include "Protocol/Packets/EntityPickRequestPacket.h"
+#include "Protocol/Packets/EmotePacket.h"
+#include "Protocol/Packets/ModalFormRequestPacket.h"
+#include "Protocol/Packets/ModalFormResponsePacket.h"
+#include "Protocol/Packets/PlayerSkinPacket.h"
 #include "Protocol/Packets/SetHealthPacket.h"
 #include "Protocol/Packets/ContainerClosePacket.h"
 #include "Protocol/Packets/CraftingDataPacket.h"
@@ -79,7 +89,11 @@
 #include "Core/NBT/NbtIo.h"
 
 #include <cmath>
+#include <cctype>
 #include <cstdlib>
+#include <cstring>
+#include <sstream>
+#include <string>
 #include <unordered_set>
 #include <utility>
 #include "Protocol/Packets/UpdateAttributesPacket.h"
@@ -94,8 +108,8 @@ static const float DEFAULT_MAX_HEALTH = 20.0f;
 static const float ITEM_DROP_HEIGHT = 1.3f;
 
 namespace {
-    float maxHealthOf(const Entity &entity) {
-        for (const AttributeData &attribute: entity.getAttributes().getAll()) {
+    float maxHealthOf(const Actor &actor) {
+        for (const AttributeData &attribute: actor.getAttributes().getAll()) {
             if (attribute.mName == HEALTH_ATTRIBUTE)
                 return attribute.mMaximum;
         }
@@ -109,6 +123,192 @@ namespace {
 
     Vector3f randomDropMotion() {
         return Vector3f(randomUnitFloat() * 0.2f - 0.1f, 0.2f, randomUnitFloat() * 0.2f - 0.1f);
+    }
+
+    class JsonValidator {
+    public:
+        explicit JsonValidator(const std::string &value) : mValue(value) {}
+
+        bool parse() {
+            skipWhitespace();
+            if (!parseValue())
+                return false;
+            skipWhitespace();
+            return mPosition == mValue.size();
+        }
+
+    private:
+        void skipWhitespace() {
+            while (mPosition < mValue.size() && std::isspace((unsigned char) mValue[mPosition]))
+                ++mPosition;
+        }
+
+        bool parseValue() {
+            skipWhitespace();
+            if (mPosition >= mValue.size())
+                return false;
+
+            switch (mValue[mPosition]) {
+                case '{': return parseObject();
+                case '[': return parseArray();
+                case '"': return parseString();
+                case 't': return parseLiteral("true");
+                case 'f': return parseLiteral("false");
+                case 'n': return parseLiteral("null");
+                default: return parseNumber();
+            }
+        }
+
+        bool parseObject() {
+            ++mPosition;
+            skipWhitespace();
+            if (mPosition < mValue.size() && mValue[mPosition] == '}') {
+                ++mPosition;
+                return true;
+            }
+
+            while (mPosition < mValue.size()) {
+                if (!parseString())
+                    return false;
+                skipWhitespace();
+                if (mPosition >= mValue.size() || mValue[mPosition++] != ':')
+                    return false;
+                if (!parseValue())
+                    return false;
+                skipWhitespace();
+                if (mPosition >= mValue.size())
+                    return false;
+                if (mValue[mPosition] == '}') {
+                    ++mPosition;
+                    return true;
+                }
+                if (mValue[mPosition++] != ',')
+                    return false;
+                skipWhitespace();
+            }
+            return false;
+        }
+
+        bool parseArray() {
+            ++mPosition;
+            skipWhitespace();
+            if (mPosition < mValue.size() && mValue[mPosition] == ']') {
+                ++mPosition;
+                return true;
+            }
+
+            while (mPosition < mValue.size()) {
+                if (!parseValue())
+                    return false;
+                skipWhitespace();
+                if (mPosition >= mValue.size())
+                    return false;
+                if (mValue[mPosition] == ']') {
+                    ++mPosition;
+                    return true;
+                }
+                if (mValue[mPosition++] != ',')
+                    return false;
+                skipWhitespace();
+            }
+            return false;
+        }
+
+        bool parseString() {
+            if (mPosition >= mValue.size() || mValue[mPosition++] != '"')
+                return false;
+            while (mPosition < mValue.size()) {
+                const unsigned char character = (unsigned char) mValue[mPosition++];
+                if (character == '"')
+                    return true;
+                if (character < 0x20)
+                    return false;
+                if (character != '\\')
+                    continue;
+                if (mPosition >= mValue.size())
+                    return false;
+                const char escape = mValue[mPosition++];
+                if (escape == 'u') {
+                    if (mPosition + 4 > mValue.size())
+                        return false;
+                    for (size_t index = 0; index < 4; ++index) {
+                        if (!std::isxdigit((unsigned char) mValue[mPosition++]))
+                            return false;
+                    }
+                } else if (escape != '"' && escape != '\\' && escape != '/' && escape != 'b' &&
+                           escape != 'f' && escape != 'n' && escape != 'r' && escape != 't') {
+                    return false;
+                }
+            }
+            return false;
+        }
+
+        bool parseLiteral(const char *literal) {
+            const size_t length = std::strlen(literal);
+            if (mValue.compare(mPosition, length, literal) != 0)
+                return false;
+            mPosition += length;
+            return true;
+        }
+
+        bool parseNumber() {
+            const size_t start = mPosition;
+            if (mPosition < mValue.size() && mValue[mPosition] == '-')
+                ++mPosition;
+            if (mPosition >= mValue.size())
+                return false;
+            if (mValue[mPosition] == '0') {
+                ++mPosition;
+            } else {
+                if (mValue[mPosition] < '1' || mValue[mPosition] > '9')
+                    return false;
+                while (mPosition < mValue.size() && std::isdigit((unsigned char) mValue[mPosition]))
+                    ++mPosition;
+            }
+            if (mPosition < mValue.size() && mValue[mPosition] == '.') {
+                ++mPosition;
+                const size_t fractionStart = mPosition;
+                while (mPosition < mValue.size() && std::isdigit((unsigned char) mValue[mPosition]))
+                    ++mPosition;
+                if (fractionStart == mPosition)
+                    return false;
+            }
+            if (mPosition < mValue.size() && (mValue[mPosition] == 'e' || mValue[mPosition] == 'E')) {
+                ++mPosition;
+                if (mPosition < mValue.size() && (mValue[mPosition] == '+' || mValue[mPosition] == '-'))
+                    ++mPosition;
+                const size_t exponentStart = mPosition;
+                while (mPosition < mValue.size() && std::isdigit((unsigned char) mValue[mPosition]))
+                    ++mPosition;
+                if (exponentStart == mPosition)
+                    return false;
+            }
+            return start != mPosition;
+        }
+
+        const std::string &mValue;
+        size_t mPosition = 0;
+    };
+
+    bool isValidSkin(const SerializedSkin &skin) {
+        if (skin.mSkinData.mWidth <= 0 || skin.mSkinData.mHeight <= 0)
+            return skin.mPersona && !skin.mPersonaPieces.empty();
+        if (skin.mSkinData.mWidth > 128 || skin.mSkinData.mHeight > 128)
+            return false;
+
+        const size_t expectedSize = (size_t) skin.mSkinData.mWidth * (size_t) skin.mSkinData.mHeight * 4;
+        return skin.mSkinData.mData.size() == expectedSize;
+    }
+
+    void normalizeSkin(SerializedSkin &skin) {
+        if (skin.mGeometryData.empty())
+            skin.mGeometryData = "{}";
+        if (skin.mGeometryDataEngineVersion.empty())
+            skin.mGeometryDataEngineVersion = "0.0.0";
+        if (skin.mSkinResourcePatch.empty())
+            skin.mSkinResourcePatch = "{\"geometry\":{\"default\":\"geometry.humanoid.custom\"}}";
+        if (skin.mFullSkinId.empty())
+            skin.mFullSkinId = skin.mSkinId;
     }
 }
 
@@ -134,6 +334,7 @@ ServerNetworkHandler::ServerNetworkHandler(const std::string &serverName, const 
     mCommands.registerCommand(std::make_shared<DeopCommand>(*this));
     mCommands.registerCommand(std::make_shared<GiveCommand>(*this));
     mCommands.registerCommand(std::make_shared<EnchantCommand>(*this));
+    mCommands.registerCommand(std::make_shared<EffectCommand>(*this));
     mCommands.registerCommand(std::make_shared<KillCommand>(*this));
 
     mResourcePacks.loadFromDirectory("resource_packs");
@@ -278,6 +479,15 @@ void ServerNetworkHandler::tick() {
             player.clearPendingMove();
         }
 
+        _handleVoidDamage(player);
+
+        const bool effectAttributesDirty = player.getEffects().consumeAttributesDirty();
+        const bool effectStateChanged = player.isSpawned() && player.tickEffects(1);
+        if (player.isSpawned() && (effectAttributesDirty || effectStateChanged)) {
+            _sendAttributes(player);
+            _sendEntityData(player);
+        }
+
         if (player.isBreakingBlock()) {
             const Vector3i breakingPosition = player.getBreakingBlockPosition();
             const Vector3f breakingCenter((float) breakingPosition.x + 0.5f, (float) breakingPosition.y + 0.5f,
@@ -287,7 +497,16 @@ void ServerNetworkHandler::tick() {
             const float dy = feet.y - breakingCenter.y;
             const float dz = feet.z - breakingCenter.z;
 
+            {
+                std::ostringstream details;
+                details << "serverTick=" << mCurrentTick << " target=(" << breakingPosition.x << ','
+                        << breakingPosition.y << ',' << breakingPosition.z << ") distanceSquared="
+                        << (dx * dx + dy * dy + dz * dz);
+                BreakDebug::log("ServerNetworkHandler::tick: active break", &player, details.str());
+            }
+
             if (dx * dx + dy * dy + dz * dz > 256.0f) {
+                BreakDebug::log("ServerNetworkHandler::tick: break stopped for distance", &player);
                 BlockActionHandler::stopBreakingBlock(*this, player);
             } else {
                 BlockActionHandler::continueBreakingBlock(*this, player);
@@ -307,7 +526,7 @@ void ServerNetworkHandler::tick() {
         _checkTerrainReady(player);
     }
 
-    ItemEntityHandler::tickItemEntities(*this);
+    ItemActorHandler::tickItemActors(*this);
 
     _updateServerAnnouncement();
 }
@@ -335,13 +554,32 @@ void ServerNetworkHandler::onConnectionClosed(const NetworkIdentifier &id, Disco
         _savePlayerData(*player);
 
         if (player->isSpawned()) {
-            broadcastSystemMessage("§e" + player->getName() + " left the game");
+            broadcastTranslation("multiplayer.player.left", {player->getName()});
             _removeFromPlayerList(*player);
         }
     }
 
+    mModalFormCallbacks.erase(id);
     mPlayers.erase(id);
     LOG_INFO(LogAreaID::Network, "Player disconnected: %s, reason: %s", id.toString().c_str(), toString(reason));
+}
+
+void ServerNetworkHandler::sendModalForm(ServerPlayer &player, uint32_t formId, const std::string &formData,
+                                         ModalFormCallback callback) {
+    if (!player.isSpawned() || formData.empty() || formData.size() > 1024 * 1024 ||
+        !JsonValidator(formData).parse())
+        return;
+
+    auto &callbacks = mModalFormCallbacks[player.getNetworkIdentifier()];
+    if (callback)
+        callbacks[formId] = std::move(callback);
+    else
+        callbacks.erase(formId);
+
+    ModalFormRequestPacket request;
+    request.mFormId = formId;
+    request.mFormData = formData;
+    mNetworkHandler->send(player.getNetworkIdentifier(), request, mCodecContext);
 }
 
 void ServerNetworkHandler::_savePlayerData(const ServerPlayer &player) {
@@ -461,13 +699,13 @@ void ServerNetworkHandler::_sendEntityData(ServerPlayer &player) {
     entityData.mTick = 0;
 
     EntityDataEntry flags;
-    flags.mId = EntityFlags::FLAGS_DATA_ID;
+    flags.mId = ActorFlags::FLAGS_DATA_ID;
     flags.mFormat = EntityDataFormat::Long;
     flags.mLongValue = player.getFlags().getLowBits();
     entityData.mMetadata.mEntries.push_back(flags);
 
     EntityDataEntry flags2;
-    flags2.mId = EntityFlags::FLAGS_2_DATA_ID;
+    flags2.mId = ActorFlags::FLAGS_2_DATA_ID;
     flags2.mFormat = EntityDataFormat::Long;
     flags2.mLongValue = player.getFlags().getHighBits();
     entityData.mMetadata.mEntries.push_back(flags2);
@@ -483,9 +721,9 @@ void ServerNetworkHandler::setPlayerOp(ServerPlayer &player, bool isOp) {
         _sendAvailableCommands(player);
 
     if (isOp)
-        player.sendMessage("§eYou are now an operator");
+        player.sendTranslation("commands.op.success", {player.getName()});
     else
-        player.sendMessage("§eYou are no longer an operator");
+        player.sendTranslation("commands.deop.success", {player.getName()});
 }
 
 void ServerNetworkHandler::queueConsoleCommand(const std::string &commandLine) {
@@ -546,7 +784,7 @@ void ServerNetworkHandler::_sendHealth(ServerPlayer &player) {
     _sendAttributes(player);
 }
 
-void ServerNetworkHandler::_broadcastEntityEvent(const Entity &entity, uint8_t eventId) {
+void ServerNetworkHandler::_broadcastEntityEvent(const Actor &entity, uint8_t eventId) {
     EntityEventPacket event;
     event.mRuntimeEntityId = entity.getRuntimeId();
     event.mEventId = eventId;
@@ -567,10 +805,21 @@ void ServerNetworkHandler::_handleFallDamage(ServerPlayer &player) {
     if (damage < 1.0f)
         return;
 
-    applyDamage(player, damage, "§7" + player.getName() + " fell from a high place");
+    applyDamage(player, damage, "death.fell.accident.generic", {player.getName()});
 }
 
-void ServerNetworkHandler::applyDamage(ServerPlayer &player, float amount, const std::string &deathMessage) {
+void ServerNetworkHandler::_handleVoidDamage(ServerPlayer &player) {
+    if (!player.isSpawned() || player.isDead())
+        return;
+
+    if (player.getPosition().y > (float) (Chunk::MIN_Y - 16))
+        return;
+
+    applyDamage(player, 10.0f, "death.attack.outOfWorld", {player.getName()});
+}
+
+void ServerNetworkHandler::applyDamage(ServerPlayer &player, float amount, const std::string &deathMessageKey,
+                                       const std::vector<std::string> &deathMessageParameters) {
     if (!player.isSpawned() || player.isDead() || amount <= 0.0f)
         return;
 
@@ -581,7 +830,7 @@ void ServerNetworkHandler::applyDamage(ServerPlayer &player, float amount, const
     const float health = player.reduceHealth(amount);
 
     if (health <= 0.0f) {
-        killPlayer(player, deathMessage);
+        killPlayer(player, deathMessageKey, deathMessageParameters);
         return;
     }
 
@@ -589,7 +838,8 @@ void ServerNetworkHandler::applyDamage(ServerPlayer &player, float amount, const
     _broadcastEntityEvent(player, (uint8_t) EntityEventType::HurtAnimation);
 }
 
-void ServerNetworkHandler::killPlayer(ServerPlayer &player, const std::string &deathMessage) {
+void ServerNetworkHandler::killPlayer(ServerPlayer &player, const std::string &deathMessageKey,
+                                      const std::vector<std::string> &deathMessageParameters) {
     if (player.isDead())
         return;
 
@@ -603,8 +853,11 @@ void ServerNetworkHandler::killPlayer(ServerPlayer &player, const std::string &d
     _sendHealth(player);
     _broadcastEntityEvent(player, (uint8_t) EntityEventType::DeathAnimation);
 
-    const std::string message = deathMessage.empty() ? "§7" + player.getName() + " died" : deathMessage;
-    broadcastSystemMessage(message);
+    const std::string key = deathMessageKey.empty() ? "death.attack.generic" : deathMessageKey;
+    const std::vector<std::string> parameters = deathMessageParameters.empty()
+                                                ? std::vector<std::string>{player.getName()}
+                                                : deathMessageParameters;
+    broadcastTranslation(key, parameters);
 
     const Vector3f spawn = mLevel.getSpawnPositionForPlayer();
 
@@ -615,7 +868,7 @@ void ServerNetworkHandler::killPlayer(ServerPlayer &player, const std::string &d
     mNetworkHandler->send(player.getNetworkIdentifier(), respawn, mCodecContext);
 
     DeathInfoPacket info;
-    info.mCauseAttackName = message;
+    info.mCauseAttackName = key;
     mNetworkHandler->send(player.getNetworkIdentifier(), info, mCodecContext);
 
     LOG_INFO(LogAreaID::Server, "%s died", player.getName().c_str());
@@ -644,15 +897,15 @@ void ServerNetworkHandler::_dropInventoryOnDeath(ServerPlayer &player) {
     const Vector3f dropPosition(position.x, position.y + ITEM_DROP_HEIGHT, position.z);
 
     for (int slot = 0; slot < PlayerInventory::CONTAINER_SIZE; slot++) {
-        dropItem(dropPosition, inventory.getItem(slot), randomDropMotion(), ItemEntity::DEFAULT_PICKUP_DELAY);
+        dropItem(dropPosition, inventory.getItem(slot), randomDropMotion(), ItemActor::DEFAULT_PICKUP_DELAY);
     }
 
     for (int slot = 0; slot < PlayerInventory::ARMOR_SIZE; slot++) {
-        dropItem(dropPosition, inventory.getArmor(slot), randomDropMotion(), ItemEntity::DEFAULT_PICKUP_DELAY);
+        dropItem(dropPosition, inventory.getArmor(slot), randomDropMotion(), ItemActor::DEFAULT_PICKUP_DELAY);
     }
 
-    dropItem(dropPosition, inventory.getOffhand(), randomDropMotion(), ItemEntity::DEFAULT_PICKUP_DELAY);
-    dropItem(dropPosition, inventory.getCursor(), randomDropMotion(), ItemEntity::DEFAULT_PICKUP_DELAY);
+    dropItem(dropPosition, inventory.getOffhand(), randomDropMotion(), ItemActor::DEFAULT_PICKUP_DELAY);
+    dropItem(dropPosition, inventory.getCursor(), randomDropMotion(), ItemActor::DEFAULT_PICKUP_DELAY);
 
     inventory.clear();
     inventory.setSelectedSlot(0);
@@ -697,7 +950,7 @@ void ServerNetworkHandler::_respawnPlayer(ServerPlayer &player) {
     _sendEntityData(player);
     _sendAbilities(player);
     _sendInventory(player);
-    ItemEntityHandler::sendItemEntitiesTo(*this, player);
+    ItemActorHandler::sendItemActorsTo(*this, player);
     _sendChunks(player);
 
     LOG_INFO(LogAreaID::Server, "%s respawned at %.2f %.2f %.2f", player.getName().c_str(), spawn.x, spawn.y,
@@ -709,6 +962,13 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const PlayerActio
     if (player == nullptr || !player->isSpawned())
         return;
 
+    {
+        std::ostringstream details;
+        details << "action=" << (int) packet.mAction << " position=(" << packet.mBlockPosition.x << ','
+                << packet.mBlockPosition.y << ',' << packet.mBlockPosition.z << ") face=" << packet.mFace;
+        BreakDebug::log("ServerNetworkHandler::handle PlayerActionPacket", player, details.str());
+    }
+
     const bool legacyBreakAction = packet.mAction == PlayerActionType::StartBreak ||
                                    packet.mAction == PlayerActionType::ContinueBreak ||
                                    packet.mAction == PlayerActionType::BlockContinueDestroy ||
@@ -719,6 +979,8 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const PlayerActio
     if (legacyBreakAction ||
         (packet.mAction == PlayerActionType::DimensionChangeRequestOrCreativeDestroyBlock &&
          player->getGameType() != (int32_t) GameType::Creative)) {
+        BreakDebug::log("PlayerActionPacket: legacy/invalid break channel rejected", player,
+                        "action=" + std::to_string((int) packet.mAction));
         _disconnect(id, "Bad packet: invalid break channel");
         return;
     }
@@ -738,9 +1000,184 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const RespawnPack
     _respawnPlayer(*player);
 }
 
-ItemEntity *ServerNetworkHandler::dropItem(const Vector3f &position, const ItemStack &item, const Vector3f &motion,
-                                           int pickupDelay) {
-    return ItemEntityHandler::dropItem(*this, position, item, motion, pickupDelay);
+void ServerNetworkHandler::handle(const NetworkIdentifier &id, const SetPlayerGameTypePacket &packet) {
+    ServerPlayer *player = _getPlayer(id);
+    if (player == nullptr || !player->isSpawned())
+        return;
+
+    const int32_t currentGameType = player->getGameType();
+    if (packet.mGamemode == currentGameType)
+        return;
+
+    SetPlayerGameTypePacket correction;
+    correction.mGamemode = currentGameType;
+    mNetworkHandler->send(id, correction, mCodecContext);
+}
+
+void ServerNetworkHandler::handle(const NetworkIdentifier &id, const EmotePacket &packet) {
+    ServerPlayer *player = _getPlayer(id);
+    if (player == nullptr || !player->isSpawned() || packet.mRuntimeEntityId != player->getRuntimeId() ||
+        packet.mEmoteId.empty() || packet.mEmoteId.size() > 256)
+        return;
+
+    EmotePacket emote = packet;
+    emote.mRuntimeEntityId = player->getRuntimeId();
+    emote.mXuid = player->getXuid();
+
+    for (auto &entry: mPlayers) {
+        if (entry.second.isSpawned() && entry.second.getNetworkIdentifier() != id)
+            mNetworkHandler->send(entry.second.getNetworkIdentifier(), emote, mCodecContext);
+    }
+}
+
+void ServerNetworkHandler::handle(const NetworkIdentifier &id, const ModalFormResponsePacket &packet) {
+    ServerPlayer *player = _getPlayer(id);
+    if (player == nullptr || !player->isSpawned() || packet.mHasFormData == packet.mHasCancelReason)
+        return;
+
+    const bool cancelled = packet.mHasCancelReason;
+    if (cancelled && (int) packet.mCancelReason < (int) ModalFormResponsePacket::CancelReason::UserClosed)
+        return;
+    if (cancelled && (int) packet.mCancelReason > (int) ModalFormResponsePacket::CancelReason::UserBusy)
+        return;
+    if (!cancelled && (packet.mFormData.empty() || packet.mFormData.size() > 1024 * 1024 ||
+                       !JsonValidator(packet.mFormData).parse()))
+        return;
+
+    auto playerCallbacks = mModalFormCallbacks.find(id);
+    if (playerCallbacks == mModalFormCallbacks.end())
+        return;
+
+    auto callbackIt = playerCallbacks->second.find(packet.mFormId);
+    if (callbackIt == playerCallbacks->second.end())
+        return;
+
+    ModalFormCallback callback = std::move(callbackIt->second);
+    playerCallbacks->second.erase(callbackIt);
+    if (playerCallbacks->second.empty())
+        mModalFormCallbacks.erase(playerCallbacks);
+
+    if (callback)
+        callback(*player, cancelled ? std::string() : packet.mFormData, cancelled);
+}
+
+void ServerNetworkHandler::handle(const NetworkIdentifier &id, const PlayerSkinPacket &packet) {
+    ServerPlayer *player = _getPlayer(id);
+    if (player == nullptr || !player->isSpawned() || !isValidSkin(packet.mSkin))
+        return;
+
+    const Uuid playerUuid = Uuid::fromString(player->getUuid());
+    const Uuid emptyUuid;
+    if (playerUuid != emptyUuid && packet.mUuid != emptyUuid && packet.mUuid != playerUuid)
+        return;
+
+    SerializedSkin skin = packet.mSkin;
+    normalizeSkin(skin);
+
+    const SerializedSkin &currentSkin = player->getSkin();
+    if (currentSkin.mFullSkinId == skin.mFullSkinId && currentSkin.mSkinData.mWidth == skin.mSkinData.mWidth &&
+        currentSkin.mSkinData.mHeight == skin.mSkinData.mHeight && currentSkin.mSkinData.mData == skin.mSkinData.mData)
+        return;
+
+    player->setSkin(skin);
+
+    PlayerSkinPacket update = packet;
+    update.mUuid = playerUuid == emptyUuid ? packet.mUuid : playerUuid;
+    update.mSkin = player->getSkin();
+    for (auto &entry: mPlayers) {
+        if (entry.second.isSpawned() && entry.second.getNetworkIdentifier() != id)
+            mNetworkHandler->send(entry.second.getNetworkIdentifier(), update, mCodecContext);
+    }
+}
+
+namespace {
+    bool isSignBlock(const std::string &identifier);
+    void putPickedItem(ServerPlayer &player, ItemStack item, int hotbarSlot);
+}
+
+void ServerNetworkHandler::handle(const NetworkIdentifier &id, const BlockEntityDataPacket &packet) {
+    ServerPlayer *player = _getPlayer(id);
+    if (player == nullptr || !player->isSpawned())
+        return;
+
+    const Vector3f position = player->getPosition();
+    const float dx = position.x - ((float) packet.mBlockPosition.x + 0.5f);
+    const float dy = position.y - ((float) packet.mBlockPosition.y + 0.5f);
+    const float dz = position.z - ((float) packet.mBlockPosition.z + 0.5f);
+    if (dx * dx + dy * dy + dz * dz > 10000.0f)
+        return;
+
+    const BlockState state = mLevel.getBlockState(packet.mBlockPosition.x, packet.mBlockPosition.y,
+                                                  packet.mBlockPosition.z);
+    if (!packet.mData.isCompound())
+        return;
+
+    const bool hasSignText = packet.mData.contains("FrontText") || packet.mData.contains("BackText") ||
+                             packet.mData.contains("Text1") || packet.mData.contains("Text2") ||
+                             packet.mData.contains("Text3") || packet.mData.contains("Text4");
+    if (!isSignBlock(state.mName) && !hasSignText)
+        return;
+
+    for (auto &entry: mPlayers) {
+        if (entry.second.isSpawned())
+            mNetworkHandler->send(entry.second.getNetworkIdentifier(), packet, mCodecContext);
+    }
+}
+
+void ServerNetworkHandler::handle(const NetworkIdentifier &id, const BlockPickRequestPacket &packet) {
+    ServerPlayer *player = _getPlayer(id);
+    if (player == nullptr || !player->isSpawned() || player->isDead())
+        return;
+
+    const Vector3f position = player->getPosition();
+    const float dx = position.x - ((float) packet.mBlockPosition.x + 0.5f);
+    const float dy = position.y - ((float) packet.mBlockPosition.y + 0.5f);
+    const float dz = position.z - ((float) packet.mBlockPosition.z + 0.5f);
+    if (dx * dx + dy * dy + dz * dz > 10000.0f)
+        return;
+
+    const BlockState state = mLevel.getBlockState(packet.mBlockPosition.x, packet.mBlockPosition.y,
+                                                  packet.mBlockPosition.z);
+    if (state.mName == "minecraft:air")
+        return;
+
+    std::shared_ptr<ItemDefinition> itemDefinition = mItemDefinitions.getDefinition(state.mName);
+    std::shared_ptr<BlockDefinition> blockDefinition = mBlockDefinitions.getDefinition(state.mName);
+    if (itemDefinition == nullptr)
+        return;
+
+    ItemStack picked;
+    picked.mDefinition = std::move(itemDefinition);
+    picked.mBlockDefinition = std::move(blockDefinition);
+    picked.mCount = 1;
+    putPickedItem(*player, std::move(picked), packet.mHotbarSlot);
+}
+
+void ServerNetworkHandler::handle(const NetworkIdentifier &id, const EntityPickRequestPacket &packet) {
+    ServerPlayer *player = _getPlayer(id);
+    if (player == nullptr || !player->isSpawned() || player->isDead())
+        return;
+
+    for (const std::unique_ptr<ItemActor> &actor: mItemEntities) {
+        if (actor->isRemoved() || actor->getRuntimeId() != packet.mRuntimeEntityId)
+            continue;
+
+        const Vector3f position = player->getPosition();
+        const Vector3f entityPosition = actor->getPosition();
+        const float dx = position.x - entityPosition.x;
+        const float dy = position.y - entityPosition.y;
+        const float dz = position.z - entityPosition.z;
+        if (dx * dx + dy * dy + dz * dz > 10000.0f)
+            return;
+
+        putPickedItem(*player, actor->getItem(), packet.mHotbarSlot);
+        return;
+    }
+}
+
+ItemActor *ServerNetworkHandler::dropItem(const Vector3f &position, const ItemStack &item, const Vector3f &motion,
+                                          int pickupDelay) {
+    return ItemActorHandler::dropItem(*this, position, item, motion, pickupDelay);
 }
 
 void ServerNetworkHandler::_sendChunks(ServerPlayer &player) {
@@ -808,6 +1245,14 @@ void ServerNetworkHandler::broadcastSystemMessage(const std::string &message) {
     }
 }
 
+void ServerNetworkHandler::broadcastTranslation(const std::string &key,
+                                                const std::vector<std::string> &parameters) {
+    for (auto &entry: mPlayers) {
+        if (entry.second.isSpawned())
+            entry.second.sendTranslation(key, parameters);
+    }
+}
+
 void ServerNetworkHandler::sendPacketTo(const NetworkIdentifier &id, const Packet &packet) {
     mNetworkHandler->send(id, packet, mCodecContext);
 }
@@ -817,13 +1262,23 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const PlayerAuthI
     if (player == nullptr || player->isDead())
         return;
 
+    if (!packet.mPlayerActions.empty()) {
+        std::ostringstream details;
+        details << "clientTick=" << packet.mTick << " actionCount=" << packet.mPlayerActions.size();
+        BreakDebug::log("ServerNetworkHandler::handle PlayerAuthInputPacket", player, details.str());
+    }
+
     if (!std::isfinite(packet.mPosition.x) || !std::isfinite(packet.mPosition.y) ||
         !std::isfinite(packet.mPosition.z) || !std::isfinite(packet.mRotation.x) ||
-        !std::isfinite(packet.mRotation.y) || !std::isfinite(packet.mRotation.z))
+        !std::isfinite(packet.mRotation.y) || !std::isfinite(packet.mRotation.z)) {
+        BreakDebug::log("PlayerAuthInputPacket: rejected non-finite position/rotation", player);
         return;
+    }
 
     std::string badPacketReason;
     if (BadPacketCheck::inspect(*player, packet, badPacketReason)) {
+        BreakDebug::log("PlayerAuthInputPacket: disconnected by BadPacketCheck", player,
+                        "reason=" + badPacketReason);
         _disconnect(id, "Bad packet: " + badPacketReason);
         return;
     }
@@ -832,6 +1287,52 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const PlayerAuthI
 }
 
 namespace {
+    bool isSignBlock(const std::string &identifier) {
+        return identifier.find("sign") != std::string::npos;
+    }
+
+    void putPickedItem(ServerPlayer &player, ItemStack item, int hotbarSlot) {
+        if (item.isAir() || item.mCount <= 0)
+            return;
+
+        PlayerInventory &inventory = player.getInventory();
+        int existingSlot = -1;
+        for (int index = 0; index < PlayerInventory::CONTAINER_SIZE; index++) {
+            if (PlayerInventory::canStack(inventory.getItem(index), item)) {
+                existingSlot = index;
+                break;
+            }
+        }
+
+        if (existingSlot >= 0) {
+            if (existingSlot < PlayerInventory::HOTBAR_SIZE) {
+                inventory.setSelectedSlot(existingSlot);
+                player.getInventoryManager().syncSelectedHotbarSlot();
+            } else {
+                const int selectedSlot = inventory.getSelectedSlot();
+                ItemStack held = inventory.getItem(selectedSlot);
+                inventory.setItem(selectedSlot, inventory.getItem(existingSlot));
+                inventory.setItem(existingSlot, std::move(held));
+                player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, selectedSlot);
+                player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, existingSlot);
+            }
+            return;
+        }
+
+        if (player.getGameType() != (int32_t) GameType::Creative)
+            return;
+
+        const int slot = hotbarSlot >= 0 && hotbarSlot < PlayerInventory::HOTBAR_SIZE
+                             ? hotbarSlot
+                             : inventory.getSelectedSlot();
+
+        item.mCount = 1;
+        inventory.setItem(slot, std::move(item));
+        inventory.setSelectedSlot(slot);
+        player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, slot);
+        player.getInventoryManager().syncSelectedHotbarSlot();
+    }
+
     const ItemData *findEdibleData(const ItemStack &item) {
         if (item.isAir() || item.mDefinition == nullptr)
             return nullptr;
@@ -842,17 +1343,51 @@ namespace {
 
         return data;
     }
+
+    void applyFoodEffects(ServerPlayer &player, const char *identifier) {
+        const bool goldenApple = std::string(identifier) == "minecraft:golden_apple";
+        const bool enchantedGoldenApple = std::string(identifier) == "minecraft:enchanted_golden_apple";
+        if (!goldenApple && !enchantedGoldenApple)
+            return;
+
+        MobEffectInstance absorption;
+        absorption.mId = MobEffectId::Absorption;
+        absorption.mAmplifier = enchantedGoldenApple ? 3 : 0;
+        absorption.mDuration = enchantedGoldenApple ? 4800 : 2400;
+        player.addEffect(absorption);
+
+        MobEffectInstance regeneration;
+        regeneration.mId = MobEffectId::Regeneration;
+        regeneration.mAmplifier = enchantedGoldenApple ? 4 : 1;
+        regeneration.mDuration = enchantedGoldenApple ? 400 : 100;
+        player.addEffect(regeneration);
+
+        if (enchantedGoldenApple) {
+            MobEffectInstance resistance;
+            resistance.mId = MobEffectId::Resistance;
+            resistance.mDuration = 6000;
+            player.addEffect(resistance);
+
+            MobEffectInstance fireResistance;
+            fireResistance.mId = MobEffectId::FireResistance;
+            fireResistance.mDuration = 6000;
+            player.addEffect(fireResistance);
+        }
+    }
 }
 
 void ServerNetworkHandler::_useHeldItem(ServerPlayer &player) {
-    if (findEdibleData(player.getInventory().getItemInHand()) == nullptr)
+    const ItemStack &heldItem = player.getInventory().getItemInHand();
+    const bool isMilk = !heldItem.isAir() && heldItem.mDefinition != nullptr
+                        && std::string(heldItem.mDefinition->getIdentifier()) == "minecraft:milk_bucket";
+    if (findEdibleData(heldItem) == nullptr && !isMilk)
         return;
 
-    const bool usingItem = player.getFlags().get(EntityFlag::UsingItem);
+    const bool usingItem = player.getFlags().get(ActorFlag::UsingItem);
 
-    if (!player.canEat()) {
+    if (!isMilk && !player.canEat()) {
         if (usingItem) {
-            player.getFlags().set(EntityFlag::UsingItem, false);
+            player.getFlags().set(ActorFlag::UsingItem, false);
             _sendEntityData(player);
         }
         return;
@@ -861,25 +1396,28 @@ void ServerNetworkHandler::_useHeldItem(ServerPlayer &player) {
     if (usingItem)
         return;
 
-    player.getFlags().set(EntityFlag::UsingItem, true);
+    player.getFlags().set(ActorFlag::UsingItem, true);
     player.setItemUseStartTick(mCurrentTick);
     _sendEntityData(player);
 }
 
 void ServerNetworkHandler::_consumeHeldItem(ServerPlayer &player) {
-    const bool wasUsing = player.getFlags().get(EntityFlag::UsingItem);
+    const bool wasUsing = player.getFlags().get(ActorFlag::UsingItem);
     const int64_t heldTicks = mCurrentTick - player.getItemUseStartTick();
 
     if (wasUsing) {
-        player.getFlags().set(EntityFlag::UsingItem, false);
+        player.getFlags().set(ActorFlag::UsingItem, false);
         _sendEntityData(player);
     }
 
     PlayerInventory &inventory = player.getInventory();
     const int slot = inventory.getSelectedSlot();
 
-    const ItemData *data = findEdibleData(inventory.getItemInHand());
-    if (data == nullptr)
+    const ItemStack &heldItem = inventory.getItemInHand();
+    const bool isMilk = !heldItem.isAir() && heldItem.mDefinition != nullptr
+                        && std::string(heldItem.mDefinition->getIdentifier()) == "minecraft:milk_bucket";
+    const ItemData *data = findEdibleData(heldItem);
+    if (data == nullptr && !isMilk)
         return;
 
     if (!wasUsing || heldTicks < FOOD_USE_DURATION_TICKS) {
@@ -887,25 +1425,39 @@ void ServerNetworkHandler::_consumeHeldItem(ServerPlayer &player) {
         return;
     }
 
-    if (!player.canEat()) {
+    if (!isMilk && !player.canEat()) {
         player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, slot);
         _sendAttributes(player);
         return;
     }
 
-    player.consumeFood(data->mNutrition, data->mSaturation);
+    if (isMilk) {
+        player.getEffects().clear();
+    } else {
+        player.consumeFood(data->mNutrition, data->mSaturation);
+        applyFoodEffects(player, data->mIdentifier);
+    }
 
     ItemStack remaining = inventory.getItemInHand();
     remaining.mCount -= 1;
-    if (remaining.mCount <= 0)
-        remaining = ItemStack::air();
+    if (remaining.mCount <= 0) {
+        if (isMilk) {
+            remaining = ItemStack::air();
+            remaining.mDefinition = mItemDefinitions.getDefinition("minecraft:bucket");
+            remaining.mBlockDefinition = mBlockDefinitions.getDefinition("minecraft:bucket");
+            remaining.mCount = remaining.mDefinition == nullptr ? 0 : 1;
+        } else {
+            remaining = ItemStack::air();
+        }
+    }
 
     inventory.setItemInHand(std::move(remaining));
     player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, slot);
 
     _sendAttributes(player);
 
-    LOG_INFO(LogAreaID::Server, "%s ate %s, food is now %.1f", player.getName().c_str(), data->mIdentifier,
+    LOG_INFO(LogAreaID::Server, "%s consumed %s, food is now %.1f", player.getName().c_str(),
+             isMilk ? "minecraft:milk_bucket" : data->mIdentifier,
              player.getFood());
 }
 
@@ -1026,6 +1578,23 @@ void ServerNetworkHandler::sendCommandOutput(ServerPlayer &player, const Command
     line.mInternal = false;
     line.mMessageId = message;
     output.mMessages.push_back(line);
+
+    mNetworkHandler->send(player.getNetworkIdentifier(), output, mCodecContext);
+}
+
+void ServerNetworkHandler::sendCommandOutput(ServerPlayer &player, const CommandOriginData &origin,
+                                             const std::string &key,
+                                             const std::vector<std::string> &parameters) {
+    CommandOutputPacket output;
+    output.mOrigin = origin;
+    output.mType = CommandOutputType::AllOutput;
+    output.mSuccessCount = 1;
+
+    CommandOutputMessage line;
+    line.mInternal = false;
+    line.mMessageId = key;
+    line.mParameters = parameters;
+    output.mMessages.push_back(std::move(line));
 
     mNetworkHandler->send(player.getNetworkIdentifier(), output, mCodecContext);
 }

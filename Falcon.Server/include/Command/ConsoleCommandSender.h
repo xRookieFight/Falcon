@@ -12,5 +12,7 @@ public:
 
     void sendMessage(const std::string &message) override;
 
+    void sendTranslation(const std::string &key, const std::vector<std::string> &parameters) override;
+
     CommandPermission getCommandPermission() const override { return CommandPermission::Internal; }
 };

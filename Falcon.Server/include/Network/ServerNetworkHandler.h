@@ -16,18 +16,20 @@
 #include "Server/OpList.h"
 #include "Server/PropertiesSettings.h"
 #include "Server/ResourcePackManager.h"
-#include "Entity/ItemEntity.h"
-#include "Entity/ServerPlayer.h"
+#include "Actor/ItemActor.h"
+#include "Actor/ServerPlayer.h"
 #include "Protocol/Types/ContainerSlotType.h"
 #include "Protocol/Packets/CraftingDataPacket.h"
 #include "Protocol/Packets/CreativeContentPacket.h"
 
 #include <mutex>
+#include <cstdint>
 #include <vector>
 #include <queue>
 #include <unordered_map>
 #include <memory>
 #include <string>
+#include <functional>
 
 class ItemUseTransaction;
 class CommandSender;
@@ -37,6 +39,8 @@ class ServerNetworkHandler : public NetworkHandler::Listener,
                              public RakPeerHelper::IPSupportInterface,
                              public PacketSender {
 public:
+    using ModalFormCallback = std::function<void(ServerPlayer &, const std::string &, bool)>;
+
     ServerNetworkHandler(const std::string &serverName, const std::string &subName, int maxPlayers);
 
     ~ServerNetworkHandler() override;
@@ -65,7 +69,7 @@ public:
 
     std::unordered_map<NetworkIdentifier, ServerPlayer, NetworkIdentifier::Hasher> &getPlayers() { return mPlayers; }
 
-    std::vector<std::unique_ptr<ItemEntity>> &getItemEntities() { return mItemEntities; }
+    std::vector<std::unique_ptr<ItemActor>> &getItemEntities() { return mItemEntities; }
 
     uint64_t allocateRuntimeId() { return mNextRuntimeId++; }
 
@@ -89,13 +93,20 @@ public:
 
     void sendCommandOutput(ServerPlayer &player, const CommandOriginData &origin, const std::string &message);
 
+    void sendCommandOutput(ServerPlayer &player, const CommandOriginData &origin, const std::string &key,
+                           const std::vector<std::string> &parameters);
+
     void broadcastSystemMessage(const std::string &message);
 
-    ItemEntity *dropItem(const Vector3f &position, const ItemStack &item, const Vector3f &motion, int pickupDelay);
+    void broadcastTranslation(const std::string &key, const std::vector<std::string> &parameters = {});
 
-    void applyDamage(ServerPlayer &player, float amount, const std::string &deathMessage);
+    ItemActor *dropItem(const Vector3f &position, const ItemStack &item, const Vector3f &motion, int pickupDelay);
 
-    void killPlayer(ServerPlayer &player, const std::string &deathMessage);
+    void applyDamage(ServerPlayer &player, float amount, const std::string &deathMessageKey,
+                     const std::vector<std::string> &deathMessageParameters = {});
+
+    void killPlayer(ServerPlayer &player, const std::string &deathMessageKey,
+                    const std::vector<std::string> &deathMessageParameters = {});
 
     void _throwItem(ServerPlayer &player, const ItemStack &item);
 
@@ -177,6 +188,9 @@ public:
 
     void queueConsoleCommand(const std::string &commandLine);
 
+    void sendModalForm(ServerPlayer &player, uint32_t formId, const std::string &formData,
+                       ModalFormCallback callback = {});
+
 private:
     bool onValidateIncomingConnection(const NetworkIdentifier &id) override;
 
@@ -225,13 +239,29 @@ private:
 
     void handle(const NetworkIdentifier &id, const RespawnPacket &packet) override;
 
+    void handle(const NetworkIdentifier &id, const SetPlayerGameTypePacket &packet) override;
+
+    void handle(const NetworkIdentifier &id, const BlockEntityDataPacket &packet) override;
+
+    void handle(const NetworkIdentifier &id, const BlockPickRequestPacket &packet) override;
+
+    void handle(const NetworkIdentifier &id, const EntityPickRequestPacket &packet) override;
+
+    void handle(const NetworkIdentifier &id, const EmotePacket &packet) override;
+
+    void handle(const NetworkIdentifier &id, const ModalFormResponsePacket &packet) override;
+
+    void handle(const NetworkIdentifier &id, const PlayerSkinPacket &packet) override;
+
     ServerPlayer *_getPlayer(const NetworkIdentifier &id);
 
     int _getServerViewDistance() const;
 
     void _savePlayerData(const ServerPlayer &player);
 
-    void _broadcastEntityEvent(const Entity &entity, uint8_t eventId);
+    void _handleVoidDamage(ServerPlayer &player);
+
+    void _broadcastEntityEvent(const Actor &entity, uint8_t eventId);
 
     void _dropInventoryOnDeath(ServerPlayer &player);
 
@@ -268,7 +298,9 @@ private:
     bool mIsListening;
 
     std::unordered_map<NetworkIdentifier, ServerPlayer, NetworkIdentifier::Hasher> mPlayers;
-    std::vector<std::unique_ptr<ItemEntity>> mItemEntities;
+    std::unordered_map<NetworkIdentifier, std::unordered_map<uint32_t, ModalFormCallback>,
+                       NetworkIdentifier::Hasher> mModalFormCallbacks;
+    std::vector<std::unique_ptr<ItemActor>> mItemEntities;
     bool mKeepInventory;
     uint64_t mNextRuntimeId;
     int64_t mCurrentTick = 0;

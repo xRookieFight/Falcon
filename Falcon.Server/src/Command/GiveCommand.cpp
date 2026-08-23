@@ -1,6 +1,6 @@
 #include "Command/GiveCommand.h"
 
-#include "Entity/ServerPlayer.h"
+#include "Actor/ServerPlayer.h"
 #include "Item/StringToItemParser.h"
 #include "Network/ServerNetworkHandler.h"
 
@@ -11,7 +11,7 @@ namespace {
 }
 
 GiveCommand::GiveCommand(ServerNetworkHandler &handler)
-        : Command("give", "Gives an item to a player", "/give <player> <item> [amount]"),
+        : Command("give", "commands.give.description", "/give <player> <item> [amount]"),
           mHandler(handler) {}
 
 std::vector<CommandOverloadData> GiveCommand::getOverloads() const {
@@ -56,19 +56,19 @@ bool GiveCommand::_parseCount(const std::string &value, int &out) {
 
 bool GiveCommand::execute(CommandSender &sender, const std::vector<std::string> &arguments) {
     if (arguments.size() < 2) {
-        sender.sendMessage("Usage: " + getUsage());
+        sender.sendTranslation("commands.generic.usage", {getUsage()});
         return false;
     }
 
     const std::vector<ServerPlayer *> targets = mHandler.resolveTargets(sender, arguments[0]);
     if (targets.empty()) {
-        sender.sendMessage("§cNo targets matched selector");
+        sender.sendTranslation("commands.generic.player.notFound", {});
         return false;
     }
 
     Item item;
     if (!StringToItemParser::getInstance().parse(arguments[1], item)) {
-        sender.sendMessage("§cUnknown item " + arguments[1]);
+        sender.sendTranslation("commands.give.item.notFound", {arguments[1]});
         return false;
     }
 
@@ -76,13 +76,13 @@ bool GiveCommand::execute(CommandSender &sender, const std::vector<std::string> 
             mHandler.getItemDefinitions().getDefinition(item.getIdentifier());
 
     if (definition == nullptr) {
-        sender.sendMessage("§cUnknown item " + arguments[1]);
+        sender.sendTranslation("commands.give.item.notFound", {arguments[1]});
         return false;
     }
 
     int count = item.getMaxStackSize();
     if (arguments.size() > 2 && !_parseCount(arguments[2], count)) {
-        sender.sendMessage("§cAmount must be between 1 and 32767");
+        sender.sendTranslation("commands.generic.usage", {getUsage()});
         return false;
     }
 
@@ -97,13 +97,13 @@ bool GiveCommand::execute(CommandSender &sender, const std::vector<std::string> 
         const int given = count - remaining;
 
         if (given <= 0) {
-            sender.sendMessage("§cNot enough room in " + target->getName() + "'s inventory");
+            sender.sendTranslation("commands.give.success", {item.getName(), "0", target->getName()});
             continue;
         }
 
         target->getInventoryManager().syncAll();
 
-        sender.sendMessage("Gave " + std::to_string(given) + " " + item.getName() + " to " + target->getName());
+        sender.sendTranslation("commands.give.success", {item.getName(), std::to_string(given), target->getName()});
     }
 
     return true;

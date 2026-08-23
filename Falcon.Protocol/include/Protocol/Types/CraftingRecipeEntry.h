@@ -17,6 +17,8 @@ struct RecipeOutputEntry {
     int32_t mRuntimeId = 0;
     int32_t mCount = 1;
     int32_t mMeta = 0;
+    int32_t mBlockRuntimeId = 0;
+    bool mIsShield = false;
 };
 
 struct CraftingRecipeEntry {

@@ -4,13 +4,11 @@
 
 class ServerNetworkHandler;
 
-class KillCommand : public Command {
+class EffectCommand final : public Command {
 public:
-    explicit KillCommand(ServerNetworkHandler &handler);
+    explicit EffectCommand(ServerNetworkHandler &handler);
 
     bool execute(CommandSender &sender, const std::vector<std::string> &arguments) override;
-
-    CommandPermission getRequiredPermission() const override;
 
     std::vector<CommandOverloadData> getOverloads() const override;
 

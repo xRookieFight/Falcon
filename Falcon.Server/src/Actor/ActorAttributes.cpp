@@ -1,10 +1,11 @@
-#include "Entity/EntityAttributes.h"
+#include "Actor/ActorAttributes.h"
 
+#include <algorithm>
 #include <limits>
 
-EntityAttributes::EntityAttributes() = default;
+ActorAttributes::ActorAttributes() = default;
 
-void EntityAttributes::_add(const std::string &name, float minimum, float maximum, float value) {
+void ActorAttributes::_add(const std::string &name, float minimum, float maximum, float value) {
     AttributeData attribute;
     attribute.mName = name;
     attribute.mMinimum = minimum;
@@ -16,10 +17,10 @@ void EntityAttributes::_add(const std::string &name, float minimum, float maximu
     mAttributes.push_back(attribute);
 }
 
-EntityAttributes EntityAttributes::createPlayerDefaults() {
+ActorAttributes ActorAttributes::createPlayerDefaults() {
     const float unbounded = std::numeric_limits<float>::max();
 
-    EntityAttributes attributes;
+    ActorAttributes attributes;
     attributes._add("minecraft:health", 0.0f, 20.0f, 20.0f);
     attributes._add("minecraft:player.hunger", 0.0f, 20.0f, 20.0f);
     attributes._add("minecraft:player.saturation", 0.0f, 20.0f, 20.0f);
@@ -34,7 +35,7 @@ EntityAttributes EntityAttributes::createPlayerDefaults() {
     return attributes;
 }
 
-void EntityAttributes::set(const std::string &name, float value) {
+void ActorAttributes::set(const std::string &name, float value) {
     for (AttributeData &attribute: mAttributes) {
         if (attribute.mName == name) {
             attribute.mValue = value;
@@ -43,7 +44,19 @@ void EntityAttributes::set(const std::string &name, float value) {
     }
 }
 
-float EntityAttributes::get(const std::string &name) const {
+void ActorAttributes::addMaximum(const std::string &name, float amount) {
+    for (AttributeData &attribute: mAttributes) {
+        if (attribute.mName != name)
+            continue;
+
+        attribute.mMaximum = std::max(attribute.mMinimum, attribute.mMaximum + amount);
+        if (attribute.mValue > attribute.mMaximum)
+            attribute.mValue = attribute.mMaximum;
+        return;
+    }
+}
+
+float ActorAttributes::get(const std::string &name) const {
     for (const AttributeData &attribute: mAttributes) {
         if (attribute.mName == name)
             return attribute.mValue;
@@ -51,7 +64,7 @@ float EntityAttributes::get(const std::string &name) const {
     return 0.0f;
 }
 
-float EntityAttributes::getMinimum(const std::string &name) const {
+float ActorAttributes::getMinimum(const std::string &name) const {
     for (const AttributeData &attribute: mAttributes) {
         if (attribute.mName == name)
             return attribute.mMinimum;
@@ -59,7 +72,7 @@ float EntityAttributes::getMinimum(const std::string &name) const {
     return 0.0f;
 }
 
-float EntityAttributes::getMaximum(const std::string &name) const {
+float ActorAttributes::getMaximum(const std::string &name) const {
     for (const AttributeData &attribute: mAttributes) {
         if (attribute.mName == name)
             return attribute.mMaximum;
@@ -67,7 +80,7 @@ float EntityAttributes::getMaximum(const std::string &name) const {
     return 0.0f;
 }
 
-void EntityAttributes::setClamped(const std::string &name, float value) {
+void ActorAttributes::setClamped(const std::string &name, float value) {
     for (AttributeData &attribute: mAttributes) {
         if (attribute.mName == name) {
             if (value < attribute.mMinimum)

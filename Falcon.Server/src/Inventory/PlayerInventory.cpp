@@ -9,7 +9,8 @@ namespace {
 }
 
 PlayerInventory::PlayerInventory()
-        : mItems((size_t) CONTAINER_SIZE), mArmor((size_t) ARMOR_SIZE), mSelectedSlot(0), mNextNetId(1) {
+        : mItems((size_t) CONTAINER_SIZE), mArmor((size_t) ARMOR_SIZE), mCrafting((size_t) CRAFTING_SIZE),
+          mSelectedSlot(0), mNextNetId(1) {
     mOffhand = ItemStack::air();
     mCursor = ItemStack::air();
 
@@ -18,6 +19,10 @@ PlayerInventory::PlayerInventory()
     }
 
     for (ItemStack &item: mArmor) {
+        item = ItemStack::air();
+    }
+
+    for (ItemStack &item: mCrafting) {
         item = ItemStack::air();
     }
 }
@@ -57,6 +62,22 @@ void PlayerInventory::setArmor(int slot, ItemStack item) {
 
     assignNetId(item);
     mArmor[(size_t) slot] = std::move(item);
+}
+
+const ItemStack &PlayerInventory::getCraftingItem(int slot) const {
+    if (slot < 0 || slot >= CRAFTING_SIZE) {
+        return getEmptyItem();
+    }
+    return mCrafting[(size_t) slot];
+}
+
+void PlayerInventory::setCraftingItem(int slot, ItemStack item) {
+    if (slot < 0 || slot >= CRAFTING_SIZE) {
+        return;
+    }
+
+    assignNetId(item);
+    mCrafting[(size_t) slot] = std::move(item);
 }
 
 void PlayerInventory::setOffhand(ItemStack item) {
@@ -115,6 +136,13 @@ const ItemStack *PlayerInventory::resolveSlot(ContainerSlotType container, int s
                 return nullptr;
             }
             return &mCursor;
+
+        case ContainerSlotType::CraftingInput:
+            if (slot < CRAFTING_NETWORK_SLOT_FIRST
+                || slot >= CRAFTING_NETWORK_SLOT_FIRST + CRAFTING_SIZE) {
+                return nullptr;
+            }
+            return &mCrafting[(size_t) (slot - CRAFTING_NETWORK_SLOT_FIRST)];
 
         default:
             return nullptr;
@@ -219,6 +247,10 @@ void PlayerInventory::clear() {
 
     mOffhand = ItemStack::air();
     mCursor = ItemStack::air();
+
+    for (ItemStack &item: mCrafting) {
+        item = ItemStack::air();
+    }
 }
 
 void PlayerInventory::assignNetId(ItemStack &item) {

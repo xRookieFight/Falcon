@@ -1,11 +1,25 @@
-/.idea
-/build
-/cmake-build-debug
+# Whitelist tracked project files.
+*
+!/.gitignore
+!/CMakeLists.txt
+!/README.md
+!/build.bat
+!/Falcon.Network/
+!/Falcon.Network/**
+!/Falcon.Protocol/
+!/Falcon.Protocol/**
+!/Falcon.Server/
+!/Falcon.Server/**
+
+# Keep generated and runtime data ignored.
+/.idea/
+/build/
+/cmake-build-debug/
 /server.properties
-/.github/workflows
 /build.txt
 /bds_links.json
-/worlds
-/players
+/worlds/
+/players/
 /ops.txt
-/tools
+/tools/
+/.github/workflows/

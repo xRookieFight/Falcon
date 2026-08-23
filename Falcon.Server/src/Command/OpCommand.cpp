@@ -3,11 +3,11 @@
 #include "Network/ServerNetworkHandler.h"
 
 OpCommand::OpCommand(ServerNetworkHandler &handler)
-        : Command("op", "Grants operator status to a player", "/op <player>"), mHandler(handler) {}
+        : Command("op", "commands.op.description", "/op <player>"), mHandler(handler) {}
 
 bool OpCommand::execute(CommandSender &sender, const std::vector<std::string> &arguments) {
     if (arguments.empty()) {
-        sender.sendMessage("Usage: " + getUsage());
+        sender.sendTranslation("commands.generic.usage", {getUsage()});
         return false;
     }
 
@@ -17,7 +17,7 @@ bool OpCommand::execute(CommandSender &sender, const std::vector<std::string> &a
     if (target != nullptr)
         mHandler.setPlayerOp(*target, true);
 
-    sender.sendMessage("Opped " + arguments[0]);
+    sender.sendTranslation("commands.op.success", {arguments[0]});
     return true;
 }
 

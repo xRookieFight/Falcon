@@ -1,6 +1,6 @@
 #include "Command/GameModeCommand.h"
 
-#include "Entity/ServerPlayer.h"
+#include "Actor/ServerPlayer.h"
 #include "Network/ServerNetworkHandler.h"
 
 #include <algorithm>
@@ -16,7 +16,7 @@ namespace {
 }
 
 GameModeCommand::GameModeCommand(ServerNetworkHandler &handler)
-        : Command("gamemode", "Sets a player's game mode", "/gamemode <mode> [player]", {"gm"}),
+        : Command("gamemode", "commands.gamemode.description", "/gamemode <mode> [player]", {"gm"}),
           mHandler(handler) {}
 
 int GameModeCommand::parseGameMode(const std::string &value) {
@@ -51,13 +51,13 @@ const char *GameModeCommand::getGameModeName(int gameMode) {
 
 bool GameModeCommand::execute(CommandSender &sender, const std::vector<std::string> &arguments) {
     if (arguments.empty()) {
-        sender.sendMessage("Usage: " + getUsage());
+        sender.sendTranslation("commands.generic.usage", {getUsage()});
         return false;
     }
 
     const int gameMode = parseGameMode(arguments[0]);
     if (gameMode < 0) {
-        sender.sendMessage("Invalid game mode: " + arguments[0]);
+        sender.sendTranslation("commands.gamemode.invalid", {arguments[0]});
         return false;
     }
 
@@ -66,7 +66,10 @@ bool GameModeCommand::execute(CommandSender &sender, const std::vector<std::stri
                            : sender.asPlayer();
 
     if (target == nullptr) {
-        sender.sendMessage(arguments.size() > 1 ? "No targets matched selector" : "This command can only be run by a player");
+        if (arguments.size() > 1)
+            sender.sendTranslation("commands.generic.player.notFound", {});
+        else
+            sender.sendTranslation("commands.generic.playerOnly", {});
         return false;
     }
 
@@ -74,9 +77,9 @@ bool GameModeCommand::execute(CommandSender &sender, const std::vector<std::stri
 
     const std::string modeName = getGameModeName(gameMode);
     if (target == sender.asPlayer()) {
-        sender.sendMessage("Your game mode has been updated to " + modeName);
+        sender.sendTranslation("commands.gamemode.success.self", {modeName});
     } else {
-        sender.sendMessage("Set " + target->getName() + "'s game mode to " + modeName);
+        sender.sendTranslation("commands.gamemode.success.other", {target->getName(), modeName});
     }
 
     return true;

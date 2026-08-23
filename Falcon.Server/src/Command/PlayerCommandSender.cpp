@@ -1,6 +1,6 @@
 #include "Command/PlayerCommandSender.h"
 
-#include "Entity/ServerPlayer.h"
+#include "Actor/ServerPlayer.h"
 #include "Network/ServerNetworkHandler.h"
 
 PlayerCommandSender::PlayerCommandSender(ServerNetworkHandler &handler, ServerPlayer &player,
@@ -12,7 +12,11 @@ const std::string &PlayerCommandSender::getSenderName() const {
 }
 
 void PlayerCommandSender::sendMessage(const std::string &message) {
-    mHandler.sendCommandOutput(mPlayer, mOrigin, message);
+    mPlayer.sendMessage(message);
+}
+
+void PlayerCommandSender::sendTranslation(const std::string &key, const std::vector<std::string> &parameters) {
+    mPlayer.sendTranslation(key, parameters);
 }
 
 CommandPermission PlayerCommandSender::getCommandPermission() const {

@@ -1,7 +1,7 @@
 #include "Network/InventoryHandler.h"
 
 #include "Core/Debug/BedrockLog.h"
-#include "Entity/ServerPlayer.h"
+#include "Actor/ServerPlayer.h"
 #include "Inventory/InventoryManager.h"
 #include "Inventory/ItemStackRequestHandler.h"
 #include "Inventory/PlayerInventory.h"
@@ -18,6 +18,8 @@
 #include "Protocol/Types/ContainerSlotType.h"
 #include "Protocol/Types/InventoryActionData.h"
 #include "Protocol/Types/InventorySource.h"
+
+#include <utility>
 
 void InventoryHandler::sendInventory(ServerNetworkHandler &owner, ServerPlayer &player) {
     player.getInventoryManager().syncAll();
@@ -208,6 +210,24 @@ void InventoryHandler::handleTransaction(ServerNetworkHandler &owner, ServerPlay
 
 void InventoryHandler::handleContainerClose(ServerPlayer &player, const ContainerClosePacket &packet) {
     PlayerInventory &inventory = player.getInventory();
+
+    for (int slot = 0; slot < PlayerInventory::CRAFTING_SIZE; slot++) {
+        ItemStack item = inventory.getCraftingItem(slot);
+        if (item.isAir()) {
+            continue;
+        }
+
+        std::vector<int> touchedSlots;
+        const int remaining = inventory.addItemPartial(item, touchedSlots);
+        item.mCount = remaining;
+        inventory.setCraftingItem(slot, std::move(item));
+
+        for (int touchedSlot: touchedSlots)
+            player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, touchedSlot);
+
+        player.getInventoryManager().syncSlot(InventoryManager::InventoryId::CraftingInput, slot);
+    }
+
     if (!inventory.getCursor().isAir()) {
         std::vector<int> touchedSlots;
         inventory.addItem(inventory.getCursor(), touchedSlots);

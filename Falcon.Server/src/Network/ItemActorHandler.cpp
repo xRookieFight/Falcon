@@ -1,8 +1,8 @@
-#include "Network/ItemEntityHandler.h"
+#include "Network/ItemActorHandler.h"
 
-#include "Entity/EntityFlags.h"
-#include "Entity/ItemEntity.h"
-#include "Entity/ServerPlayer.h"
+#include "Actor/ActorFlags.h"
+#include "Actor/ItemActor.h"
+#include "Actor/ServerPlayer.h"
 #include "Inventory/InventoryManager.h"
 #include "Inventory/PlayerInventory.h"
 #include "Level/Level.h"
@@ -40,43 +40,43 @@ namespace {
         return free;
     }
 
-    void spawnItemEntityTo(ServerNetworkHandler &owner, ServerPlayer &player, const ItemEntity &entity) {
+    void spawnItemActorTo(ServerNetworkHandler &owner, ServerPlayer &player, const ItemActor &actor) {
         AddItemEntityPacket add;
-        add.mUniqueEntityId = entity.getUniqueId();
-        add.mRuntimeEntityId = entity.getRuntimeId();
-        add.mItemInHand = entity.getItem();
-        add.mPosition = entity.getPosition();
-        add.mMotion = entity.getMotion();
+        add.mUniqueEntityId = actor.getUniqueId();
+        add.mRuntimeEntityId = actor.getRuntimeId();
+        add.mItemInHand = actor.getItem();
+        add.mPosition = actor.getPosition();
+        add.mMotion = actor.getMotion();
         add.mFromFishing = false;
 
         EntityDataEntry flags;
-        flags.mId = EntityFlags::FLAGS_DATA_ID;
+        flags.mId = ActorFlags::FLAGS_DATA_ID;
         flags.mFormat = EntityDataFormat::Long;
-        flags.mLongValue = entity.getFlags().getLowBits();
+        flags.mLongValue = actor.getFlags().getLowBits();
         add.mMetadata.mEntries.push_back(flags);
 
         EntityDataEntry flags2;
-        flags2.mId = EntityFlags::FLAGS_2_DATA_ID;
+        flags2.mId = ActorFlags::FLAGS_2_DATA_ID;
         flags2.mFormat = EntityDataFormat::Long;
-        flags2.mLongValue = entity.getFlags().getHighBits();
+        flags2.mLongValue = actor.getFlags().getHighBits();
         add.mMetadata.mEntries.push_back(flags2);
 
         owner.getNetworkHandler().send(player.getNetworkIdentifier(), add, owner.getCodecContext());
     }
 
-    void broadcastItemEntitySpawn(ServerNetworkHandler &owner, const ItemEntity &entity) {
+    void broadcastItemActorSpawn(ServerNetworkHandler &owner, const ItemActor &actor) {
         for (auto &entry: owner.getPlayers()) {
             if (entry.second.isSpawned())
-                spawnItemEntityTo(owner, entry.second, entity);
+                spawnItemActorTo(owner, entry.second, actor);
         }
     }
 
-    void broadcastItemEntityMove(ServerNetworkHandler &owner, const ItemEntity &entity) {
+    void broadcastItemActorMove(ServerNetworkHandler &owner, const ItemActor &actor) {
         MoveEntityAbsolutePacket move;
-        move.mRuntimeEntityId = (int64_t) entity.getRuntimeId();
-        move.mPosition = entity.getPosition();
-        move.mRotation = entity.getRotation();
-        move.mOnGround = entity.isOnGround();
+        move.mRuntimeEntityId = (int64_t) actor.getRuntimeId();
+        move.mPosition = actor.getPosition();
+        move.mRotation = actor.getRotation();
+        move.mOnGround = actor.isOnGround();
         move.mTeleported = false;
         move.mForceMove = false;
 
@@ -86,9 +86,9 @@ namespace {
         }
     }
 
-    void broadcastItemEntityRemove(ServerNetworkHandler &owner, const ItemEntity &entity) {
+    void broadcastItemActorRemove(ServerNetworkHandler &owner, const ItemActor &actor) {
         RemoveEntityPacket remove;
-        remove.mUniqueEntityId = entity.getUniqueId();
+        remove.mUniqueEntityId = actor.getUniqueId();
 
         for (auto &entry: owner.getPlayers()) {
             if (entry.second.isSpawned())
@@ -96,12 +96,12 @@ namespace {
         }
     }
 
-    void moveItemEntity(ServerNetworkHandler &owner, ItemEntity &entity) {
-        if (entity.isOnGround())
+    void moveItemActor(ServerNetworkHandler &owner, ItemActor &actor) {
+        if (actor.isOnGround())
             return;
 
-        Vector3f motion = entity.getMotion();
-        const Vector3f position = entity.getPosition();
+        Vector3f motion = actor.getMotion();
+        const Vector3f position = actor.getPosition();
 
         motion.y -= ITEM_GRAVITY;
 
@@ -114,23 +114,23 @@ namespace {
         if (motion.y < 0.0f && owner.getLevel().isSolidAt(blockX, blockY, blockZ)) {
             next.y = (float) (blockY + 1);
             motion = Vector3f(0.0f, 0.0f, 0.0f);
-            entity.setOnGround(true);
+            actor.setOnGround(true);
         } else {
             motion.x *= 1.0f - ITEM_HORIZONTAL_DRAG;
             motion.z *= 1.0f - ITEM_HORIZONTAL_DRAG;
         }
 
-        entity.setPosition(next);
-        entity.setMotion(motion);
+        actor.setPosition(next);
+        actor.setMotion(motion);
 
-        broadcastItemEntityMove(owner, entity);
+        broadcastItemActorMove(owner, actor);
     }
 
-    void tryPickupItemEntity(ServerNetworkHandler &owner, ItemEntity &entity) {
-        if (entity.isRemoved() || !entity.canPickup())
+    void tryPickupItemActor(ServerNetworkHandler &owner, ItemActor &actor) {
+        if (actor.isRemoved() || !actor.canPickup())
             return;
 
-        const Vector3f itemPosition = entity.getPosition();
+        const Vector3f itemPosition = actor.getPosition();
 
         for (auto &entry: owner.getPlayers()) {
             ServerPlayer &player = entry.second;
@@ -150,15 +150,15 @@ namespace {
                 continue;
 
             PlayerInventory &inventory = player.getInventory();
-            if (freeSpaceFor(inventory, entity.getItem()) < entity.getItem().mCount)
+            if (freeSpaceFor(inventory, actor.getItem()) < actor.getItem().mCount)
                 continue;
 
             std::vector<int> touchedSlots;
-            if (!inventory.addItem(entity.getItem(), touchedSlots))
+            if (!inventory.addItem(actor.getItem(), touchedSlots))
                 continue;
 
             TakeItemEntityPacket take;
-            take.mItemRuntimeEntityId = entity.getRuntimeId();
+            take.mItemRuntimeEntityId = actor.getRuntimeId();
             take.mRuntimeEntityId = player.getRuntimeId();
 
             for (auto &viewer: owner.getPlayers()) {
@@ -169,52 +169,52 @@ namespace {
             for (int slot: touchedSlots)
                 player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, slot);
 
-            entity.setRemoved(true);
+            actor.setRemoved(true);
             return;
         }
     }
 }
 
-ItemEntity *ItemEntityHandler::dropItem(ServerNetworkHandler &owner, const Vector3f &position, const ItemStack &item,
-                                        const Vector3f &motion, int pickupDelay) {
+ItemActor *ItemActorHandler::dropItem(ServerNetworkHandler &owner, const Vector3f &position, const ItemStack &item,
+                                      const Vector3f &motion, int pickupDelay) {
     if (item.isAir() || item.mCount <= 0)
         return nullptr;
 
-    std::unique_ptr<ItemEntity> entity(new ItemEntity(owner.allocateRuntimeId(), item));
-    entity->getItem().mUsingNetId = false;
-    entity->getItem().mNetId = 0;
-    entity->setPosition(position);
-    entity->setMotion(motion);
-    entity->setPickupDelay(pickupDelay);
-    entity->resetFallDistance();
+    std::unique_ptr<ItemActor> actor(new ItemActor(owner.allocateRuntimeId(), item));
+    actor->getItem().mUsingNetId = false;
+    actor->getItem().mNetId = 0;
+    actor->setPosition(position);
+    actor->setMotion(motion);
+    actor->setPickupDelay(pickupDelay);
+    actor->resetFallDistance();
 
-    ItemEntity *result = entity.get();
-    owner.getItemEntities().push_back(std::move(entity));
+    ItemActor *result = actor.get();
+    owner.getItemEntities().push_back(std::move(actor));
 
-    broadcastItemEntitySpawn(owner, *result);
+    broadcastItemActorSpawn(owner, *result);
     return result;
 }
 
-void ItemEntityHandler::sendItemEntitiesTo(ServerNetworkHandler &owner, ServerPlayer &player) {
-    for (const std::unique_ptr<ItemEntity> &entity: owner.getItemEntities()) {
-        if (!entity->isRemoved())
-            spawnItemEntityTo(owner, player, *entity);
+void ItemActorHandler::sendItemActorsTo(ServerNetworkHandler &owner, ServerPlayer &player) {
+    for (const std::unique_ptr<ItemActor> &actor: owner.getItemEntities()) {
+        if (!actor->isRemoved())
+            spawnItemActorTo(owner, player, *actor);
     }
 }
 
-void ItemEntityHandler::tickItemEntities(ServerNetworkHandler &owner) {
-    std::vector<std::unique_ptr<ItemEntity>> &entities = owner.getItemEntities();
+void ItemActorHandler::tickItemActors(ServerNetworkHandler &owner) {
+    std::vector<std::unique_ptr<ItemActor>> &actors = owner.getItemEntities();
 
-    for (auto it = entities.begin(); it != entities.end();) {
-        ItemEntity &entity = **it;
+    for (auto it = actors.begin(); it != actors.end();) {
+        ItemActor &actor = **it;
 
-        entity.tick();
-        moveItemEntity(owner, entity);
-        tryPickupItemEntity(owner, entity);
+        actor.tick();
+        moveItemActor(owner, actor);
+        tryPickupItemActor(owner, actor);
 
-        if (entity.isRemoved() || entity.isExpired()) {
-            broadcastItemEntityRemove(owner, entity);
-            it = entities.erase(it);
+        if (actor.isRemoved() || actor.isExpired()) {
+            broadcastItemActorRemove(owner, actor);
+            it = actors.erase(it);
             continue;
         }
 

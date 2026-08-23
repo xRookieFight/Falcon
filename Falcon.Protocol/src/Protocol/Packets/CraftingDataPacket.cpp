@@ -5,6 +5,9 @@
 CraftingDataPacket::CraftingDataPacket() = default;
 
 namespace {
+    const std::string EMPTY_ITEM_EXTRA_DATA(10, '\0');
+    const std::string EMPTY_SHIELD_EXTRA_DATA(18, '\0');
+
     void writeIngredient(BinaryStream &stream, const RecipeIngredientEntry &ingredient) {
         if (!ingredient.mHasItem) {
             stream.putUnsignedVarInt(0);
@@ -24,8 +27,8 @@ namespace {
         stream.putVarInt(output.mRuntimeId);
         stream.putLShort((uint16_t) output.mCount);
         stream.putUnsignedVarInt((uint32_t) output.mMeta);
-        stream.putVarInt(-1);
-        stream.putString("");
+        stream.putVarInt(output.mBlockRuntimeId);
+        stream.putString(output.mIsShield ? EMPTY_SHIELD_EXTRA_DATA : EMPTY_ITEM_EXTRA_DATA);
     }
 
     void writeRecipe(BinaryStream &stream, const CraftingRecipeEntry &recipe, bool shaped) {
@@ -51,6 +54,8 @@ namespace {
         if (shaped)
             stream.putBool(recipe.mSymmetric);
 
+        stream.putBool(true);
+        stream.putVarInt(1);
         stream.putBool(false);
         stream.putVarInt(recipe.mRecipeNetId);
     }

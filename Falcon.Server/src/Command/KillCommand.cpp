@@ -1,10 +1,14 @@
 #include "Command/KillCommand.h"
 
-#include "Entity/ServerPlayer.h"
+#include "Actor/ServerPlayer.h"
 #include "Network/ServerNetworkHandler.h"
 
 KillCommand::KillCommand(ServerNetworkHandler &handler)
-        : Command("kill", "Kills a player", "/kill [player]"), mHandler(handler) {}
+        : Command("kill", "commands.kill.description", "/kill [player]"), mHandler(handler) {}
+
+CommandPermission KillCommand::getRequiredPermission() const {
+    return CommandPermission::Any;
+}
 
 std::vector<CommandOverloadData> KillCommand::getOverloads() const {
     CommandParamData playerParameter = makePlayerParameter("player", mHandler.getPlayerNames());
@@ -22,7 +26,7 @@ bool KillCommand::execute(CommandSender &sender, const std::vector<std::string> 
     if (arguments.empty()) {
         ServerPlayer *self = sender.asPlayer();
         if (self == nullptr) {
-            sender.sendMessage("§cThis command can only be run by a player");
+            sender.sendTranslation("commands.generic.playerOnly", {});
             return false;
         }
 
@@ -32,7 +36,7 @@ bool KillCommand::execute(CommandSender &sender, const std::vector<std::string> 
     }
 
     if (targets.empty()) {
-        sender.sendMessage("§cNo targets matched selector");
+        sender.sendTranslation("commands.generic.selector.empty", {});
         return false;
     }
 
@@ -40,8 +44,8 @@ bool KillCommand::execute(CommandSender &sender, const std::vector<std::string> 
         if (target->isDead())
             continue;
 
-        mHandler.killPlayer(*target, "§e" + target->getName() + " died");
-        sender.sendMessage("Killed " + target->getName());
+        mHandler.killPlayer(*target, "death.attack.generic", {target->getName()});
+        sender.sendTranslation("commands.kill.successful", {target->getName()});
     }
 
     return true;

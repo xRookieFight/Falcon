@@ -14,7 +14,8 @@ public:
         Inventory = 0,
         Offhand = 1,
         Armor = 2,
-        Cursor = 3
+        Cursor = 3,
+        CraftingInput = 4
     };
 
     static const int CONTAINER_ID_NONE = -1;

@@ -100,6 +100,10 @@ int32_t Level::getBlock(int32_t x, int32_t y, int32_t z) {
     return getChunk(x >> 4, z >> 4).getBlock(x & 15, y, z & 15).mHash;
 }
 
+BlockState Level::getBlockState(int32_t x, int32_t y, int32_t z) {
+    return getChunk(x >> 4, z >> 4).getBlock(x & 15, y, z & 15);
+}
+
 bool Level::isSolidAt(int32_t x, int32_t y, int32_t z) {
     if (y < Chunk::MIN_Y || y > Chunk::MAX_Y)
         return false;

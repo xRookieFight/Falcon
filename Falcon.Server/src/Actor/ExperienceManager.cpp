@@ -1,4 +1,4 @@
-#include "Entity/ExperienceManager.h"
+#include "Actor/ExperienceManager.h"
 
 #include <algorithm>
 #include <cmath>
@@ -130,7 +130,7 @@ void ExperienceManager::reset() {
     mLifetimeTotalXp = 0;
 }
 
-void ExperienceManager::applyTo(EntityAttributes &attributes) const {
+void ExperienceManager::applyTo(ActorAttributes &attributes) const {
     attributes.set(ATTRIBUTE_LEVEL, (float) mXpLevel);
     attributes.set(ATTRIBUTE_PROGRESS, mXpProgress);
 }

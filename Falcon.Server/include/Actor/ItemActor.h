@@ -1,14 +1,14 @@
 #pragma once
 
-#include "Entity/Entity.h"
+#include "Actor/Actor.h"
 #include "Protocol/Types/ItemStack.h"
 
-class ItemEntity : public Entity {
+class ItemActor : public Actor {
 public:
     static const int DEFAULT_PICKUP_DELAY = 10;
     static const int LIFETIME_TICKS = 6000;
 
-    ItemEntity(uint64_t runtimeId, const ItemStack &item);
+    ItemActor(uint64_t runtimeId, const ItemStack &item);
 
     const char *getIdentifier() const override { return "minecraft:item"; }
 

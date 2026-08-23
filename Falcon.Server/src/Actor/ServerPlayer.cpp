@@ -1,8 +1,9 @@
-#include "Entity/ServerPlayer.h"
+#include "Actor/ServerPlayer.h"
 
 #include "Inventory/ItemStackNbt.h"
 #include "Protocol/Packets/SetTitlePacket.h"
 #include "Protocol/Packets/TextPacket.h"
+#include "Protocol/Packets/MobEffectPacket.h"
 
 #include <chrono>
 #include <utility>
@@ -28,6 +29,7 @@ namespace {
     const char *TAG_XP_LEVEL = "XpLevel";
     const char *TAG_XP_PROGRESS = "XpP";
     const char *TAG_LIFETIME_XP_TOTAL = "XpTotal";
+    const char *TAG_ACTIVE_EFFECTS = "ActiveEffects";
 
     int64_t currentTimeMillis() {
         using namespace std::chrono;
@@ -52,7 +54,42 @@ namespace {
 }
 
 ServerPlayer::ServerPlayer(const NetworkIdentifier &id, uint64_t runtimeId, PacketSender *sender)
-        : LivingEntity(runtimeId), mId(id), mLoginState(LoginState::Connecting), mSender(sender) {}
+        : Actor(runtimeId), mId(id), mLoginState(LoginState::Connecting), mSender(sender) {
+    getEffects().setEventCallback([this](const MobEffectInstance &effect, MobEffectEvent event) {
+        if (mSender == nullptr || !mEffectsNetworkReady)
+            return;
+
+        MobEffectPacket packet;
+        packet.mRuntimeEntityId = getRuntimeId();
+        packet.mEvent = event == MobEffectEvent::Add ? MobEffectPacket::Event::Add
+                         : event == MobEffectEvent::Modify ? MobEffectPacket::Event::Modify
+                         : MobEffectPacket::Event::Remove;
+        packet.mEffectId = (int32_t) effect.mId;
+        packet.mAmplifier = event == MobEffectEvent::Remove ? 0 : effect.mAmplifier;
+        packet.mParticles = event == MobEffectEvent::Remove ? false : effect.mParticles;
+        packet.mDuration = event == MobEffectEvent::Remove ? 0 : effect.mDuration;
+        packet.mTick = 0;
+        packet.mAmbient = event == MobEffectEvent::Remove ? false : effect.mAmbient;
+        mSender->sendPacketTo(mId, packet);
+    });
+}
+
+void ServerPlayer::syncEffects() {
+    if (mSender == nullptr)
+        return;
+    for (const auto &entry: getEffects().getAll()) {
+        const MobEffectInstance &effect = entry.second;
+        MobEffectPacket packet;
+        packet.mRuntimeEntityId = getRuntimeId();
+        packet.mEvent = MobEffectPacket::Event::Add;
+        packet.mEffectId = (int32_t) effect.mId;
+        packet.mAmplifier = effect.mAmplifier;
+        packet.mParticles = effect.mParticles;
+        packet.mDuration = effect.mDuration;
+        packet.mAmbient = effect.mAmbient;
+        mSender->sendPacketTo(mId, packet);
+    }
+}
 
 void ServerPlayer::sendMessage(const std::string &message) {
     if (mSender == nullptr)
@@ -61,6 +98,18 @@ void ServerPlayer::sendMessage(const std::string &message) {
     TextPacket text;
     text.mType = TextPacket::Type::Raw;
     text.mMessage = message;
+    mSender->sendPacketTo(mId, text);
+}
+
+void ServerPlayer::sendTranslation(const std::string &key, const std::vector<std::string> &parameters) {
+    if (mSender == nullptr)
+        return;
+
+    TextPacket text;
+    text.mType = TextPacket::Type::Translation;
+    text.mMessage = key;
+    text.mParameters = parameters;
+    text.mNeedsTranslation = true;
     mSender->sendPacketTo(mId, text);
 }
 
@@ -151,6 +200,19 @@ Tag ServerPlayer::saveNbt(const std::string &levelName) const {
     data.put(TAG_OFF_INVENTORY, ItemStackNbt::write(mInventory.getOffhand(), 0));
     data.putInt(TAG_SELECTED_SLOT, mInventory.getSelectedSlot());
 
+    Tag activeEffects = Tag::ofList(Tag::Type::Compound);
+    for (const auto &entry: getEffects().getAll()) {
+        const MobEffectInstance &effect = entry.second;
+        Tag value = Tag::ofCompound();
+        value.putByte("Id", (int8_t) effect.mId);
+        value.putInt("Duration", effect.mDuration);
+        value.putByte("Amplifier", (int8_t) effect.mAmplifier);
+        value.putByte("Ambient", effect.mAmbient ? 1 : 0);
+        value.putByte("ShowParticles", effect.mParticles ? 1 : 0);
+        activeEffects.addToList(std::move(value));
+    }
+    data.put(TAG_ACTIVE_EFFECTS, activeEffects);
+
     return data;
 }
 
@@ -170,7 +232,8 @@ void ServerPlayer::loadNbt(const Tag &data, const PacketCodecContext &context) {
                          listValue(data, TAG_ROTATION, 1, 0.0f),
                          listValue(data, TAG_ROTATION, 2, 0.0f));
 
-    mAttributes.set("minecraft:health", data.getFloat(TAG_HEALTH, 20.0f));
+    const float storedHealth = data.getFloat(TAG_HEALTH, 20.0f);
+    mAttributes.set("minecraft:health", storedHealth);
     mGameType = data.getInt(TAG_GAME_MODE, mGameType);
     mFirstPlayed = data.getLong(TAG_FIRST_PLAYED, 0);
 
@@ -208,4 +271,25 @@ void ServerPlayer::loadNbt(const Tag &data, const PacketCodecContext &context) {
         mInventory.setOffhand(ItemStackNbt::read(*offhand, context));
 
     mInventory.setSelectedSlot(data.getInt(TAG_SELECTED_SLOT, 0));
+
+    getEffects().clear();
+    const Tag *activeEffects = data.get(TAG_ACTIVE_EFFECTS);
+    if (activeEffects != nullptr && activeEffects->getType() == Tag::Type::List) {
+        for (const Tag &value: activeEffects->getList()) {
+            if (value.getType() != Tag::Type::Compound)
+                continue;
+            const int id = value.getByte("Id", 0);
+            if (id < 1 || id > 30)
+                continue;
+            MobEffectInstance effect;
+            effect.mId = (MobEffectId) id;
+            effect.mDuration = value.getInt("Duration", 0);
+            effect.mAmplifier = value.getByte("Amplifier", 0);
+            effect.mAmbient = value.getByte("Ambient", 0) != 0;
+            effect.mParticles = value.getByte("ShowParticles", 1) != 0;
+            effect.mInfinite = effect.mDuration < 0;
+            addEffect(effect);
+        }
+    }
+    mAttributes.setClamped("minecraft:health", storedHealth);
 }

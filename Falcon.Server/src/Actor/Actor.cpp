@@ -1,6 +1,7 @@
-#include "Entity/Entity.h"
+#include "Actor/Actor.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace {
     const char *ATTRIBUTE_HEALTH = "minecraft:health";
@@ -14,46 +15,47 @@ namespace {
     const int DIFFICULTY_HARD = 3;
 }
 
-const float Entity::EXHAUSTION_PER_UNIT = 4.0f;
+const float Actor::EXHAUSTION_PER_UNIT = 4.0f;
+const float Actor::FALL_DAMAGE_THRESHOLD = 3.0f;
 
-Entity::Entity(uint64_t runtimeId) : mRuntimeId(runtimeId) {}
+Actor::Actor(uint64_t runtimeId) : mRuntimeId(runtimeId), mEffects(*this) {}
 
-void Entity::setXpAndProgress(int level, float progress) {
+void Actor::setXpAndProgress(int level, float progress) {
     mExperience.setXpAndProgress(level, progress);
     syncExperience();
 }
 
-void Entity::addXp(int amount) {
+void Actor::addXp(int amount) {
     mExperience.addXp(amount);
     syncExperience();
 }
 
-void Entity::addXpLevels(int amount) {
+void Actor::addXpLevels(int amount) {
     mExperience.addXpLevels(amount);
     syncExperience();
 }
 
-float Entity::getHealth() const {
+float Actor::getHealth() const {
     return mAttributes.get(ATTRIBUTE_HEALTH);
 }
 
-float Entity::getMaxHealth() const {
+float Actor::getMaxHealth() const {
     return mAttributes.getMaximum(ATTRIBUTE_HEALTH);
 }
 
-bool Entity::isAlive() const {
+bool Actor::isAlive() const {
     return getHealth() > 0.0f;
 }
 
-float Entity::getFood() const {
+float Actor::getFood() const {
     return mAttributes.get(ATTRIBUTE_HUNGER);
 }
 
-float Entity::getMaxFood() const {
+float Actor::getMaxFood() const {
     return mAttributes.getMaximum(ATTRIBUTE_HUNGER);
 }
 
-void Entity::setFood(float food) {
+void Actor::setFood(float food) {
     const float old = mAttributes.get(ATTRIBUTE_HUNGER);
     mAttributes.setClamped(ATTRIBUTE_HUNGER, food);
 
@@ -68,39 +70,39 @@ void Entity::setFood(float food) {
     }
 }
 
-void Entity::addFood(float amount) {
+void Actor::addFood(float amount) {
     setFood(mAttributes.get(ATTRIBUTE_HUNGER) + amount);
 }
 
-bool Entity::isHungry() const {
+bool Actor::isHungry() const {
     return getFood() < getMaxFood();
 }
 
-bool Entity::canEat() const {
+bool Actor::canEat() const {
     return isHungry();
 }
 
-float Entity::getSaturation() const {
+float Actor::getSaturation() const {
     return mAttributes.get(ATTRIBUTE_SATURATION);
 }
 
-void Entity::setSaturation(float saturation) {
+void Actor::setSaturation(float saturation) {
     mAttributes.setClamped(ATTRIBUTE_SATURATION, saturation);
 }
 
-void Entity::addSaturation(float amount) {
+void Actor::addSaturation(float amount) {
     setSaturation(mAttributes.get(ATTRIBUTE_SATURATION) + amount);
 }
 
-float Entity::getExhaustion() const {
+float Actor::getExhaustion() const {
     return mAttributes.get(ATTRIBUTE_EXHAUSTION);
 }
 
-void Entity::setExhaustion(float exhaustion) {
+void Actor::setExhaustion(float exhaustion) {
     mAttributes.setClamped(ATTRIBUTE_EXHAUSTION, exhaustion);
 }
 
-void Entity::exhaust(float amount) {
+void Actor::exhaust(float amount) {
     if (!mHungerEnabled)
         return;
 
@@ -123,16 +125,16 @@ void Entity::exhaust(float amount) {
     setExhaustion(exhaustion);
 }
 
-void Entity::setFoodTickTimer(int foodTickTimer) {
+void Actor::setFoodTickTimer(int foodTickTimer) {
     mFoodTickTimer = std::max(0, foodTickTimer);
 }
 
-void Entity::consumeFood(int nutrition, float saturation) {
+void Actor::consumeFood(int nutrition, float saturation) {
     addFood((float) nutrition);
     addSaturation(saturation);
 }
 
-void Entity::resetHungerAndExperience() {
+void Actor::resetHungerAndExperience() {
     mAttributes.setClamped(ATTRIBUTE_HUNGER, getMaxFood());
     mAttributes.setClamped(ATTRIBUTE_SATURATION, mAttributes.getMaximum(ATTRIBUTE_SATURATION));
     mAttributes.setClamped(ATTRIBUTE_EXHAUSTION, 0.0f);
@@ -142,7 +144,7 @@ void Entity::resetHungerAndExperience() {
     syncExperience();
 }
 
-bool Entity::tickHunger(int tickDiff, int difficulty) {
+bool Actor::tickHunger(int tickDiff, int difficulty) {
     if (!isAlive() || !mHungerEnabled)
         return false;
 
@@ -186,10 +188,58 @@ bool Entity::tickHunger(int tickDiff, int difficulty) {
     }
 
     if (getFood() <= 6.0f)
-        mFlags.set(EntityFlag::Sprinting, false);
+        mFlags.set(ActorFlag::Sprinting, false);
 
     return getFood() != previousFood
            || getSaturation() != previousSaturation
            || getExhaustion() != previousExhaustion
            || getHealth() != previousHealth;
+}
+
+void Actor::kill() {
+    mIsDead = true;
+    mEffects.clear();
+    mAttributes.set(ATTRIBUTE_HEALTH, 0.0f);
+    setMotion(Vector3f(0.0f, 0.0f, 0.0f));
+    resetFallDistance();
+}
+
+float Actor::reduceHealth(float amount) {
+    if (amount <= 0.0f || !isAlive())
+        return getHealth();
+
+    if (const MobEffectInstance *resistance = getEffect(MobEffectId::Resistance))
+        amount *= std::max(0.0f, 1.0f - 0.2f * (float) resistance->level());
+
+    const float absorption = mAttributes.get("minecraft:absorption");
+    if (absorption > 0.0f) {
+        const float absorbed = std::min(absorption, amount);
+        mAttributes.setClamped("minecraft:absorption", absorption - absorbed);
+        amount -= absorbed;
+    }
+
+    const float newHealth = getHealth() - amount;
+    mAttributes.setClamped(ATTRIBUTE_HEALTH, newHealth);
+    return getHealth();
+}
+
+float Actor::heal(float amount) {
+    if (amount <= 0.0f || !isAlive())
+        return getHealth();
+    mAttributes.setClamped(ATTRIBUTE_HEALTH, getHealth() + amount);
+    return getHealth();
+}
+
+float Actor::computeFallDamage() const {
+    if (hasEffect(MobEffectId::SlowFalling))
+        return 0.0f;
+
+    const float distance = getFallDistance();
+    const MobEffectInstance *jumpBoost = getEffect(MobEffectId::JumpBoost);
+    const float jumpBoostLevel = jumpBoost == nullptr ? 0.0f : (float) jumpBoost->level();
+    const float damage = std::ceil(distance - FALL_DAMAGE_THRESHOLD - jumpBoostLevel);
+    if (damage < 1.0f)
+        return 0.0f;
+
+    return damage;
 }

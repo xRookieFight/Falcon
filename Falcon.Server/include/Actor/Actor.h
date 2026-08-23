@@ -1,18 +1,19 @@
 #pragma once
 
+#include "Actor/ActorAttributes.h"
+#include "Actor/ActorFlags.h"
+#include "Actor/MobEffect.h"
+#include "Actor/ExperienceManager.h"
 #include "Core/Math/Vector3f.h"
-#include "Entity/EntityAttributes.h"
-#include "Entity/EntityFlags.h"
-#include "Entity/ExperienceManager.h"
 
 #include <cstdint>
 #include <string>
 
-class Entity {
+class Actor {
 public:
-    explicit Entity(uint64_t runtimeId);
+    explicit Actor(uint64_t runtimeId);
 
-    virtual ~Entity() = default;
+    virtual ~Actor() = default;
 
     virtual const char *getIdentifier() const = 0;
 
@@ -32,13 +33,13 @@ public:
 
     void setMotion(const Vector3f &motion) { mMotion = motion; }
 
-    EntityFlags &getFlags() { return mFlags; }
+    ActorFlags &getFlags() { return mFlags; }
 
-    const EntityFlags &getFlags() const { return mFlags; }
+    const ActorFlags &getFlags() const { return mFlags; }
 
-    EntityAttributes &getAttributes() { return mAttributes; }
+    ActorAttributes &getAttributes() { return mAttributes; }
 
-    const EntityAttributes &getAttributes() const { return mAttributes; }
+    const ActorAttributes &getAttributes() const { return mAttributes; }
 
     bool isOnGround() const { return mOnGround; }
 
@@ -113,20 +114,53 @@ public:
 
     bool tickHunger(int tickDiff, int difficulty);
 
+    bool isDead() const { return mIsDead; }
+
+    void setDead(bool isDead) { mIsDead = isDead; }
+
+    void kill();
+
+    float reduceHealth(float amount);
+
+    float heal(float amount);
+
+    MobEffectManager &getEffects() { return mEffects; }
+
+    const MobEffectManager &getEffects() const { return mEffects; }
+
+    bool addEffect(const MobEffectInstance &effect) { return mEffects.add(effect); }
+
+    bool removeEffect(MobEffectId id) { return mEffects.remove(id); }
+
+    bool hasEffect(MobEffectId id) const { return mEffects.has(id); }
+
+    const MobEffectInstance *getEffect(MobEffectId id) const { return mEffects.get(id); }
+
+    bool tickEffects(int32_t tickDiff = 1) { return mEffects.tick(tickDiff); }
+
+    float getMovementSpeedMultiplier() const { return mEffects.movementSpeedMultiplier(); }
+
+    float getJumpVelocityMultiplier() const { return mEffects.jumpVelocityMultiplier(); }
+
+    float computeFallDamage() const;
+
 protected:
     static const float EXHAUSTION_PER_UNIT;
+    static const float FALL_DAMAGE_THRESHOLD;
     static const int FOOD_TICK_PERIOD = 80;
 
     uint64_t mRuntimeId;
     Vector3f mPosition;
     Vector3f mRotation;
     Vector3f mMotion;
-    EntityFlags mFlags;
-    EntityAttributes mAttributes;
+    ActorFlags mFlags;
+    ActorAttributes mAttributes;
     bool mOnGround = false;
     float mFallDistance = 0.0f;
     float mHighestPosition = 0.0f;
     ExperienceManager mExperience;
+    MobEffectManager mEffects;
     int mFoodTickTimer = 0;
     bool mHungerEnabled = true;
+    bool mIsDead = false;
 };

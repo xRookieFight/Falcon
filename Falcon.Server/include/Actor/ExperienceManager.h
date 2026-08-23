@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Entity/EntityAttributes.h"
+#include "Actor/ActorAttributes.h"
 
 #include <cstdint>
 
@@ -49,7 +49,7 @@ public:
 
     void reset();
 
-    void applyTo(EntityAttributes &attributes) const;
+    void applyTo(ActorAttributes &attributes) const;
 
 private:
     int mXpLevel = 0;

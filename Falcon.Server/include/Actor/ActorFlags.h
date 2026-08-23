@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-enum class EntityFlag : int {
+enum class ActorFlag : int {
     OnFire = 0,
     Sneaking = 1,
     Riding = 2,
@@ -19,14 +19,14 @@ enum class EntityFlag : int {
     Crawling = 114,
 };
 
-class EntityFlags {
+class ActorFlags {
 public:
     static const int32_t FLAGS_DATA_ID = 0;
     static const int32_t FLAGS_2_DATA_ID = 91;
 
-    void set(EntityFlag flag, bool value);
+    void set(ActorFlag flag, bool value);
 
-    bool get(EntityFlag flag) const;
+    bool get(ActorFlag flag) const;
 
     int64_t getLowBits() const { return mLow; }
 
