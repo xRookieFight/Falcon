@@ -29,13 +29,13 @@ public:
 class CameraAimAssistCategory {
 public:
     std::string mName;
-    std::vector<CameraAimAssistPriority> mEntityPriorities;
+    std::vector<CameraAimAssistPriority> mActorPriorities;
     std::vector<CameraAimAssistPriority> mBlockPriorities;
     std::vector<CameraAimAssistPriority> mBlockTagPriorities;
-    std::vector<CameraAimAssistPriority> mEntityTypeFamiliesPriorities;
+    std::vector<CameraAimAssistPriority> mActorTypeFamiliesPriorities;
 
-    bool mHasEntityDefaultPriorities = false;
-    int32_t mEntityDefaultPriorities = 0;
+    bool mHasActorDefaultPriorities = false;
+    int32_t mActorDefaultPriorities = 0;
 
     bool mHasBlockDefaultPriorities = false;
     int32_t mBlockDefaultPriorities = 0;
@@ -45,9 +45,9 @@ class CameraAimAssistPresetDefinition {
 public:
     std::string mIdentifier;
     std::vector<std::string> mBlockExclusionList;
-    std::vector<std::string> mEntityExclusionList;
+    std::vector<std::string> mActorExclusionList;
     std::vector<std::string> mBlockTagExclusionList;
-    std::vector<std::string> mEntityTypeFamiliesExclusionList;
+    std::vector<std::string> mActorTypeFamiliesExclusionList;
     std::vector<std::string> mLiquidTargetingList;
     std::vector<CameraAimAssistItemSettings> mItemSettings;
 

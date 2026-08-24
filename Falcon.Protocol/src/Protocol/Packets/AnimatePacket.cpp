@@ -38,11 +38,11 @@ namespace {
 }
 
 AnimatePacket::AnimatePacket()
-        : mAction(Action::NoAction), mRuntimeEntityId(0), mData(0.0f) {}
+        : mAction(Action::NoAction), mRuntimeActorId(0), mData(0.0f) {}
 
 void AnimatePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putByte((unsigned char) _toActionId(mAction));
-    stream.putUnsignedVarLong(mRuntimeEntityId);
+    stream.putUnsignedVarLong(mRuntimeActorId);
     stream.putLFloat(mData);
 
     stream.putOptionalPresent(!mSwingSource.empty());
@@ -52,7 +52,7 @@ void AnimatePacket::write(BinaryStream &stream, const PacketCodecContext &contex
 
 void AnimatePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mAction = _fromActionId(stream.getByte());
-    mRuntimeEntityId = stream.getUnsignedVarLong();
+    mRuntimeActorId = stream.getUnsignedVarLong();
     mData = stream.getLFloat();
 
     mSwingSource.clear();

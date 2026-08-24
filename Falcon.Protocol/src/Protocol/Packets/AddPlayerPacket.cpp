@@ -9,7 +9,7 @@ AddPlayerPacket::AddPlayerPacket() = default;
 void AddPlayerPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putUuid(mUuid);
     stream.putString(mUsername);
-    stream.putUnsignedVarLong((uint64_t) mRuntimeEntityId);
+    stream.putUnsignedVarLong((uint64_t) mRuntimeActorId);
     stream.putString(mPlatformChatId);
     stream.putVector3f(mPosition);
     stream.putVector3f(mMotion);
@@ -20,8 +20,8 @@ void AddPlayerPacket::write(BinaryStream &stream, const PacketCodecContext &cont
     EntityCodec::writeEntityProperties(stream, mProperties);
     EntityCodec::writePlayerAbilities(stream, mAbilities);
 
-    stream.putArrayLength((uint32_t) mEntityLinks.size());
-    for (const EntityLinkData &link: mEntityLinks) {
+    stream.putArrayLength((uint32_t) mActorLinks.size());
+    for (const EntityLinkData &link: mActorLinks) {
         EntityCodec::writeEntityLink(stream, link);
     }
 
@@ -32,7 +32,7 @@ void AddPlayerPacket::write(BinaryStream &stream, const PacketCodecContext &cont
 void AddPlayerPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mUuid = stream.getUuid();
     mUsername = stream.getString();
-    mRuntimeEntityId = (int64_t) stream.getUnsignedVarLong();
+    mRuntimeActorId = (int64_t) stream.getUnsignedVarLong();
     mPlatformChatId = stream.getString();
     mPosition = stream.getVector3f();
     mMotion = stream.getVector3f();
@@ -44,9 +44,9 @@ void AddPlayerPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContex
     mAbilities = EntityCodec::readPlayerAbilities(stream);
 
     uint32_t linkCount = stream.getArrayLength();
-    mEntityLinks.reserve(linkCount);
+    mActorLinks.reserve(linkCount);
     for (uint32_t i = 0; i < linkCount; i++) {
-        mEntityLinks.push_back(EntityCodec::readEntityLink(stream));
+        mActorLinks.push_back(EntityCodec::readEntityLink(stream));
     }
 
     mDeviceId = stream.getString();

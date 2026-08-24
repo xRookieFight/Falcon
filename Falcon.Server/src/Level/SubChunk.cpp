@@ -1,6 +1,6 @@
 #include "Level/SubChunk.h"
 
-#include "Block/VanillaBlocks.h"
+#include "Block/Blocks/VanillaBlocks.h"
 #include "Core/Debug/BedrockLog.h"
 #include "Core/NBT/NbtIo.h"
 

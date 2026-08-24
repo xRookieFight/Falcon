@@ -30,8 +30,8 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    int64_t mBossUniqueEntityId;
-    int64_t mPlayerUniqueEntityId;
+    int64_t mBossUniqueActorId;
+    int64_t mPlayerUniqueActorId;
     Action mAction;
     std::string mTitle;
     std::string mFilteredTitle;

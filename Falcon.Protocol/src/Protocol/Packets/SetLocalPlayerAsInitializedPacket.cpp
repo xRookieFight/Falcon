@@ -3,14 +3,14 @@
 #include "Protocol/NetworkPacketHandler.h"
 
 SetLocalPlayerAsInitializedPacket::SetLocalPlayerAsInitializedPacket()
-        : mRuntimeEntityId(0) {}
+        : mRuntimeActorId(0) {}
 
 void SetLocalPlayerAsInitializedPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putUnsignedVarLong(mRuntimeEntityId);
+    stream.putUnsignedVarLong(mRuntimeActorId);
 }
 
 void SetLocalPlayerAsInitializedPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mRuntimeEntityId = stream.getUnsignedVarLong();
+    mRuntimeActorId = stream.getUnsignedVarLong();
 }
 
 void SetLocalPlayerAsInitializedPacket::handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const {

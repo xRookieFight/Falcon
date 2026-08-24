@@ -24,6 +24,6 @@ public:
     int32_t mWindowId = 0;
     int32_t mWindowType = 0;
     int32_t mSize = 0;
-    int64_t mUniqueEntityId = 0;
+    int64_t mUniqueActorId = 0;
     Tag mTag;
 };

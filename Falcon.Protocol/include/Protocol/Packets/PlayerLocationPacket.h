@@ -26,7 +26,7 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    int64_t mTargetEntityId = 0;
+    int64_t mTargetActorId = 0;
     PlayerLocationType mType = PlayerLocationType::Hide;
     Vector3f mPosition;
 };

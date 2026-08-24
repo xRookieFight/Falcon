@@ -3,11 +3,11 @@
 #include "Protocol/NetworkPacketHandler.h"
 
 InteractPacket::InteractPacket()
-        : mAction(Action::None), mRuntimeEntityId(0), mHasMousePosition(false) {}
+        : mAction(Action::None), mRuntimeActorId(0), mHasMousePosition(false) {}
 
 void InteractPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putByte((unsigned char) mAction);
-    stream.putUnsignedVarLong(mRuntimeEntityId);
+    stream.putUnsignedVarLong(mRuntimeActorId);
     stream.putOptionalPresent(mHasMousePosition);
     if (mHasMousePosition)
         stream.putVector3f(mMousePosition);
@@ -15,7 +15,7 @@ void InteractPacket::write(BinaryStream &stream, const PacketCodecContext &conte
 
 void InteractPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mAction = (Action) stream.getByte();
-    mRuntimeEntityId = stream.getUnsignedVarLong();
+    mRuntimeActorId = stream.getUnsignedVarLong();
     mHasMousePosition = stream.getOptionalPresent();
     if (mHasMousePosition)
         mMousePosition = stream.getVector3f();

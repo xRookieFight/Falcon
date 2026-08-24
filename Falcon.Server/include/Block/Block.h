@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Core/NBT/Tag.h"
-#include "Level/BlockState.h"
+#include "Block/BlockState.h"
 
 #include <cstdint>
 #include <optional>

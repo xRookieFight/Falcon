@@ -3,15 +3,15 @@
 #include "Protocol/NetworkPacketHandler.h"
 
 ShowCreditsPacket::ShowCreditsPacket()
-        : mRuntimeEntityId(0), mStatus(Status::StartCredits) {}
+        : mRuntimeActorId(0), mStatus(Status::StartCredits) {}
 
 void ShowCreditsPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putUnsignedVarLong(mRuntimeEntityId);
+    stream.putUnsignedVarLong(mRuntimeActorId);
     stream.putVarInt((int32_t) mStatus);
 }
 
 void ShowCreditsPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mRuntimeEntityId = stream.getUnsignedVarLong();
+    mRuntimeActorId = stream.getUnsignedVarLong();
     mStatus = (Status) stream.getVarInt();
 }
 

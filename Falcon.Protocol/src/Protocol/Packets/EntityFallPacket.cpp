@@ -5,13 +5,13 @@
 EntityFallPacket::EntityFallPacket() = default;
 
 void EntityFallPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putUnsignedVarLong(mRuntimeEntityId);
+    stream.putUnsignedVarLong(mRuntimeActorId);
     stream.putLFloat(mFallDistance);
     stream.putBool(mInVoid);
 }
 
 void EntityFallPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mRuntimeEntityId = stream.getUnsignedVarLong();
+    mRuntimeActorId = stream.getUnsignedVarLong();
     mFallDistance = stream.getLFloat();
     mInVoid = stream.getBool();
 }

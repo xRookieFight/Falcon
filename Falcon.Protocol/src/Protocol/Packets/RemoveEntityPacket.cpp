@@ -3,14 +3,14 @@
 #include "Protocol/NetworkPacketHandler.h"
 
 RemoveEntityPacket::RemoveEntityPacket()
-        : mUniqueEntityId(0) {}
+        : mUniqueActorId(0) {}
 
 void RemoveEntityPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putVarLong(mUniqueEntityId);
+    stream.putVarLong(mUniqueActorId);
 }
 
 void RemoveEntityPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mUniqueEntityId = stream.getVarLong();
+    mUniqueActorId = stream.getVarLong();
 }
 
 void RemoveEntityPacket::handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const {

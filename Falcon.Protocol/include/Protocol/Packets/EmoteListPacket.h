@@ -20,6 +20,6 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    uint64_t mRuntimeEntityId;
+    uint64_t mRuntimeActorId;
     std::vector<Uuid> mPieceIds;
 };

@@ -1,7 +1,7 @@
 #include "Item/StringToItemParser.h"
 
 #include "Block/BlockData.h"
-#include "Block/VanillaBlocks.h"
+#include "Block/Blocks/VanillaBlocks.h"
 #include "Item/ItemData.h"
 #include "Item/VanillaItems.h"
 

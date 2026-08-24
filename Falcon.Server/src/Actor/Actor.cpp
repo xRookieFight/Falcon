@@ -187,7 +187,7 @@ bool Actor::tickHunger(int tickDiff, int difficulty) {
         }
     }
 
-    if (getFood() <= 6.0f)
+    if (!canSprint())
         mFlags.set(ActorFlag::Sprinting, false);
 
     return getFood() != previousFood

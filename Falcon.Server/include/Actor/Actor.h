@@ -86,6 +86,8 @@ public:
 
     bool isHungry() const;
 
+    bool canSprint() const { return getFood() > 6.0f; }
+
     bool canEat() const;
 
     float getSaturation() const;

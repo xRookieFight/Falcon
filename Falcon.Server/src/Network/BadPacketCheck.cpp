@@ -86,7 +86,7 @@ bool BadPacketCheck::inspect(ServerPlayer &player, const InventoryTransactionPac
             return true;
         }
 
-        if (packet.mActionType == 1 && packet.mRuntimeEntityId == (int64_t) player.getRuntimeId()) {
+        if (packet.mActionType == 1 && packet.mRuntimeActorId == (int64_t) player.getRuntimeId()) {
             outReason = "self attack";
             return true;
         }

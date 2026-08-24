@@ -5,14 +5,14 @@
 MovementEffectPacket::MovementEffectPacket() = default;
 
 void MovementEffectPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putUnsignedVarLong(mEntityRuntimeId);
+    stream.putUnsignedVarLong(mActorRuntimeId);
     stream.putUnsignedVarInt((uint32_t) (int32_t) mEffectType);
     stream.putUnsignedVarInt(mDuration);
     stream.putUnsignedVarLong(mTick);
 }
 
 void MovementEffectPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mEntityRuntimeId = stream.getUnsignedVarLong();
+    mActorRuntimeId = stream.getUnsignedVarLong();
     mEffectType = (MovementEffectType) (int32_t) stream.getUnsignedVarInt();
     mDuration = stream.getUnsignedVarInt();
     mTick = stream.getUnsignedVarLong();

@@ -6,7 +6,7 @@
 UpdateAttributesPacket::UpdateAttributesPacket() = default;
 
 void UpdateAttributesPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putUnsignedVarLong((uint64_t) mRuntimeEntityId);
+    stream.putUnsignedVarLong((uint64_t) mRuntimeActorId);
 
     stream.putArrayLength((uint32_t) mAttributes.size());
     for (const AttributeData &attribute: mAttributes) {
@@ -17,7 +17,7 @@ void UpdateAttributesPacket::write(BinaryStream &stream, const PacketCodecContex
 }
 
 void UpdateAttributesPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mRuntimeEntityId = (int64_t) stream.getUnsignedVarLong();
+    mRuntimeActorId = (int64_t) stream.getUnsignedVarLong();
 
     uint32_t count = stream.getArrayLength();
     mAttributes.reserve(count);

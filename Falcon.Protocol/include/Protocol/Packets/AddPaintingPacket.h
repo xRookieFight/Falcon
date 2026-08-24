@@ -22,8 +22,8 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    int64_t mUniqueEntityId = 0;
-    uint64_t mRuntimeEntityId = 0;
+    int64_t mUniqueActorId = 0;
+    uint64_t mRuntimeActorId = 0;
     Vector3f mPosition;
     int32_t mDirection = 0;
     std::string mMotive;

@@ -21,7 +21,7 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    int64_t mUniqueEntityId = 0;
+    int64_t mUniqueActorId = 0;
     std::string mProperty;
     bool mBoolValue = false;
     std::string mStringValue;

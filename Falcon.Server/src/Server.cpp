@@ -26,7 +26,7 @@ static void setupServerLogging() {
     BedrockLog::setLogLevel(LogLevel::Info);
     BedrockLog::addEndPoint(std::make_shared<ContentLogEndPoint>());
 
-    std::shared_ptr<FileLogEndPoint> fileEndPoint = std::make_shared<FileLogEndPoint>("FalconServer.log");
+    std::shared_ptr<FileLogEndPoint> fileEndPoint = std::make_shared<FileLogEndPoint>("server.log");
     if (fileEndPoint->isOpen()) {
         BedrockLog::addEndPoint(fileEndPoint);
         return;

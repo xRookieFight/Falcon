@@ -33,14 +33,14 @@ namespace {
 
     void writeCategory(BinaryStream &stream, const CameraAimAssistCategory &category) {
         stream.putString(category.mName);
-        writePriorityArray(stream, category.mEntityPriorities);
+        writePriorityArray(stream, category.mActorPriorities);
         writePriorityArray(stream, category.mBlockPriorities);
         writePriorityArray(stream, category.mBlockTagPriorities);
-        writePriorityArray(stream, category.mEntityTypeFamiliesPriorities);
+        writePriorityArray(stream, category.mActorTypeFamiliesPriorities);
 
-        stream.putOptionalPresent(category.mHasEntityDefaultPriorities);
-        if (category.mHasEntityDefaultPriorities) {
-            stream.putLInt((uint32_t) category.mEntityDefaultPriorities);
+        stream.putOptionalPresent(category.mHasActorDefaultPriorities);
+        if (category.mHasActorDefaultPriorities) {
+            stream.putLInt((uint32_t) category.mActorDefaultPriorities);
         }
 
         stream.putOptionalPresent(category.mHasBlockDefaultPriorities);
@@ -52,14 +52,14 @@ namespace {
     CameraAimAssistCategory readCategory(ReadOnlyBinaryStream &stream) {
         CameraAimAssistCategory category;
         category.mName = stream.getString();
-        readPriorityArray(stream, category.mEntityPriorities);
+        readPriorityArray(stream, category.mActorPriorities);
         readPriorityArray(stream, category.mBlockPriorities);
         readPriorityArray(stream, category.mBlockTagPriorities);
-        readPriorityArray(stream, category.mEntityTypeFamiliesPriorities);
+        readPriorityArray(stream, category.mActorTypeFamiliesPriorities);
 
-        category.mHasEntityDefaultPriorities = stream.getOptionalPresent();
-        if (category.mHasEntityDefaultPriorities) {
-            category.mEntityDefaultPriorities = (int32_t) stream.getLInt();
+        category.mHasActorDefaultPriorities = stream.getOptionalPresent();
+        if (category.mHasActorDefaultPriorities) {
+            category.mActorDefaultPriorities = (int32_t) stream.getLInt();
         }
 
         category.mHasBlockDefaultPriorities = stream.getOptionalPresent();
@@ -100,9 +100,9 @@ namespace {
     void writePreset(BinaryStream &stream, const CameraAimAssistPresetDefinition &preset) {
         stream.putString(preset.mIdentifier);
         writeStringArray(stream, preset.mBlockExclusionList);
-        writeStringArray(stream, preset.mEntityExclusionList);
+        writeStringArray(stream, preset.mActorExclusionList);
         writeStringArray(stream, preset.mBlockTagExclusionList);
-        writeStringArray(stream, preset.mEntityTypeFamiliesExclusionList);
+        writeStringArray(stream, preset.mActorTypeFamiliesExclusionList);
         writeStringArray(stream, preset.mLiquidTargetingList);
 
         stream.putArrayLength((uint32_t) preset.mItemSettings.size());
@@ -125,9 +125,9 @@ namespace {
         CameraAimAssistPresetDefinition preset;
         preset.mIdentifier = stream.getString();
         readStringArray(stream, preset.mBlockExclusionList);
-        readStringArray(stream, preset.mEntityExclusionList);
+        readStringArray(stream, preset.mActorExclusionList);
         readStringArray(stream, preset.mBlockTagExclusionList);
-        readStringArray(stream, preset.mEntityTypeFamiliesExclusionList);
+        readStringArray(stream, preset.mActorTypeFamiliesExclusionList);
         readStringArray(stream, preset.mLiquidTargetingList);
 
         uint32_t itemSettingsLength = stream.getArrayLength();

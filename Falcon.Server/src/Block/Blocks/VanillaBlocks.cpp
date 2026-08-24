@@ -1,4 +1,4 @@
-#include "Block/VanillaBlocks.h"
+#include "Block/Blocks/VanillaBlocks.h"
 
 #include "Block/BlockTypeIds.h"
 

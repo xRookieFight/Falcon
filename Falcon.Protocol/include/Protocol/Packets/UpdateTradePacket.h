@@ -26,8 +26,8 @@ public:
     int8_t mContainerType = 0;
     int32_t mSize = 0;
     int32_t mTradeTier = 0;
-    int64_t mTraderUniqueEntityId = 0;
-    int64_t mPlayerUniqueEntityId = 0;
+    int64_t mTraderUniqueActorId = 0;
+    int64_t mPlayerUniqueActorId = 0;
     std::string mDisplayName;
     bool mNewTradingUi = false;
     bool mUsingEconomyTrade = false;

@@ -29,11 +29,11 @@ public:
 
     std::vector<AttributeData> mAttributes;
     EntityDataMap mMetadata;
-    std::vector<EntityLinkData> mEntityLinks;
-    int64_t mUniqueEntityId = 0;
-    int64_t mRuntimeEntityId = 0;
+    std::vector<EntityLinkData> mActorLinks;
+    int64_t mUniqueActorId = 0;
+    int64_t mRuntimeActorId = 0;
     std::string mIdentifier;
-    int32_t mEntityType = 0;
+    int32_t mActorType = 0;
     Vector3f mPosition;
     Vector3f mMotion;
     Vector2f mRotation;

@@ -28,7 +28,7 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    uint64_t mRuntimeEntityId;
+    uint64_t mRuntimeActorId;
     RequestType mRequestType;
     std::string mCommand;
     int32_t mActionType;

@@ -5,7 +5,7 @@
 ChangeMobPropertyPacket::ChangeMobPropertyPacket() = default;
 
 void ChangeMobPropertyPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putVarLong(mUniqueEntityId);
+    stream.putVarLong(mUniqueActorId);
     stream.putString(mProperty);
     stream.putBool(mBoolValue);
     stream.putString(mStringValue);
@@ -14,7 +14,7 @@ void ChangeMobPropertyPacket::write(BinaryStream &stream, const PacketCodecConte
 }
 
 void ChangeMobPropertyPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mUniqueEntityId = stream.getVarLong();
+    mUniqueActorId = stream.getVarLong();
     mProperty = stream.getString();
     mBoolValue = stream.getBool();
     mStringValue = stream.getString();

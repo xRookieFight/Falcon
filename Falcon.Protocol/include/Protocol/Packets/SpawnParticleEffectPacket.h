@@ -19,7 +19,7 @@ public:
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
     int32_t mDimensionId;
-    int64_t mUniqueEntityId;
+    int64_t mUniqueActorId;
     Vector3f mPosition;
     std::string mIdentifier;
     bool mHasMolangVariablesJson;

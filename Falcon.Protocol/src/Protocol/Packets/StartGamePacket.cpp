@@ -4,7 +4,7 @@
 #include "Protocol/NetworkPacketHandler.h"
 
 StartGamePacket::StartGamePacket()
-        : mUniqueEntityId(0), mRuntimeEntityId(0), mPlayerGameType(GameType::Survival),
+        : mUniqueActorId(0), mRuntimeActorId(0), mPlayerGameType(GameType::Survival),
           mSeed(0), mSpawnBiomeType(SpawnBiomeType::Default), mDimensionId(0), mGeneratorId(1),
           mLevelGameType(GameType::Survival), mHardcore(false), mDifficulty(1), mDefaultSpawn(0, 64, 0),
           mAchievementsDisabled(true), mEditorWorldType(EditorWorldType::NonEditor), mCreatedInEditor(false),
@@ -27,8 +27,8 @@ StartGamePacket::StartGamePacket()
           mHasServerConfigurationJoinInfo(false) {}
 
 void StartGamePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putVarLong(mUniqueEntityId);
-    stream.putUnsignedVarLong(mRuntimeEntityId);
+    stream.putVarLong(mUniqueActorId);
+    stream.putUnsignedVarLong(mRuntimeActorId);
     stream.putVarInt((int32_t) mPlayerGameType);
     stream.putVector3f(mPlayerPosition);
     stream.putVector2f(mRotation);
@@ -138,8 +138,8 @@ void StartGamePacket::write(BinaryStream &stream, const PacketCodecContext &cont
 }
 
 void StartGamePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mUniqueEntityId = stream.getVarLong();
-    mRuntimeEntityId = stream.getUnsignedVarLong();
+    mUniqueActorId = stream.getVarLong();
+    mRuntimeActorId = stream.getUnsignedVarLong();
     mPlayerGameType = (GameType) stream.getVarInt();
     mPlayerPosition = stream.getVector3f();
     mRotation = stream.getVector2f();

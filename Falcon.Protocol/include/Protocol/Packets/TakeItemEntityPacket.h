@@ -18,6 +18,6 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    uint64_t mItemRuntimeEntityId;
-    uint64_t mRuntimeEntityId;
+    uint64_t mItemRuntimeActorId;
+    uint64_t mRuntimeActorId;
 };

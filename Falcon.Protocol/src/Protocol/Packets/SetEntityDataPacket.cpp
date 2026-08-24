@@ -6,14 +6,14 @@
 SetEntityDataPacket::SetEntityDataPacket() = default;
 
 void SetEntityDataPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putUnsignedVarLong((uint64_t) mRuntimeEntityId);
+    stream.putUnsignedVarLong((uint64_t) mRuntimeActorId);
     EntityCodec::writeEntityData(stream, mMetadata);
     EntityCodec::writeEntityProperties(stream, mProperties);
     stream.putUnsignedVarLong((uint64_t) mTick);
 }
 
 void SetEntityDataPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mRuntimeEntityId = (int64_t) stream.getUnsignedVarLong();
+    mRuntimeActorId = (int64_t) stream.getUnsignedVarLong();
     mMetadata = EntityCodec::readEntityData(stream);
     mProperties = EntityCodec::readEntityProperties(stream);
     mTick = (int64_t) stream.getUnsignedVarLong();

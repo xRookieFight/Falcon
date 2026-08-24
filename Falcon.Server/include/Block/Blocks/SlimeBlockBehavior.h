@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Block/BlockBehavior.h"
+#include "Block/Components/BlockBehavior.h"
 
 class SlimeBlockBehavior final : public BlockBehavior {
 public:

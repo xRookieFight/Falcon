@@ -6,7 +6,7 @@
 MobArmorEquipmentPacket::MobArmorEquipmentPacket() = default;
 
 void MobArmorEquipmentPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putUnsignedVarLong((uint64_t) mRuntimeEntityId);
+    stream.putUnsignedVarLong((uint64_t) mRuntimeActorId);
     ItemCodec::writeNetworkItemStackDescriptor(stream, context, mHelmet);
     ItemCodec::writeNetworkItemStackDescriptor(stream, context, mChestplate);
     ItemCodec::writeNetworkItemStackDescriptor(stream, context, mLeggings);
@@ -15,7 +15,7 @@ void MobArmorEquipmentPacket::write(BinaryStream &stream, const PacketCodecConte
 }
 
 void MobArmorEquipmentPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mRuntimeEntityId = (int64_t) stream.getUnsignedVarLong();
+    mRuntimeActorId = (int64_t) stream.getUnsignedVarLong();
     mHelmet = ItemCodec::readNetworkItemStackDescriptor(stream, context);
     mChestplate = ItemCodec::readNetworkItemStackDescriptor(stream, context);
     mLeggings = ItemCodec::readNetworkItemStackDescriptor(stream, context);

@@ -20,6 +20,6 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    int64_t mCameraUniqueEntityId = 0;
-    int64_t mPlayerUniqueEntityId = 0;
+    int64_t mCameraUniqueActorId = 0;
+    int64_t mPlayerUniqueActorId = 0;
 };

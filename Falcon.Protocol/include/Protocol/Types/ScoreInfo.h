@@ -17,5 +17,5 @@ public:
     int32_t mScore = 0;
     ScorerType mType = ScorerType::Invalid;
     std::string mName;
-    int64_t mEntityId = -1;
+    int64_t mActorId = -1;
 };

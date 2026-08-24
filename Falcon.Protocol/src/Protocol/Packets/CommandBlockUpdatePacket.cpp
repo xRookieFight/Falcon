@@ -13,7 +13,7 @@ void CommandBlockUpdatePacket::write(BinaryStream &stream, const PacketCodecCont
         stream.putBool(mRedstoneMode);
         stream.putBool(mConditional);
     } else {
-        stream.putUnsignedVarLong(mMinecartRuntimeEntityId);
+        stream.putUnsignedVarLong(mMinecartRuntimeActorId);
     }
 
     stream.putString(mCommand);
@@ -34,7 +34,7 @@ void CommandBlockUpdatePacket::read(ReadOnlyBinaryStream &stream, const PacketCo
         mRedstoneMode = stream.getBool();
         mConditional = stream.getBool();
     } else {
-        mMinecartRuntimeEntityId = stream.getUnsignedVarLong();
+        mMinecartRuntimeActorId = stream.getUnsignedVarLong();
     }
 
     mCommand = stream.getString();

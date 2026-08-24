@@ -13,7 +13,7 @@ enum class MapTrackedObjectType {
 class MapTrackedObject {
 public:
     MapTrackedObjectType mType = MapTrackedObjectType::Entity;
-    int64_t mEntityId = 0;
+    int64_t mActorId = 0;
     Vector3i mPosition;
 };
 

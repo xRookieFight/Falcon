@@ -5,13 +5,13 @@
 CameraPacket::CameraPacket() = default;
 
 void CameraPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putVarLong(mCameraUniqueEntityId);
-    stream.putVarLong(mPlayerUniqueEntityId);
+    stream.putVarLong(mCameraUniqueActorId);
+    stream.putVarLong(mPlayerUniqueActorId);
 }
 
 void CameraPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mCameraUniqueEntityId = stream.getVarLong();
-    mPlayerUniqueEntityId = stream.getVarLong();
+    mCameraUniqueActorId = stream.getVarLong();
+    mPlayerUniqueActorId = stream.getVarLong();
 }
 
 void CameraPacket::handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const {

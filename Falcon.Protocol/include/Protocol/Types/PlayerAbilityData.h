@@ -15,7 +15,7 @@ public:
 
 class PlayerAbilityData {
 public:
-    int64_t mUniqueEntityId = 0;
+    int64_t mUniqueActorId = 0;
     uint8_t mPlayerPermission = 0;
     uint8_t mCommandPermission = 0;
     std::vector<AbilityLayer> mAbilityLayers;

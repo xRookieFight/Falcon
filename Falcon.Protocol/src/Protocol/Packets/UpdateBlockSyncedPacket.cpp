@@ -10,7 +10,7 @@ void UpdateBlockSyncedPacket::write(BinaryStream &stream, const PacketCodecConte
     stream.putUnsignedVarInt(mRuntimeId);
     stream.putUnsignedVarInt(mFlags);
     stream.putUnsignedVarInt(mDataLayer);
-    stream.putUnsignedVarLong(mRuntimeEntityId);
+    stream.putUnsignedVarLong(mRuntimeActorId);
     stream.putUnsignedVarLong((uint64_t) mEntityBlockSyncType);
 }
 
@@ -19,7 +19,7 @@ void UpdateBlockSyncedPacket::read(ReadOnlyBinaryStream &stream, const PacketCod
     mRuntimeId = stream.getUnsignedVarInt();
     mFlags = stream.getUnsignedVarInt();
     mDataLayer = stream.getUnsignedVarInt();
-    mRuntimeEntityId = stream.getUnsignedVarLong();
+    mRuntimeActorId = stream.getUnsignedVarLong();
     mEntityBlockSyncType = (BlockSyncType) stream.getUnsignedVarLong();
 }
 

@@ -24,7 +24,7 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    uint64_t mRuntimeEntityId = 0;
+    uint64_t mRuntimeActorId = 0;
     std::string mEmoteId;
     uint32_t mEmoteDuration = 0;
     std::string mXuid;

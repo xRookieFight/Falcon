@@ -11,8 +11,8 @@ void UpdateTradePacket::write(BinaryStream &stream, const PacketCodecContext &co
     stream.putByte((unsigned char) mContainerType);
     stream.putVarInt(mSize);
     stream.putVarInt(mTradeTier);
-    stream.putVarLong(mTraderUniqueEntityId);
-    stream.putVarLong(mPlayerUniqueEntityId);
+    stream.putVarLong(mTraderUniqueActorId);
+    stream.putVarLong(mPlayerUniqueActorId);
     stream.putString(mDisplayName);
     stream.putBool(mNewTradingUi);
     stream.putBool(mUsingEconomyTrade);
@@ -24,8 +24,8 @@ void UpdateTradePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecCont
     mContainerType = stream.getSignedByte();
     mSize = stream.getVarInt();
     mTradeTier = stream.getVarInt();
-    mTraderUniqueEntityId = stream.getVarLong();
-    mPlayerUniqueEntityId = stream.getVarLong();
+    mTraderUniqueActorId = stream.getVarLong();
+    mPlayerUniqueActorId = stream.getVarLong();
     mDisplayName = stream.getString();
     mNewTradingUi = stream.getBool();
     mUsingEconomyTrade = stream.getBool();

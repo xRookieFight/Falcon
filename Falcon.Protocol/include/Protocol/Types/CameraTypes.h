@@ -84,8 +84,8 @@ public:
     bool mHasViewOffset = false;
     Vector2f mViewOffset;
 
-    bool mHasEntityOffset = false;
-    Vector3f mEntityOffset;
+    bool mHasActorOffset = false;
+    Vector3f mActorOffset;
 
     bool mHasDefaultPreset = false;
     bool mDefaultPreset = false;
@@ -120,7 +120,7 @@ class CameraTargetInstruction {
 public:
     bool mHasTargetCenterOffset = false;
     Vector3f mTargetCenterOffset;
-    int64_t mUniqueEntityId = 0;
+    int64_t mUniqueActorId = 0;
 };
 
 class CameraFovInstruction {
@@ -133,7 +133,7 @@ public:
 
 class CameraAttachToEntityInstruction {
 public:
-    int64_t mUniqueEntityId = 0;
+    int64_t mUniqueActorId = 0;
 };
 
 class CameraSplineProgressOption {
@@ -217,8 +217,8 @@ public:
     bool mHasViewOffset = false;
     Vector2f mViewOffset;
 
-    bool mHasEntityOffset = false;
-    Vector3f mEntityOffset;
+    bool mHasActorOffset = false;
+    Vector3f mActorOffset;
 
     bool mHasRadius = false;
     float mRadius = 0.0f;

@@ -60,7 +60,7 @@ ServerPlayer::ServerPlayer(const NetworkIdentifier &id, uint64_t runtimeId, Pack
             return;
 
         MobEffectPacket packet;
-        packet.mRuntimeEntityId = getRuntimeId();
+        packet.mRuntimeActorId = getRuntimeId();
         packet.mEvent = event == MobEffectEvent::Add ? MobEffectPacket::Event::Add
                          : event == MobEffectEvent::Modify ? MobEffectPacket::Event::Modify
                          : MobEffectPacket::Event::Remove;
@@ -80,7 +80,7 @@ void ServerPlayer::syncEffects() {
     for (const auto &entry: getEffects().getAll()) {
         const MobEffectInstance &effect = entry.second;
         MobEffectPacket packet;
-        packet.mRuntimeEntityId = getRuntimeId();
+        packet.mRuntimeActorId = getRuntimeId();
         packet.mEvent = MobEffectPacket::Event::Add;
         packet.mEffectId = (int32_t) effect.mId;
         packet.mAmplifier = effect.mAmplifier;

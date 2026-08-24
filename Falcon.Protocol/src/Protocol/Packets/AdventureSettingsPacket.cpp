@@ -107,7 +107,7 @@ void AdventureSettingsPacket::write(BinaryStream &stream, const PacketCodecConte
     stream.putUnsignedVarInt(flags2);
     stream.putUnsignedVarInt((uint32_t) mPlayerPermission);
     stream.putUnsignedVarInt(0);
-    stream.putLLong((uint64_t) mUniqueEntityId);
+    stream.putLLong((uint64_t) mUniqueActorId);
 }
 
 void AdventureSettingsPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
@@ -116,7 +116,7 @@ void AdventureSettingsPacket::read(ReadOnlyBinaryStream &stream, const PacketCod
     uint32_t flags2 = stream.getUnsignedVarInt();
     mPlayerPermission = (PlayerPermission) stream.getUnsignedVarInt();
     stream.getUnsignedVarInt();
-    mUniqueEntityId = (int64_t) stream.getLLong();
+    mUniqueActorId = (int64_t) stream.getLLong();
 
     static const AdventureSetting FLAGS_1[] = {
             AdventureSetting::WorldImmutable, AdventureSetting::NoPvm, AdventureSetting::NoMvp,

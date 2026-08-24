@@ -6,11 +6,11 @@
 SetEntityLinkPacket::SetEntityLinkPacket() = default;
 
 void SetEntityLinkPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    EntityCodec::writeEntityLink(stream, mEntityLink);
+    EntityCodec::writeEntityLink(stream, mActorLink);
 }
 
 void SetEntityLinkPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mEntityLink = EntityCodec::readEntityLink(stream);
+    mActorLink = EntityCodec::readEntityLink(stream);
 }
 
 void SetEntityLinkPacket::handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const {

@@ -38,9 +38,9 @@ void LocatorBarPacket::write(BinaryStream &stream, const PacketCodecContext &con
         if (waypoint.mClientPositionAuthority.has_value())
             stream.putBool(waypoint.mClientPositionAuthority.value());
 
-        stream.putOptionalPresent(waypoint.mEntityUniqueId.has_value());
-        if (waypoint.mEntityUniqueId.has_value())
-            stream.putVarLong(waypoint.mEntityUniqueId.value());
+        stream.putOptionalPresent(waypoint.mActorUniqueId.has_value());
+        if (waypoint.mActorUniqueId.has_value())
+            stream.putVarLong(waypoint.mActorUniqueId.value());
 
         stream.putByte((unsigned char) payload.mActionFlag);
     }
@@ -79,7 +79,7 @@ void LocatorBarPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecConte
             waypoint.mClientPositionAuthority = stream.getBool();
 
         if (stream.getOptionalPresent())
-            waypoint.mEntityUniqueId = stream.getVarLong();
+            waypoint.mActorUniqueId = stream.getVarLong();
 
         payload.mWaypoint = waypoint;
         payload.mActionFlag = (LocatorBarAction) stream.getByte();

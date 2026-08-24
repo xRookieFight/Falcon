@@ -25,7 +25,7 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    uint64_t mRuntimeEntityId;
+    uint64_t mRuntimeActorId;
     Event mEvent;
     int32_t mEffectId;
     int32_t mAmplifier;

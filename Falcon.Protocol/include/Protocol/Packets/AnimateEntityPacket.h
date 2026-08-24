@@ -28,5 +28,5 @@ public:
     int32_t mStopExpressionVersion = 0;
     std::string mController;
     float mBlendOutTime = 0.0f;
-    std::vector<uint64_t> mRuntimeEntityIds;
+    std::vector<uint64_t> mRuntimeActorIds;
 };

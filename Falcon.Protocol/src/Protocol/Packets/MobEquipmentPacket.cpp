@@ -6,7 +6,7 @@
 MobEquipmentPacket::MobEquipmentPacket() = default;
 
 void MobEquipmentPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putUnsignedVarLong((uint64_t) mRuntimeEntityId);
+    stream.putUnsignedVarLong((uint64_t) mRuntimeActorId);
     ItemCodec::writeNetworkItemStackDescriptor(stream, context, mItem);
     stream.putByte((unsigned char) mInventorySlot);
     stream.putByte((unsigned char) mHotbarSlot);
@@ -14,7 +14,7 @@ void MobEquipmentPacket::write(BinaryStream &stream, const PacketCodecContext &c
 }
 
 void MobEquipmentPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mRuntimeEntityId = (int64_t) stream.getUnsignedVarLong();
+    mRuntimeActorId = (int64_t) stream.getUnsignedVarLong();
     mItem = ItemCodec::readNetworkItemStackDescriptor(stream, context);
     mInventorySlot = stream.getByte();
     mHotbarSlot = stream.getByte();

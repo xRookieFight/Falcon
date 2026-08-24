@@ -29,7 +29,7 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    uint64_t mRuntimeEntityId = 0;
+    uint64_t mRuntimeActorId = 0;
     float mX = 0.0f;
     float mY = 0.0f;
     float mZ = 0.0f;
@@ -44,6 +44,6 @@ public:
     bool mHasHeadYaw = false;
     bool mOnGround = false;
     bool mForceMove = false;
-    bool mForceMoveLocalEntity = false;
+    bool mForceMoveLocalActor = false;
     bool mForceCompletion = false;
 };

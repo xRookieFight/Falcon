@@ -27,7 +27,7 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    int64_t mEntityUniqueId = 0;
+    int64_t mActorUniqueId = 0;
     int32_t mPropertyIndex = 0;
     PlayerUpdateEntityOverrideType mUpdateType = PlayerUpdateEntityOverrideType::ClearOverrides;
     int32_t mIntValue = 0;

@@ -22,7 +22,7 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    int64_t mRuntimeEntityId = 0;
+    int64_t mRuntimeActorId = 0;
     std::vector<AttributeData> mAttributes;
     int64_t mTick = 0;
 };

@@ -200,7 +200,7 @@ namespace {
 
     void sendMovementCorrection(ServerNetworkHandler &owner, ServerPlayer &player, const Vector3f &feet) {
         MovePlayerPacket correction;
-        correction.mRuntimeEntityId = (int64_t) player.getRuntimeId();
+        correction.mRuntimeActorId = (int64_t) player.getRuntimeId();
         correction.mPosition = Vector3f(feet.x, feet.y + PLAYER_BASE_OFFSET, feet.z);
         correction.mRotation = player.getRotation();
         correction.mMode = MovePlayerMode::Respawn;
@@ -213,7 +213,7 @@ namespace {
         const Vector3f position = player.getPosition();
 
         MovePlayerPacket revert;
-        revert.mRuntimeEntityId = (int64_t) player.getRuntimeId();
+        revert.mRuntimeActorId = (int64_t) player.getRuntimeId();
         revert.mPosition = Vector3f(position.x, position.y + PLAYER_BASE_OFFSET + MOVE_CORRECTION_EPSILON,
                                     position.z);
         revert.mRotation = player.getRotation();
@@ -264,7 +264,7 @@ namespace {
             return false;
 
         SetEntityMotionPacket motion;
-        motion.mRuntimeEntityId = player.getRuntimeId();
+        motion.mRuntimeActorId = player.getRuntimeId();
         motion.mMotion = player.getMotion();
         motion.mTick = (uint64_t) owner.getCurrentTick();
         owner.getNetworkHandler().send(player.getNetworkIdentifier(), motion, owner.getCodecContext());
@@ -344,6 +344,9 @@ void MovementHandler::handleMovement(ServerNetworkHandler &owner, ServerPlayer &
 
         player.resetFallDistance();
     } else {
+        if (wasOnGround || requestedY > 0.0f || player.getMotion().y > 0.0f)
+            player.resetFallDistance();
+
         if (feetPosition.y > player.getHighestPosition())
             player.setHighestPosition(feetPosition.y);
 
@@ -371,9 +374,16 @@ void MovementHandler::handlePlayerAuthInput(ServerNetworkHandler &owner, const N
     ActorFlags &flags = player.getFlags();
     const ActorFlags previous = flags;
 
-    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StartSprinting))
+    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StartSprinting) && player.canSprint())
         flags.set(ActorFlag::Sprinting, true);
+
+    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::Sprinting) && player.canSprint())
+        flags.set(ActorFlag::Sprinting, true);
+
     if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StopSprinting))
+        flags.set(ActorFlag::Sprinting, false);
+
+    if (!player.canSprint())
         flags.set(ActorFlag::Sprinting, false);
 
     if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StartSneaking))
@@ -400,9 +410,11 @@ void MovementHandler::handlePlayerAuthInput(ServerNetworkHandler &owner, const N
         owner._sendEntityData(player);
 
     for (const PlayerBlockActionData &action: packet.mPlayerActions) {
-        if (action.mAction == PlayerActionType::StartBreak ||
-            action.mAction == PlayerActionType::BlockContinueDestroy) {
+        if (action.mAction == PlayerActionType::StartBreak) {
             BlockActionHandler::startBreakingBlock(owner, player, action.mBlockPosition, action.mFace);
+        } else if (action.mAction == PlayerActionType::BlockContinueDestroy) {
+            if (player.isBreakingBlock() && player.getBreakingBlockPosition() != action.mBlockPosition)
+                BlockActionHandler::stopBreakingBlock(owner, player);
         } else if (action.mAction == PlayerActionType::AbortBreak ||
                   action.mAction == PlayerActionType::StopBreak) {
             BlockActionHandler::stopBreakingBlock(owner, player);

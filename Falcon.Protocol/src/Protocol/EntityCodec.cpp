@@ -198,7 +198,7 @@ EntityLinkData EntityCodec::readEntityLink(ReadOnlyBinaryStream &stream) {
 }
 
 void EntityCodec::writePlayerAbilities(BinaryStream &stream, const PlayerAbilityData &abilities) {
-    stream.putLLong((uint64_t) abilities.mUniqueEntityId);
+    stream.putLLong((uint64_t) abilities.mUniqueActorId);
     stream.putByte(abilities.mPlayerPermission);
     stream.putByte(abilities.mCommandPermission);
 
@@ -215,7 +215,7 @@ void EntityCodec::writePlayerAbilities(BinaryStream &stream, const PlayerAbility
 
 PlayerAbilityData EntityCodec::readPlayerAbilities(ReadOnlyBinaryStream &stream) {
     PlayerAbilityData abilities;
-    abilities.mUniqueEntityId = (int64_t) stream.getLLong();
+    abilities.mUniqueActorId = (int64_t) stream.getLLong();
     abilities.mPlayerPermission = stream.getByte();
     abilities.mCommandPermission = stream.getByte();
 

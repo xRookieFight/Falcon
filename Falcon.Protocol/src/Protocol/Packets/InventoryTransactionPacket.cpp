@@ -129,7 +129,7 @@ void InventoryTransactionPacket::write(BinaryStream &stream, const PacketCodecCo
             stream.putByte((unsigned char) mClientCooldownState);
             break;
         case InventoryTransactionType::ItemUseOnEntity:
-            stream.putUnsignedVarLong((uint64_t) mRuntimeEntityId);
+            stream.putUnsignedVarLong((uint64_t) mRuntimeActorId);
             stream.putVarInt(mActionType);
             stream.putVarInt(mHotbarSlot);
             ItemCodec::writeNetworkItemStackDescriptor(stream, context, mItemInHand);
@@ -188,7 +188,7 @@ void InventoryTransactionPacket::read(ReadOnlyBinaryStream &stream, const Packet
             mClientCooldownState = stream.getSignedByte();
             break;
         case InventoryTransactionType::ItemUseOnEntity:
-            mRuntimeEntityId = (int64_t) stream.getUnsignedVarLong();
+            mRuntimeActorId = (int64_t) stream.getUnsignedVarLong();
             mActionType = stream.getVarInt();
             mHotbarSlot = stream.getVarInt();
             mItemInHand = ItemCodec::readNetworkItemStackDescriptor(stream, context);

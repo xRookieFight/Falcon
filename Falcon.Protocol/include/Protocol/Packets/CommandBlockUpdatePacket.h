@@ -33,7 +33,7 @@ public:
     CommandBlockMode mMode = CommandBlockMode::Normal;
     bool mRedstoneMode = false;
     bool mConditional = false;
-    uint64_t mMinecartRuntimeEntityId = 0;
+    uint64_t mMinecartRuntimeActorId = 0;
     std::string mCommand;
     std::string mLastOutput;
     std::string mName;

@@ -7,7 +7,7 @@ namespace {
 
     void writeEntryBase(BinaryStream &stream, const PlayerListPacket::Entry &entry) {
         stream.putUuid(entry.mUuid);
-        stream.putVarLong(entry.mEntityId);
+        stream.putVarLong(entry.mActorId);
         stream.putString(entry.mName);
         stream.putString(entry.mXuid);
         stream.putString(entry.mPlatformChatId);
@@ -21,7 +21,7 @@ namespace {
 
     PlayerListPacket::Entry readEntryBase(ReadOnlyBinaryStream &stream) {
         PlayerListPacket::Entry entry(stream.getUuid());
-        entry.mEntityId = stream.getVarLong();
+        entry.mActorId = stream.getVarLong();
         entry.mName = stream.getString();
         entry.mXuid = stream.getString();
         entry.mPlatformChatId = stream.getString();

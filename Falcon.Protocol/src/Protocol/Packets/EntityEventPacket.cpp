@@ -5,7 +5,7 @@
 EntityEventPacket::EntityEventPacket() = default;
 
 void EntityEventPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putUnsignedVarLong(mRuntimeEntityId);
+    stream.putUnsignedVarLong(mRuntimeActorId);
     stream.putByte(mEventId);
     stream.putVarInt(mEventData);
 
@@ -15,7 +15,7 @@ void EntityEventPacket::write(BinaryStream &stream, const PacketCodecContext &co
 }
 
 void EntityEventPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mRuntimeEntityId = stream.getUnsignedVarLong();
+    mRuntimeActorId = stream.getUnsignedVarLong();
     mEventId = stream.getByte();
     mEventData = stream.getVarInt();
 

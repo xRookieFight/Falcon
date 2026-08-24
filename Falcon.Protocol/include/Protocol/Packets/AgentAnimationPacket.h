@@ -21,5 +21,5 @@ public:
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
     int8_t mAnimation = 0;
-    int64_t mRuntimeEntityId = 0;
+    int64_t mRuntimeActorId = 0;
 };

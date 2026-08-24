@@ -3,10 +3,10 @@
 #include "Protocol/NetworkPacketHandler.h"
 
 EmoteListPacket::EmoteListPacket()
-        : mRuntimeEntityId(0) {}
+        : mRuntimeActorId(0) {}
 
 void EmoteListPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putUnsignedVarLong(mRuntimeEntityId);
+    stream.putUnsignedVarLong(mRuntimeActorId);
 
     stream.putArrayLength((uint32_t) mPieceIds.size());
     for (const Uuid &pieceId: mPieceIds)
@@ -14,7 +14,7 @@ void EmoteListPacket::write(BinaryStream &stream, const PacketCodecContext &cont
 }
 
 void EmoteListPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mRuntimeEntityId = stream.getUnsignedVarLong();
+    mRuntimeActorId = stream.getUnsignedVarLong();
 
     const uint32_t pieceCount = stream.getArrayLength();
     mPieceIds.clear();

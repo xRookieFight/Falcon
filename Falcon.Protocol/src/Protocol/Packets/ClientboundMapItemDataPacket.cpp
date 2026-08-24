@@ -10,10 +10,10 @@ void ClientboundMapItemDataPacket::write(BinaryStream &stream, const PacketCodec
     stream.putBool(mLocked);
     stream.putVector3i(mOrigin);
 
-    stream.putOptionalPresent(mHasTrackedEntityIds);
-    if (mHasTrackedEntityIds) {
-        stream.putUnsignedVarInt((uint32_t) mTrackedEntityIds.size());
-        for (int64_t id: mTrackedEntityIds) {
+    stream.putOptionalPresent(mHasTrackedActorIds);
+    if (mHasTrackedActorIds) {
+        stream.putUnsignedVarInt((uint32_t) mTrackedActorIds.size());
+        for (int64_t id: mTrackedActorIds) {
             stream.putVarLong(id);
         }
     }
@@ -30,7 +30,7 @@ void ClientboundMapItemDataPacket::write(BinaryStream &stream, const PacketCodec
             stream.putLInt((uint32_t) object.mType);
             if (object.mType == MapTrackedObjectType::Entity) {
                 stream.putBool(true);
-                stream.putVarLong(object.mEntityId);
+                stream.putVarLong(object.mActorId);
                 stream.putBool(false);
             } else {
                 stream.putBool(false);
@@ -88,12 +88,12 @@ void ClientboundMapItemDataPacket::read(ReadOnlyBinaryStream &stream, const Pack
     mLocked = stream.getBool();
     mOrigin = stream.getVector3i();
 
-    mHasTrackedEntityIds = stream.getBool();
-    if (mHasTrackedEntityIds) {
+    mHasTrackedActorIds = stream.getBool();
+    if (mHasTrackedActorIds) {
         uint32_t length = stream.getUnsignedVarInt();
-        mTrackedEntityIds.reserve(length);
+        mTrackedActorIds.reserve(length);
         for (uint32_t i = 0; i < length; i++) {
-            mTrackedEntityIds.push_back(stream.getVarLong());
+            mTrackedActorIds.push_back(stream.getVarLong());
         }
     }
 
@@ -110,7 +110,7 @@ void ClientboundMapItemDataPacket::read(ReadOnlyBinaryStream &stream, const Pack
             MapTrackedObject object;
             object.mType = (MapTrackedObjectType) stream.getLInt();
             if (stream.getBool()) {
-                object.mEntityId = stream.getVarLong();
+                object.mActorId = stream.getVarLong();
             }
             if (stream.getBool()) {
                 object.mPosition = stream.getBlockPosition();

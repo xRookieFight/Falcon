@@ -6,8 +6,8 @@
 AddEntityPacket::AddEntityPacket() = default;
 
 void AddEntityPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putVarLong(mUniqueEntityId);
-    stream.putUnsignedVarLong((uint64_t) mRuntimeEntityId);
+    stream.putVarLong(mUniqueActorId);
+    stream.putUnsignedVarLong((uint64_t) mRuntimeActorId);
     stream.putString(mIdentifier);
     stream.putVector3f(mPosition);
     stream.putVector3f(mMotion);
@@ -23,15 +23,15 @@ void AddEntityPacket::write(BinaryStream &stream, const PacketCodecContext &cont
     EntityCodec::writeEntityData(stream, mMetadata);
     EntityCodec::writeEntityProperties(stream, mProperties);
 
-    stream.putArrayLength((uint32_t) mEntityLinks.size());
-    for (const EntityLinkData &link: mEntityLinks) {
+    stream.putArrayLength((uint32_t) mActorLinks.size());
+    for (const EntityLinkData &link: mActorLinks) {
         EntityCodec::writeEntityLink(stream, link);
     }
 }
 
 void AddEntityPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mUniqueEntityId = stream.getVarLong();
-    mRuntimeEntityId = (int64_t) stream.getUnsignedVarLong();
+    mUniqueActorId = stream.getVarLong();
+    mRuntimeActorId = (int64_t) stream.getUnsignedVarLong();
     mIdentifier = stream.getString();
     mPosition = stream.getVector3f();
     mMotion = stream.getVector3f();
@@ -49,9 +49,9 @@ void AddEntityPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContex
     mProperties = EntityCodec::readEntityProperties(stream);
 
     uint32_t linkCount = stream.getArrayLength();
-    mEntityLinks.reserve(linkCount);
+    mActorLinks.reserve(linkCount);
     for (uint32_t i = 0; i < linkCount; i++) {
-        mEntityLinks.push_back(EntityCodec::readEntityLink(stream));
+        mActorLinks.push_back(EntityCodec::readEntityLink(stream));
     }
 }
 

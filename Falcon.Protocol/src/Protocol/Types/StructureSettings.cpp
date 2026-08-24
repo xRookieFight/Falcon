@@ -7,7 +7,7 @@ void StructureSettings::write(BinaryStream &stream) const {
     stream.putBool(mNonTickingPlayersAndTickingAreasEnabled);
     stream.putBlockPosition(mSize);
     stream.putBlockPosition(mOffset);
-    stream.putVarLong(mLastEditedByEntityId);
+    stream.putVarLong(mLastEditedByActorId);
     stream.putByte((unsigned char) mRotation);
     stream.putByte((unsigned char) mMirror);
     stream.putByte((unsigned char) mAnimationMode);
@@ -24,7 +24,7 @@ void StructureSettings::read(ReadOnlyBinaryStream &stream) {
     mNonTickingPlayersAndTickingAreasEnabled = stream.getBool();
     mSize = stream.getBlockPosition();
     mOffset = stream.getBlockPosition();
-    mLastEditedByEntityId = stream.getVarLong();
+    mLastEditedByActorId = stream.getVarLong();
     mRotation = (StructureRotation) stream.getByte();
     mMirror = (StructureMirror) stream.getByte();
     mAnimationMode = (StructureAnimationMode) stream.getByte();

@@ -68,9 +68,9 @@ namespace {
         if (shape.mHasDimension)
             stream.putVarInt(shape.mDimension);
 
-        stream.putOptionalPresent(shape.mHasAttachedToEntityId);
-        if (shape.mHasAttachedToEntityId)
-            stream.putUnsignedVarLong(shape.mAttachedToEntityId);
+    stream.putOptionalPresent(shape.mHasAttachedToActorId);
+    if (shape.mHasAttachedToActorId)
+        stream.putUnsignedVarLong(shape.mAttachedToActorId);
 
         stream.putUnsignedVarInt((uint32_t) toPayloadType(shape.mHasType, shape.mType));
 
@@ -175,9 +175,9 @@ namespace {
         if (shape.mHasDimension)
             shape.mDimension = stream.getVarInt();
 
-        shape.mHasAttachedToEntityId = stream.getOptionalPresent();
-        if (shape.mHasAttachedToEntityId)
-            shape.mAttachedToEntityId = stream.getUnsignedVarLong();
+    shape.mHasAttachedToActorId = stream.getOptionalPresent();
+    if (shape.mHasAttachedToActorId)
+        shape.mAttachedToActorId = stream.getUnsignedVarLong();
 
         stream.getUnsignedVarInt();
 

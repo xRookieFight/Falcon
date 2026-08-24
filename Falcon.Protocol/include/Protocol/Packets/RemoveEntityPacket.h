@@ -18,5 +18,5 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    int64_t mUniqueEntityId;
+    int64_t mUniqueActorId;
 };

@@ -7,8 +7,8 @@
 AddItemEntityPacket::AddItemEntityPacket() = default;
 
 void AddItemEntityPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putVarLong(mUniqueEntityId);
-    stream.putUnsignedVarLong(mRuntimeEntityId);
+    stream.putVarLong(mUniqueActorId);
+    stream.putUnsignedVarLong(mRuntimeActorId);
     ItemCodec::writeNetworkItemStackDescriptor(stream, context, mItemInHand);
     stream.putVector3f(mPosition);
     stream.putVector3f(mMotion);
@@ -17,8 +17,8 @@ void AddItemEntityPacket::write(BinaryStream &stream, const PacketCodecContext &
 }
 
 void AddItemEntityPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mUniqueEntityId = stream.getVarLong();
-    mRuntimeEntityId = stream.getUnsignedVarLong();
+    mUniqueActorId = stream.getVarLong();
+    mRuntimeActorId = stream.getUnsignedVarLong();
     mItemInHand = ItemCodec::readNetworkItemStackDescriptor(stream, context);
     mPosition = stream.getVector3f();
     mMotion = stream.getVector3f();

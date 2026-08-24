@@ -6,10 +6,13 @@
 #include "Item/ItemEnchantments.h"
 #include "Item/ItemNetworkIdTable.h"
 #include "Item/StringToItemParser.h"
+#include "Inventory/InventoryManager.h"
 #include "Level/Level.h"
+#include "Network/InventoryHandler.h"
 #include "Network/NetworkHandler.h"
 #include "Network/ServerNetworkHandler.h"
 #include "Protocol/BlockStateHasher.h"
+#include "Protocol/Packets/EntityEventPacket.h"
 #include "Protocol/Packets/LevelEventPacket.h"
 #include "Protocol/Packets/LevelSoundEventPacket.h"
 #include "Protocol/Packets/UpdateBlockPacket.h"
@@ -19,12 +22,15 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <limits>
 #include <string>
+#include <utility>
 
 namespace {
     const float PLAYER_BASE_OFFSET = 1.62f;
-    const double BREAK_PROGRESS_COMPLETE = 0.99;
-    const float REACH_MAX_DIFF = 6.0f;
+    const double BREAK_SPEED_CHANGE_EPSILON = 0.0001;
+    const double BREAK_PROGRESS_EPSILON = 0.000001;
+    const float REACH_MAX_DIFF = 0.8660254f;
 
     float randomUnitFloat() {
         return (float) (rand() % 1000) / 1000.0f;
@@ -89,9 +95,10 @@ namespace {
         const MobEffectInstance *haste = player.getEffect(MobEffectId::Haste);
         const MobEffectInstance *fatigue = player.getEffect(MobEffectId::MiningFatigue);
         if (haste)
-            speedMultiplier *= 1.0f + 0.2f * (float) haste->level();
+            speedMultiplier *= (1.0 + 0.2 * (double) haste->level())
+                               * std::pow(1.2, (double) haste->level());
         if (fatigue)
-            speedMultiplier *= std::pow(0.3f, (float) fatigue->level());
+            speedMultiplier *= std::pow(0.21, (double) fatigue->level());
 
         seconds /= (double) speedMultiplier;
 
@@ -108,12 +115,96 @@ namespace {
         return seconds;
     }
 
-    int calculateBreakTicks(double seconds) {
+    double calculateBreakProgressPerTick(ServerPlayer &player, const BlockData *blockData) {
+        const double seconds = calculateBreakSeconds(player, blockData);
+        if (seconds < 0.0)
+            return 0.0;
         if (seconds <= 0.0)
-            return 1;
+            return 1.0;
 
-        const int ticks = (int) std::ceil(seconds * 20.0);
-        return ticks < 1 ? 1 : ticks;
+        return 1.0 / (seconds * 20.0);
+    }
+
+    int32_t breakSpeedEventData(double speed) {
+        return (int32_t) std::clamp(65535.0 * speed, 0.0, 65535.0);
+    }
+
+    int64_t expectedBreakTicks(ServerPlayer &player, const BlockData *blockData) {
+        const double seconds = calculateBreakSeconds(player, blockData);
+        if (seconds < 0.0)
+            return std::numeric_limits<int64_t>::max();
+
+        const double ticks = std::ceil(seconds * 20.0) - 1.0;
+        return std::max<int64_t>(0, (int64_t) ticks);
+    }
+
+    bool hasReachedBreakTime(ServerNetworkHandler &owner, ServerPlayer &player,
+                             const BlockData *blockData) {
+        if (!player.isBreakingBlock())
+            return false;
+
+        const int64_t elapsedTicks = owner.getCurrentTick() - player.getBreakStartTick();
+        return elapsedTicks >= expectedBreakTicks(player, blockData);
+    }
+
+    bool finiteClickPosition(const Vector3f &clickPosition) {
+        return std::isfinite(clickPosition.x) && std::isfinite(clickPosition.y)
+               && std::isfinite(clickPosition.z);
+    }
+
+    bool isReplaceable(const BlockState &state) {
+        if (state.mName == "minecraft:air")
+            return true;
+
+        const BlockData *data = BlockDataTable::find(state.mName.c_str());
+        return data != nullptr && !data->mSolid;
+    }
+
+    bool intersectsPlayer(const ServerPlayer &player, const Vector3i &position, const BlockData *blockData) {
+        if (blockData == nullptr || !blockData->mSolid)
+            return false;
+
+        const Vector3f &playerPosition = player.getPosition();
+        constexpr float halfWidth = 0.3f;
+        constexpr float playerHeight = 1.8f;
+
+        const float playerMinX = playerPosition.x - halfWidth;
+        const float playerMaxX = playerPosition.x + halfWidth;
+        const float playerMinY = playerPosition.y;
+        const float playerMaxY = playerPosition.y + playerHeight;
+        const float playerMinZ = playerPosition.z - halfWidth;
+        const float playerMaxZ = playerPosition.z + halfWidth;
+
+        return playerMinX < (float) position.x + 1.0f && playerMaxX > (float) position.x
+               && playerMinY < (float) position.y + 1.0f && playerMaxY > (float) position.y
+               && playerMinZ < (float) position.z + 1.0f && playerMaxZ > (float) position.z;
+    }
+
+    void sendCurrentBlockState(ServerNetworkHandler &owner, const Vector3i &position) {
+        if (position.y < Chunk::MIN_Y || position.y > Chunk::MAX_Y)
+            return;
+
+        const BlockState state = owner.getLevel().getBlockState(position.x, position.y, position.z);
+
+        UpdateBlockPacket update;
+        update.mBlockPosition = position;
+        update.mRuntimeId = (uint32_t) BlockStateHasher::hash(state.mName, state.mStates);
+        update.mFlags = UpdateBlockPacket::Flag::All;
+        update.mDataLayer = 0;
+        BlockActionHandler::broadcastToViewers(owner,
+                                               Vector3f((float) position.x + 0.5f,
+                                                        (float) position.y + 0.5f,
+                                                        (float) position.z + 0.5f),
+                                               update);
+    }
+
+    void broadcastArmSwing(ServerNetworkHandler &owner, ServerPlayer &player, const Vector3f &position) {
+        EntityEventPacket swing;
+        swing.mRuntimeActorId = player.getRuntimeId();
+        swing.mEventId = (uint8_t) EntityEventType::ArmSwing;
+        swing.mEventData = 0;
+        swing.mHasFirePosition = false;
+        BlockActionHandler::broadcastToViewers(owner, position, swing);
     }
 }
 
@@ -146,21 +237,14 @@ bool BlockActionHandler::canInteractWithBlock(ServerPlayer &player, const Vector
         return false;
 
     const float yawRad = player.getRotation().y * 3.14159265f / 180.0f;
-    const float halfPi = 1.57079633f;
-    float directionX = -std::cos(yawRad - halfPi);
-    float directionZ = -std::sin(yawRad - halfPi);
+    const float pitchRad = player.getRotation().x * 3.14159265f / 180.0f;
+    const float directionX = -std::sin(yawRad) * std::cos(pitchRad);
+    const float directionY = -std::sin(pitchRad);
+    const float directionZ = std::cos(yawRad) * std::cos(pitchRad);
 
-    const float length = std::sqrt(directionX * directionX + directionZ * directionZ);
-    if (length > 0.0f) {
-        directionX /= length;
-        directionZ /= length;
-    }
-
-    const float dot = directionX * eyePosition.x + directionZ * eyePosition.z;
-    const float dot1 = directionX * target.x + directionZ * target.z;
-
-    const bool result = (dot1 - dot) >= -REACH_MAX_DIFF;
-    return result;
+    const float dot = directionX * eyePosition.x + directionY * eyePosition.y + directionZ * eyePosition.z;
+    const float dot1 = directionX * target.x + directionY * target.y + directionZ * target.z;
+    return (dot1 - dot) >= -REACH_MAX_DIFF;
 }
 
 void BlockActionHandler::breakBlock(ServerNetworkHandler &owner, ServerPlayer &player, const Vector3i &position) {
@@ -238,6 +322,9 @@ void BlockActionHandler::breakBlock(ServerNetworkHandler &owner, ServerPlayer &p
 
 void BlockActionHandler::startBreakingBlock(ServerNetworkHandler &owner, ServerPlayer &player,
                                             const Vector3i &position, int32_t face) {
+    if (position.y < Chunk::MIN_Y || position.y > Chunk::MAX_Y)
+        return;
+
     if (player.isBreakingBlock() && player.getBreakingBlockPosition() == position)
         return;
 
@@ -253,20 +340,18 @@ void BlockActionHandler::startBreakingBlock(ServerNetworkHandler &owner, ServerP
     }
 
     const BlockData *blockData = BlockDataTable::find(state.mName.c_str());
-    const double seconds = calculateBreakSeconds(player, blockData);
+    const double breakSpeed = calculateBreakProgressPerTick(player, blockData);
 
-    if (seconds < 0.0) {
+    if (breakSpeed <= 0.0) {
         return;
     }
 
-    player.startBreakingBlock(position, face);
-
-    const int ticks = calculateBreakTicks(seconds);
+    player.startBreakingBlock(position, face, breakSpeed, owner.getCurrentTick());
 
     LevelEventPacket start;
     start.mEventId = LevelEventPacket::Event::BlockStartBreak;
     start.mPosition = Vector3f((float) position.x + 0.5f, (float) position.y + 0.5f, (float) position.z + 0.5f);
-    start.mData = 65535 / ticks;
+    start.mData = breakSpeedEventData(breakSpeed);
 
     broadcastToViewers(owner, start.mPosition, start);
 }
@@ -276,6 +361,11 @@ void BlockActionHandler::continueBreakingBlock(ServerNetworkHandler &owner, Serv
         return;
 
     const Vector3i position = player.getBreakingBlockPosition();
+    if (position.y < Chunk::MIN_Y || position.y > Chunk::MAX_Y) {
+        stopBreakingBlock(owner, player);
+        return;
+    }
+
     Level &level = owner.getLevel();
     const BlockState &state = level.getChunk(position.x >> 4, position.z >> 4)
                                     .getBlock(position.x & 15, position.y, position.z & 15);
@@ -286,35 +376,64 @@ void BlockActionHandler::continueBreakingBlock(ServerNetworkHandler &owner, Serv
     }
 
     const BlockData *blockData = BlockDataTable::find(state.mName.c_str());
-    const double seconds = calculateBreakSeconds(player, blockData);
+    const double newBreakSpeed = calculateBreakProgressPerTick(player, blockData);
 
-    if (seconds < 0.0) {
+    if (newBreakSpeed <= 0.0) {
         stopBreakingBlock(owner, player);
         return;
     }
 
-    const int ticks = calculateBreakTicks(seconds);
-    const double progressDelta = 1.0 / (double) ticks;
-    player.addBreakProgress(progressDelta);
+    if (std::fabs(newBreakSpeed - player.getBreakSpeed()) > BREAK_SPEED_CHANGE_EPSILON) {
+        player.setBreakSpeed(newBreakSpeed);
 
-    LevelEventPacket update;
-    update.mEventId = LevelEventPacket::Event::BlockUpdateBreak;
-    update.mPosition = Vector3f((float) position.x + 0.5f, (float) position.y + 0.5f,
-                                (float) position.z + 0.5f);
-    update.mData = (int32_t) std::clamp(65535.0 * progressDelta, 1.0, 65535.0);
-    broadcastToViewers(owner, update.mPosition, update);
+        LevelEventPacket update;
+        update.mEventId = LevelEventPacket::Event::BlockUpdateBreak;
+        update.mPosition = Vector3f((float) position.x + 0.5f, (float) position.y + 0.5f,
+                                    (float) position.z + 0.5f);
+        update.mData = breakSpeedEventData(newBreakSpeed);
+        broadcastToViewers(owner, update.mPosition, update);
+    }
 
-    if (player.getBreakProgress() >= BREAK_PROGRESS_COMPLETE) {
+    player.addBreakProgress(player.getBreakSpeed());
+
+    if (player.getBreakProgress() >= 1.0) {
         completeBreakingBlock(owner, player, position);
     }
 }
 
 void BlockActionHandler::completeBreakingBlock(ServerNetworkHandler &owner, ServerPlayer &player,
                                                const Vector3i &position) {
-    stopBreakingBlock(owner, player);
+    if (position.y < Chunk::MIN_Y || position.y > Chunk::MAX_Y)
+        return;
 
     if (!canInteractWithBlock(player, position))
         return;
+
+    const bool creative = player.getGameType() == (int32_t) GameType::Creative;
+    if (!creative) {
+        if (!player.isBreakingBlock() || player.getBreakingBlockPosition() != position) {
+            sendCurrentBlockState(owner, position);
+            return;
+        }
+
+        Level &level = owner.getLevel();
+        const BlockState &state = level.getChunk(position.x >> 4, position.z >> 4)
+                                        .getBlock(position.x & 15, position.y, position.z & 15);
+        if (state.mName == "minecraft:air") {
+            stopBreakingBlock(owner, player);
+            return;
+        }
+
+        const BlockData *blockData = BlockDataTable::find(state.mName.c_str());
+        if (!hasReachedBreakTime(owner, player, blockData) &&
+            player.getBreakProgress() + BREAK_PROGRESS_EPSILON < 1.0) {
+            sendCurrentBlockState(owner, position);
+            return;
+        }
+    }
+
+    if (player.isBreakingBlock())
+        stopBreakingBlock(owner, player);
 
     breakBlock(owner, player, position);
 }
@@ -341,9 +460,16 @@ void BlockActionHandler::sendBreakingFx(ServerNetworkHandler &owner, ServerPlaye
     hit.mSound = "hit";
     hit.mPosition = center;
     hit.mExtraData = blockHash;
-    hit.mEntityType = "";
+    hit.mActorType = "";
     hit.mActorUniqueId = -1;
     broadcastToViewers(owner, center, hit);
+
+    EntityEventPacket swing;
+    swing.mRuntimeActorId = player.getRuntimeId();
+    swing.mEventId = (uint8_t) EntityEventType::ArmSwing;
+    swing.mEventData = 0;
+    swing.mHasFirePosition = false;
+    broadcastToViewers(owner, center, swing);
 
 }
 
@@ -365,25 +491,107 @@ void BlockActionHandler::stopBreakingBlock(ServerNetworkHandler &owner, ServerPl
 
 void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &player,
                                     const ItemUseTransaction &transaction) {
-    (void) player;
-
-    if (transaction.mItemInHand.mBlockDefinition == nullptr)
+    if (!player.isSpawned() || player.isDead() || player.getGameType() == (int32_t) GameType::Spectator)
         return;
+
+    if (transaction.mBlockFace < 0 || transaction.mBlockFace >= 6
+        || transaction.mHotbarSlot < 0 || transaction.mHotbarSlot >= PlayerInventory::HOTBAR_SIZE)
+        return;
+
+    if (transaction.mBlockPosition.y < Chunk::MIN_Y || transaction.mBlockPosition.y > Chunk::MAX_Y)
+        return;
+
+    if (!canInteractWithBlock(player, transaction.mBlockPosition))
+        return;
+
+    if (!finiteClickPosition(transaction.mClickPosition))
+        return;
+
+    PlayerInventory &inventory = player.getInventory();
+    if (inventory.getSelectedSlot() != transaction.mHotbarSlot) {
+        player.getInventoryManager().onClientSelectHotbarSlot(transaction.mHotbarSlot);
+        inventory.setSelectedSlot(transaction.mHotbarSlot);
+    }
+
+    const ItemStack &heldItem = inventory.getItemInHand();
+    if (heldItem.isAir() || heldItem.mCount <= 0 || heldItem.mDefinition == nullptr
+        || heldItem.mBlockDefinition == nullptr || transaction.mItemInHand.isAir()
+        || transaction.mItemInHand.mCount <= 0 || transaction.mItemInHand.mDefinition == nullptr
+        || transaction.mItemInHand.mDefinition->getIdentifier() != heldItem.mDefinition->getIdentifier()
+        || transaction.mItemInHand.mDamage != heldItem.mDamage
+        || transaction.mItemInHand.mBlockDefinition == nullptr
+        || transaction.mItemInHand.mBlockDefinition->getIdentifier() != heldItem.mBlockDefinition->getIdentifier()) {
+        owner._sendInventory(player);
+        return;
+    }
+
+    Level &level = owner.getLevel();
+    const BlockState clickedState = level.getBlockState(transaction.mBlockPosition.x,
+                                                        transaction.mBlockPosition.y,
+                                                        transaction.mBlockPosition.z);
+
+    if (clickedState.mName == "minecraft:air") {
+        sendCurrentBlockState(owner, transaction.mBlockPosition);
+        return;
+    }
+
+    if (player.getGameType() == (int32_t) GameType::Adventure
+        && std::find(heldItem.mCanPlace.begin(), heldItem.mCanPlace.end(), clickedState.mName)
+           == heldItem.mCanPlace.end()) {
+        sendCurrentBlockState(owner, transaction.mBlockPosition);
+        return;
+    }
+
+    broadcastArmSwing(owner, player,
+                      Vector3f((float) transaction.mBlockPosition.x + 0.5f,
+                               (float) transaction.mBlockPosition.y + 0.5f,
+                               (float) transaction.mBlockPosition.z + 0.5f));
 
     static const int offsets[6][3] = {
             {0,  -1, 0}, {0, 1, 0}, {0, 0, -1}, {0, 0, 1}, {-1, 0, 0}, {1, 0, 0}
     };
 
-    const int face = transaction.mBlockFace >= 0 && transaction.mBlockFace < 6 ? transaction.mBlockFace : 1;
-    const Vector3i target(transaction.mBlockPosition.x + offsets[face][0],
+    const int face = transaction.mBlockFace;
+    Vector3i target = transaction.mBlockPosition;
+    if (!isReplaceable(clickedState)) {
+        target = Vector3i(transaction.mBlockPosition.x + offsets[face][0],
                           transaction.mBlockPosition.y + offsets[face][1],
                           transaction.mBlockPosition.z + offsets[face][2]);
+    }
 
-    const BlockDefinition &definition = *transaction.mItemInHand.mBlockDefinition;
-    const int32_t blockHash = BlockStateHasher::hash(definition.getIdentifier(), definition.getState());
+    if (target.y < Chunk::MIN_Y || target.y > Chunk::MAX_Y) {
+        sendCurrentBlockState(owner, target);
+        return;
+    }
 
-    Level &level = owner.getLevel();
-    level.setBlockState(target.x, target.y, target.z, BlockState(definition.getIdentifier(), definition.getState()));
+    const BlockState targetState = level.getBlockState(target.x, target.y, target.z);
+    if (!isReplaceable(targetState)) {
+        sendCurrentBlockState(owner, target);
+        return;
+    }
+
+    const BlockDefinition &definition = *heldItem.mBlockDefinition;
+    const BlockData *placedData = BlockDataTable::find(definition.getIdentifier().c_str());
+    if (intersectsPlayer(player, target, placedData)) {
+        sendCurrentBlockState(owner, target);
+        return;
+    }
+
+    const BlockState placedState(definition.getIdentifier(), definition.getState());
+    const int32_t blockHash = BlockStateHasher::hash(placedState.mName, placedState.mStates);
+    level.setBlockState(target.x, target.y, target.z, placedState);
+
+    if (player.getGameType() != (int32_t) GameType::Creative) {
+        ItemStack remaining = heldItem;
+        remaining.mCount--;
+        if (remaining.mCount <= 0)
+            remaining = ItemStack::air();
+        inventory.setItemInHand(std::move(remaining));
+        player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory,
+                                              inventory.getSelectedSlot());
+    }
+
+    InventoryHandler::sendHeldItem(owner, player);
 
     UpdateBlockPacket update;
     update.mBlockPosition = target;
@@ -398,7 +606,7 @@ void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &p
     placeSound.mSound = "place";
     placeSound.mPosition = targetCenter;
     placeSound.mExtraData = (int32_t) blockHash;
-    placeSound.mEntityType = "";
+    placeSound.mActorType = "";
     placeSound.mActorUniqueId = -1;
     broadcastToViewers(owner, targetCenter, placeSound);
 

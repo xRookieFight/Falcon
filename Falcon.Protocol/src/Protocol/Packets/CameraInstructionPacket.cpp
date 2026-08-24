@@ -27,7 +27,7 @@ void CameraInstructionPacket::write(BinaryStream &stream, const PacketCodecConte
         if (mTargetInstruction.mHasTargetCenterOffset) {
             stream.putVector3f(mTargetInstruction.mTargetCenterOffset);
         }
-        stream.putLLong((uint64_t) mTargetInstruction.mUniqueEntityId);
+        stream.putLLong((uint64_t) mTargetInstruction.mUniqueActorId);
     }
 
     stream.putBool(mHasRemoveTarget);
@@ -50,12 +50,12 @@ void CameraInstructionPacket::write(BinaryStream &stream, const PacketCodecConte
 
     stream.putOptionalPresent(mHasAttachInstruction);
     if (mHasAttachInstruction) {
-        stream.putLLong((uint64_t) mAttachInstruction.mUniqueEntityId);
+        stream.putLLong((uint64_t) mAttachInstruction.mUniqueActorId);
     }
 
-    stream.putBool(mHasDetachFromEntity);
-    if (mHasDetachFromEntity) {
-        stream.putBool(mDetachFromEntity);
+    stream.putBool(mHasDetachFromActor);
+    if (mHasDetachFromActor) {
+        stream.putBool(mDetachFromActor);
     }
 }
 
@@ -81,7 +81,7 @@ void CameraInstructionPacket::read(ReadOnlyBinaryStream &stream, const PacketCod
         if (mTargetInstruction.mHasTargetCenterOffset) {
             mTargetInstruction.mTargetCenterOffset = stream.getVector3f();
         }
-        mTargetInstruction.mUniqueEntityId = (int64_t) stream.getLLong();
+        mTargetInstruction.mUniqueActorId = (int64_t) stream.getLLong();
     }
 
     mHasRemoveTarget = stream.getBool();
@@ -104,12 +104,12 @@ void CameraInstructionPacket::read(ReadOnlyBinaryStream &stream, const PacketCod
 
     mHasAttachInstruction = stream.getOptionalPresent();
     if (mHasAttachInstruction) {
-        mAttachInstruction.mUniqueEntityId = (int64_t) stream.getLLong();
+        mAttachInstruction.mUniqueActorId = (int64_t) stream.getLLong();
     }
 
-    mHasDetachFromEntity = stream.getBool();
-    if (mHasDetachFromEntity) {
-        mDetachFromEntity = stream.getBool();
+    mHasDetachFromActor = stream.getBool();
+    if (mHasDetachFromActor) {
+        mDetachFromActor = stream.getBool();
     }
 }
 

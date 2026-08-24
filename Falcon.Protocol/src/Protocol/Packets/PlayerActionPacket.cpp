@@ -5,7 +5,7 @@
 PlayerActionPacket::PlayerActionPacket() = default;
 
 void PlayerActionPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putUnsignedVarLong((uint64_t) mRuntimeEntityId);
+    stream.putUnsignedVarLong((uint64_t) mRuntimeActorId);
     stream.putVarInt((int32_t) mAction);
     stream.putBlockPosition(mBlockPosition);
     stream.putBlockPosition(mResultPosition);
@@ -13,7 +13,7 @@ void PlayerActionPacket::write(BinaryStream &stream, const PacketCodecContext &c
 }
 
 void PlayerActionPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mRuntimeEntityId = (int64_t) stream.getUnsignedVarLong();
+    mRuntimeActorId = (int64_t) stream.getUnsignedVarLong();
     mAction = (PlayerActionType) stream.getVarInt();
     mBlockPosition = stream.getBlockPosition();
     mResultPosition = stream.getBlockPosition();

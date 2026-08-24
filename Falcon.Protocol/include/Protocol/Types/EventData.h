@@ -53,17 +53,17 @@ public:
     int32_t mAchievementId = 0;
 
     int32_t mInteractionType = 0;
-    int32_t mLegacyEntityTypeId = 0;
-    int32_t mEntityVariant = 0;
+    int32_t mLegacyActorTypeId = 0;
+    int32_t mActorVariant = 0;
     int32_t mPaletteColor = 0;
 
     int32_t mDimensionId = 0;
     int32_t mFromDimensionId = 0;
     int32_t mToDimensionId = 0;
 
-    int64_t mKillerUniqueEntityId = 0;
-    int64_t mVictimUniqueEntityId = 0;
-    int32_t mEntityDamageCause = 0;
+    int64_t mKillerUniqueActorId = 0;
+    int64_t mVictimUniqueActorId = 0;
+    int32_t mActorDamageCause = 0;
     int32_t mVillagerTradeTier = 0;
     std::string mVillagerDisplayName;
 
@@ -71,11 +71,11 @@ public:
     int32_t mColor = 0;
     int32_t mFillLevel = 0;
 
-    int32_t mAttackerEntityId = 0;
+    int32_t mAttackerActorId = 0;
 
-    int64_t mBossUniqueEntityId = 0;
+    int64_t mBossUniqueActorId = 0;
     int32_t mPlayerPartySize = 0;
-    int32_t mBossEntityType = 0;
+    int32_t mBossActorType = 0;
 
     AgentResult mAgentResult = AgentResult::ActionFail;
     int32_t mAgentDataValue = 0;
@@ -96,6 +96,6 @@ public:
 
     int32_t mFishPattern = 0;
     int32_t mFishPreset = 0;
-    int32_t mFishBucketedEntityType = 0;
+    int32_t mFishBucketedActorType = 0;
     bool mFishReleaseEvent = false;
 };

@@ -5,7 +5,7 @@
 PlayerLocationPacket::PlayerLocationPacket() = default;
 
 void PlayerLocationPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putVarLong(mTargetEntityId);
+    stream.putVarLong(mTargetActorId);
     stream.putUnsignedVarInt((uint32_t) mType);
     stream.putVarInt(0);
 
@@ -14,7 +14,7 @@ void PlayerLocationPacket::write(BinaryStream &stream, const PacketCodecContext 
 }
 
 void PlayerLocationPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mTargetEntityId = stream.getVarLong();
+    mTargetActorId = stream.getVarLong();
     mType = (PlayerLocationType) stream.getUnsignedVarInt();
     stream.getVarInt();
 

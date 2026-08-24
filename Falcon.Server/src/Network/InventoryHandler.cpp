@@ -6,6 +6,7 @@
 #include "Inventory/ItemStackRequestHandler.h"
 #include "Inventory/PlayerInventory.h"
 #include "Network/BadPacketCheck.h"
+#include "Network/BlockActionHandler.h"
 #include "Network/NetworkHandler.h"
 #include "Network/ServerNetworkHandler.h"
 #include "Protocol/Packets/ContainerClosePacket.h"
@@ -33,7 +34,7 @@ void InventoryHandler::sendArmorContent(ServerNetworkHandler &owner, ServerPlaye
     const PlayerInventory &inventory = player.getInventory();
 
     MobArmorEquipmentPacket equipment;
-    equipment.mRuntimeEntityId = (int64_t) player.getRuntimeId();
+    equipment.mRuntimeActorId = (int64_t) player.getRuntimeId();
     equipment.mHelmet = inventory.getArmor(PlayerInventory::ARMOR_HEAD);
     equipment.mChestplate = inventory.getArmor(PlayerInventory::ARMOR_TORSO);
     equipment.mLeggings = inventory.getArmor(PlayerInventory::ARMOR_LEGS);
@@ -50,7 +51,7 @@ void InventoryHandler::sendOffhandContent(ServerNetworkHandler &owner, ServerPla
     const ItemStack &offhand = player.getInventory().getOffhand();
 
     MobEquipmentPacket equipment;
-    equipment.mRuntimeEntityId = (int64_t) player.getRuntimeId();
+    equipment.mRuntimeActorId = (int64_t) player.getRuntimeId();
     equipment.mItem = offhand;
     equipment.mInventorySlot = PlayerInventory::OFFHAND_NETWORK_SLOT;
     equipment.mHotbarSlot = PlayerInventory::OFFHAND_NETWORK_SLOT;
@@ -69,7 +70,7 @@ void InventoryHandler::sendHeldItem(ServerNetworkHandler &owner, ServerPlayer &p
     player.getInventoryManager().syncSelectedHotbarSlot();
 
     MobEquipmentPacket equipment;
-    equipment.mRuntimeEntityId = (int64_t) player.getRuntimeId();
+    equipment.mRuntimeActorId = (int64_t) player.getRuntimeId();
     equipment.mItem = inventory.getItemInHand();
     equipment.mInventorySlot = selected;
     equipment.mHotbarSlot = selected;
@@ -92,7 +93,7 @@ void InventoryHandler::handleMobEquipment(ServerNetworkHandler &owner, ServerPla
     inventory.setSelectedSlot(packet.mHotbarSlot);
 
     MobEquipmentPacket equipment;
-    equipment.mRuntimeEntityId = (int64_t) player.getRuntimeId();
+    equipment.mRuntimeActorId = (int64_t) player.getRuntimeId();
     equipment.mItem = inventory.getItemInHand();
     equipment.mInventorySlot = inventory.getSelectedSlot();
     equipment.mHotbarSlot = inventory.getSelectedSlot();
@@ -155,8 +156,24 @@ void InventoryHandler::handleItemStackRequest(ServerNetworkHandler &owner, const
 void InventoryHandler::handleTransaction(ServerNetworkHandler &owner, ServerPlayer &player,
                                          const InventoryTransactionPacket &packet) {
     if (packet.mTransactionType == InventoryTransactionType::ItemUse) {
-        if (packet.mActionType == 1)
+        if (packet.mActionType == 0) {
+            ItemUseTransaction transaction;
+            transaction.mLegacyRequestId = packet.mLegacyRequestId;
+            transaction.mActionType = packet.mActionType;
+            transaction.mBlockPosition = packet.mBlockPosition;
+            transaction.mBlockFace = packet.mBlockFace;
+            transaction.mHotbarSlot = packet.mHotbarSlot;
+            transaction.mItemInHand = packet.mItemInHand;
+            transaction.mPlayerPosition = packet.mPlayerPosition;
+            transaction.mClickPosition = packet.mClickPosition;
+            transaction.mBlockDefinition = packet.mBlockDefinition;
+            transaction.mClientInteractPrediction = packet.mClientInteractPrediction;
+            transaction.mTriggerType = packet.mTriggerType;
+            transaction.mClientCooldownState = packet.mClientCooldownState;
+            BlockActionHandler::placeBlock(owner, player, transaction);
+        } else if (packet.mActionType == 1) {
             owner._useHeldItem(player);
+        }
         return;
     }
 

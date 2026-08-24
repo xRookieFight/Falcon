@@ -42,8 +42,8 @@ namespace {
 
     void spawnItemActorTo(ServerNetworkHandler &owner, ServerPlayer &player, const ItemActor &actor) {
         AddItemEntityPacket add;
-        add.mUniqueEntityId = actor.getUniqueId();
-        add.mRuntimeEntityId = actor.getRuntimeId();
+    add.mUniqueActorId = actor.getUniqueId();
+    add.mRuntimeActorId = actor.getRuntimeId();
         add.mItemInHand = actor.getItem();
         add.mPosition = actor.getPosition();
         add.mMotion = actor.getMotion();
@@ -73,7 +73,7 @@ namespace {
 
     void broadcastItemActorMove(ServerNetworkHandler &owner, const ItemActor &actor) {
         MoveEntityAbsolutePacket move;
-        move.mRuntimeEntityId = (int64_t) actor.getRuntimeId();
+    move.mRuntimeActorId = (int64_t) actor.getRuntimeId();
         move.mPosition = actor.getPosition();
         move.mRotation = actor.getRotation();
         move.mOnGround = actor.isOnGround();
@@ -88,7 +88,7 @@ namespace {
 
     void broadcastItemActorRemove(ServerNetworkHandler &owner, const ItemActor &actor) {
         RemoveEntityPacket remove;
-        remove.mUniqueEntityId = actor.getUniqueId();
+    remove.mUniqueActorId = actor.getUniqueId();
 
         for (auto &entry: owner.getPlayers()) {
             if (entry.second.isSpawned())
@@ -158,8 +158,8 @@ namespace {
                 continue;
 
             TakeItemEntityPacket take;
-            take.mItemRuntimeEntityId = actor.getRuntimeId();
-            take.mRuntimeEntityId = player.getRuntimeId();
+    take.mItemRuntimeActorId = actor.getRuntimeId();
+    take.mRuntimeActorId = player.getRuntimeId();
 
             for (auto &viewer: owner.getPlayers()) {
                 if (viewer.second.isSpawned())

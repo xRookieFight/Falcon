@@ -12,8 +12,8 @@ void AnimateEntityPacket::write(BinaryStream &stream, const PacketCodecContext &
     stream.putString(mController);
     stream.putLFloat(mBlendOutTime);
 
-    stream.putUnsignedVarInt((uint32_t) mRuntimeEntityIds.size());
-    for (uint64_t runtimeId: mRuntimeEntityIds) {
+    stream.putUnsignedVarInt((uint32_t) mRuntimeActorIds.size());
+    for (uint64_t runtimeId: mRuntimeActorIds) {
         stream.putUnsignedVarLong(runtimeId);
     }
 }
@@ -27,9 +27,9 @@ void AnimateEntityPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecCo
     mBlendOutTime = stream.getLFloat();
 
     uint32_t count = stream.getUnsignedVarInt();
-    mRuntimeEntityIds.reserve(count);
+    mRuntimeActorIds.reserve(count);
     for (uint32_t i = 0; i < count; i++) {
-        mRuntimeEntityIds.push_back(stream.getUnsignedVarLong());
+        mRuntimeActorIds.push_back(stream.getUnsignedVarLong());
     }
 }
 

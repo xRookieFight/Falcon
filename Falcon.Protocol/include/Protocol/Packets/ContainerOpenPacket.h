@@ -25,5 +25,5 @@ public:
     int8_t mWindowId = 0;
     ContainerType mType = ContainerType::None;
     Vector3i mBlockPosition;
-    int64_t mUniqueEntityId = -1;
+    int64_t mUniqueActorId = -1;
 };

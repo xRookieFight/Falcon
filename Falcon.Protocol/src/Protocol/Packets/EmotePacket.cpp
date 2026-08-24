@@ -5,7 +5,7 @@
 EmotePacket::EmotePacket() = default;
 
 void EmotePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putUnsignedVarLong(mRuntimeEntityId);
+    stream.putUnsignedVarLong(mRuntimeActorId);
     stream.putString(mEmoteId);
     stream.putUnsignedVarInt(mEmoteDuration);
     stream.putString(mXuid);
@@ -14,7 +14,7 @@ void EmotePacket::write(BinaryStream &stream, const PacketCodecContext &context)
 }
 
 void EmotePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mRuntimeEntityId = stream.getUnsignedVarLong();
+    mRuntimeActorId = stream.getUnsignedVarLong();
     mEmoteId = stream.getString();
     mEmoteDuration = stream.getUnsignedVarInt();
     mXuid = stream.getString();

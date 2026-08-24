@@ -32,6 +32,6 @@ public:
     uint32_t mRuntimeId;
     uint32_t mFlags;
     uint32_t mDataLayer;
-    uint64_t mRuntimeEntityId = 0;
+    uint64_t mRuntimeActorId = 0;
     BlockSyncType mEntityBlockSyncType = BlockSyncType::None;
 };

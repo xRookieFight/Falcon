@@ -21,7 +21,7 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    int64_t mRuntimeEntityId = 0;
+    int64_t mRuntimeActorId = 0;
     ItemStack mHelmet;
     ItemStack mChestplate;
     ItemStack mLeggings;

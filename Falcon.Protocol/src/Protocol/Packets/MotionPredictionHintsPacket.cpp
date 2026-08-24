@@ -5,13 +5,13 @@
 MotionPredictionHintsPacket::MotionPredictionHintsPacket() = default;
 
 void MotionPredictionHintsPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putUnsignedVarLong(mRuntimeEntityId);
+    stream.putUnsignedVarLong(mRuntimeActorId);
     stream.putVector3f(mMotion);
     stream.putBool(mOnGround);
 }
 
 void MotionPredictionHintsPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mRuntimeEntityId = stream.getUnsignedVarLong();
+    mRuntimeActorId = stream.getUnsignedVarLong();
     mMotion = stream.getVector3f();
     mOnGround = stream.getBool();
 }

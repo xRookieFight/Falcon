@@ -26,8 +26,8 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    int64_t mUniqueEntityId;
-    uint64_t mRuntimeEntityId;
+    int64_t mUniqueActorId;
+    uint64_t mRuntimeActorId;
     GameType mPlayerGameType;
     Vector3f mPlayerPosition;
     Vector2f mRotation;

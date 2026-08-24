@@ -24,7 +24,7 @@ public:
     std::string mSound;
     Vector3f mPosition;
     int32_t mExtraData;
-    std::string mEntityType;
+    std::string mActorType;
     bool mIsBabyMob;
     bool mDisableRelativeVolume;
     int64_t mActorUniqueId;

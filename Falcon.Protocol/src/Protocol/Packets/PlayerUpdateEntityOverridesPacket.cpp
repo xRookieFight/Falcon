@@ -5,7 +5,7 @@
 PlayerUpdateEntityOverridesPacket::PlayerUpdateEntityOverridesPacket() = default;
 
 void PlayerUpdateEntityOverridesPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putVarLong(mEntityUniqueId);
+    stream.putVarLong(mActorUniqueId);
     stream.putUnsignedVarInt((uint32_t) mPropertyIndex);
     stream.putUnsignedVarInt((uint32_t) mUpdateType);
     stream.putByte((unsigned char) mUpdateType);
@@ -18,7 +18,7 @@ void PlayerUpdateEntityOverridesPacket::write(BinaryStream &stream, const Packet
 }
 
 void PlayerUpdateEntityOverridesPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mEntityUniqueId = stream.getVarLong();
+    mActorUniqueId = stream.getVarLong();
     mPropertyIndex = (int32_t) stream.getUnsignedVarInt();
 
     mUpdateType = (PlayerUpdateEntityOverrideType) stream.getUnsignedVarInt();

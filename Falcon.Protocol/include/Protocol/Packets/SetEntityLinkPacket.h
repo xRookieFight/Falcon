@@ -19,5 +19,5 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    EntityLinkData mEntityLink;
+    EntityLinkData mActorLink;
 };

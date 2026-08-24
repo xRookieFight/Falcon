@@ -36,14 +36,14 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    int64_t mRuntimeEntityId = 0;
+    int64_t mRuntimeActorId = 0;
     Vector3f mPosition;
     Vector3f mRotation;
     MovePlayerMode mMode = MovePlayerMode::Normal;
     bool mOnGround = false;
-    int64_t mRidingRuntimeEntityId = 0;
+    int64_t mRidingRuntimeActorId = 0;
     bool mHasTeleportData = false;
     MovePlayerTeleportationCause mTeleportationCause = MovePlayerTeleportationCause::Unknown;
-    int32_t mEntityType = 0;
+    int32_t mActorType = 0;
     int64_t mTick = 0;
 };

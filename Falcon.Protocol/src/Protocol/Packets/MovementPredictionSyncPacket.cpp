@@ -17,7 +17,7 @@ void MovementPredictionSyncPacket::write(BinaryStream &stream, const PacketCodec
     stream.putLFloat(mUnknown1);
     stream.putLFloat(mUnknown2);
     stream.putLFloat(mUnknown3);
-    stream.putUnsignedVarLong(mRuntimeEntityId);
+    stream.putUnsignedVarLong(mRuntimeActorId);
     stream.putBool(mFlying);
 }
 
@@ -33,7 +33,7 @@ void MovementPredictionSyncPacket::read(ReadOnlyBinaryStream &stream, const Pack
     mUnknown1 = stream.getLFloat();
     mUnknown2 = stream.getLFloat();
     mUnknown3 = stream.getLFloat();
-    mRuntimeEntityId = stream.getUnsignedVarLong();
+    mRuntimeActorId = stream.getUnsignedVarLong();
     mFlying = stream.getBool();
 }
 

@@ -3,10 +3,10 @@
 #include "Protocol/NetworkPacketHandler.h"
 
 MobEffectPacket::MobEffectPacket()
-        : mRuntimeEntityId(0), mEvent(Event::None), mEffectId(0), mAmplifier(0), mParticles(false), mDuration(0), mTick(0), mAmbient(false) {}
+        : mRuntimeActorId(0), mEvent(Event::None), mEffectId(0), mAmplifier(0), mParticles(false), mDuration(0), mTick(0), mAmbient(false) {}
 
 void MobEffectPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putUnsignedVarLong(mRuntimeEntityId);
+    stream.putUnsignedVarLong(mRuntimeActorId);
     stream.putByte((unsigned char) mEvent);
     stream.putVarInt(mEffectId);
     stream.putVarInt(mAmplifier);
@@ -17,7 +17,7 @@ void MobEffectPacket::write(BinaryStream &stream, const PacketCodecContext &cont
 }
 
 void MobEffectPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mRuntimeEntityId = stream.getUnsignedVarLong();
+    mRuntimeActorId = stream.getUnsignedVarLong();
     mEvent = (Event) stream.getByte();
     mEffectId = stream.getVarInt();
     mAmplifier = stream.getVarInt();

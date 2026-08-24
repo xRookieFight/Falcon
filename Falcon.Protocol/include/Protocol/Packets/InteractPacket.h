@@ -29,7 +29,7 @@ public:
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
     Action mAction;
-    uint64_t mRuntimeEntityId;
+    uint64_t mRuntimeActorId;
     bool mHasMousePosition;
     Vector3f mMousePosition;
 };

@@ -25,5 +25,5 @@ public:
     std::vector<AdventureSetting> mSettings;
     CommandPermission mCommandPermission = CommandPermission::Any;
     PlayerPermission mPlayerPermission = PlayerPermission::Visitor;
-    int64_t mUniqueEntityId = 0;
+    int64_t mUniqueActorId = 0;
 };

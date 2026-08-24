@@ -81,9 +81,9 @@
 #include "Protocol/Packets/ItemStackRequestPacket.h"
 #include "Protocol/Packets/MobEquipmentPacket.h"
 #include "Protocol/Packets/PlayerHotbarPacket.h"
-#include "Block/CreativeContentTable.h"
+#include "Block/Components/CreativeContentTable.h"
 #include "Block/Block.h"
-#include "Block/VanillaBlocks.h"
+#include "Block/Blocks/VanillaBlocks.h"
 #include "Item/CraftingRecipeTable.h"
 #include "Item/ItemNetworkIdTable.h"
 #include "Item/ItemData.h"
@@ -510,8 +510,12 @@ void ServerNetworkHandler::tick() {
             }
         }
 
-        if (player.isSpawned() && player.tickHunger(1, (int) mProperties.getDifficulty()))
+        const bool wasSprinting = player.getFlags().get(ActorFlag::Sprinting);
+        const bool hungerChanged = player.isSpawned() && player.tickHunger(1, (int) mProperties.getDifficulty());
+        if (hungerChanged)
             _sendAttributes(player);
+        if (wasSprinting != player.getFlags().get(ActorFlag::Sprinting))
+            _sendEntityData(player);
 
         if (!player.hasChunkPosition())
             continue;
@@ -687,7 +691,7 @@ void ServerNetworkHandler::_sendStartGame(ServerPlayer &player) {
 
 void ServerNetworkHandler::_sendEntityData(ServerPlayer &player) {
     SetEntityDataPacket entityData;
-    entityData.mRuntimeEntityId = (int64_t) player.getRuntimeId();
+    entityData.mRuntimeActorId = (int64_t) player.getRuntimeId();
     entityData.mTick = 0;
 
     EntityDataEntry flags;
@@ -778,7 +782,7 @@ void ServerNetworkHandler::_sendHealth(ServerPlayer &player) {
 
 void ServerNetworkHandler::_broadcastEntityEvent(const Actor &entity, uint8_t eventId) {
     EntityEventPacket event;
-    event.mRuntimeEntityId = entity.getRuntimeId();
+    event.mRuntimeActorId = entity.getRuntimeId();
     event.mEventId = eventId;
     event.mEventData = 0;
     event.mHasFirePosition = false;
@@ -862,7 +866,7 @@ void ServerNetworkHandler::killPlayer(ServerPlayer &player, const std::string &d
     RespawnPacket respawn;
     respawn.mPosition = Vector3f(spawn.x, spawn.y + PLAYER_BASE_OFFSET, spawn.z);
     respawn.mState = RespawnPacket::State::ServerSearching;
-    respawn.mRuntimeEntityId = player.getRuntimeId();
+    respawn.mRuntimeActorId = player.getRuntimeId();
     mNetworkHandler->send(player.getNetworkIdentifier(), respawn, mCodecContext);
 
     DeathInfoPacket info;
@@ -931,11 +935,11 @@ void ServerNetworkHandler::_respawnPlayer(ServerPlayer &player) {
     RespawnPacket respawn;
     respawn.mPosition = eyePosition;
     respawn.mState = RespawnPacket::State::ServerReady;
-    respawn.mRuntimeEntityId = player.getRuntimeId();
+    respawn.mRuntimeActorId = player.getRuntimeId();
     mNetworkHandler->send(player.getNetworkIdentifier(), respawn, mCodecContext);
 
     MovePlayerPacket move;
-    move.mRuntimeEntityId = (int64_t) player.getRuntimeId();
+    move.mRuntimeActorId = (int64_t) player.getRuntimeId();
     move.mPosition = eyePosition;
     move.mRotation = player.getRotation();
     move.mMode = MovePlayerMode::Respawn;
@@ -1005,12 +1009,12 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const SetPlayerGa
 
 void ServerNetworkHandler::handle(const NetworkIdentifier &id, const EmotePacket &packet) {
     ServerPlayer *player = _getPlayer(id);
-    if (player == nullptr || !player->isSpawned() || packet.mRuntimeEntityId != player->getRuntimeId() ||
+    if (player == nullptr || !player->isSpawned() || packet.mRuntimeActorId != player->getRuntimeId() ||
         packet.mEmoteId.empty() || packet.mEmoteId.size() > 256)
         return;
 
     EmotePacket emote = packet;
-    emote.mRuntimeEntityId = player->getRuntimeId();
+    emote.mRuntimeActorId = player->getRuntimeId();
     emote.mXuid = player->getXuid();
 
     for (auto &entry: mPlayers) {
@@ -1148,7 +1152,7 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const EntityPickR
         return;
 
     for (const std::unique_ptr<ItemActor> &actor: mItemEntities) {
-        if (actor->isRemoved() || actor->getRuntimeId() != packet.mRuntimeEntityId)
+        if (actor->isRemoved() || actor->getRuntimeId() != packet.mRuntimeActorId)
             continue;
 
         const Vector3f position = player->getPosition();
@@ -1421,7 +1425,7 @@ void ServerNetworkHandler::_consumeHeldItem(ServerPlayer &player) {
         burp.mSound = "burp";
         burp.mPosition = player.getPosition();
         burp.mExtraData = -1;
-        burp.mEntityType = ":";
+        burp.mActorType = ":";
         burp.mIsBabyMob = false;
         burp.mDisableRelativeVolume = false;
         burp.mActorUniqueId = -1;
@@ -1690,7 +1694,7 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const InteractPac
     if (packet.mAction != InteractPacket::Action::OpenInventory)
         return;
 
-    if (packet.mRuntimeEntityId != player->getRuntimeId())
+    if (packet.mRuntimeActorId != player->getRuntimeId())
         return;
 
     InventoryHandler::handleOpenInventory(*player);

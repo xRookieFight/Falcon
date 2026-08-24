@@ -26,7 +26,7 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    int64_t mUniqueEntityId = 0;
+    int64_t mUniqueActorId = 0;
     Action mAction = Action::Open;
     std::string mDialogue;
     std::string mSceneName;

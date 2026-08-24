@@ -10,7 +10,7 @@ void UpdateEquipPacket::write(BinaryStream &stream, const PacketCodecContext &co
     stream.putByte((unsigned char) mWindowId);
     stream.putByte((unsigned char) mWindowType);
     stream.putVarInt(mSize);
-    stream.putVarLong(mUniqueEntityId);
+    stream.putVarLong(mUniqueActorId);
     NbtIo::writeTag(stream, mTag, NbtVariant::Network);
 }
 
@@ -18,7 +18,7 @@ void UpdateEquipPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecCont
     mWindowId = stream.getByte();
     mWindowType = stream.getByte();
     mSize = stream.getVarInt();
-    mUniqueEntityId = stream.getVarLong();
+    mUniqueActorId = stream.getVarLong();
     mTag = NbtIo::readTag(stream, NbtVariant::Network);
 }
 

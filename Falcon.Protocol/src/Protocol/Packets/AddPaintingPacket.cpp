@@ -5,16 +5,16 @@
 AddPaintingPacket::AddPaintingPacket() = default;
 
 void AddPaintingPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putVarLong(mUniqueEntityId);
-    stream.putUnsignedVarLong(mRuntimeEntityId);
+    stream.putVarLong(mUniqueActorId);
+    stream.putUnsignedVarLong(mRuntimeActorId);
     stream.putVector3f(mPosition);
     stream.putVarInt(mDirection);
     stream.putString(mMotive);
 }
 
 void AddPaintingPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mUniqueEntityId = stream.getVarLong();
-    mRuntimeEntityId = stream.getUnsignedVarLong();
+    mUniqueActorId = stream.getVarLong();
+    mRuntimeActorId = stream.getUnsignedVarLong();
     mPosition = stream.getVector3f();
     mDirection = stream.getVarInt();
     mMotive = stream.getString();

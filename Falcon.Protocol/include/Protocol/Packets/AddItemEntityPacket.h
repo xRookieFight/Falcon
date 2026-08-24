@@ -23,8 +23,8 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    int64_t mUniqueEntityId = 0;
-    uint64_t mRuntimeEntityId = 0;
+    int64_t mUniqueActorId = 0;
+    uint64_t mRuntimeActorId = 0;
     ItemStack mItemInHand;
     Vector3f mPosition;
     Vector3f mMotion;

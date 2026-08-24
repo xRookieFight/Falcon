@@ -3,11 +3,11 @@
 #include "Protocol/NetworkPacketHandler.h"
 
 SpawnParticleEffectPacket::SpawnParticleEffectPacket()
-        : mDimensionId(0), mUniqueEntityId(-1), mHasMolangVariablesJson(false) {}
+        : mDimensionId(0), mUniqueActorId(-1), mHasMolangVariablesJson(false) {}
 
 void SpawnParticleEffectPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putByte((unsigned char) mDimensionId);
-    stream.putVarLong(mUniqueEntityId);
+    stream.putVarLong(mUniqueActorId);
     stream.putVector3f(mPosition);
     stream.putString(mIdentifier);
 
@@ -18,7 +18,7 @@ void SpawnParticleEffectPacket::write(BinaryStream &stream, const PacketCodecCon
 
 void SpawnParticleEffectPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mDimensionId = stream.getByte();
-    mUniqueEntityId = stream.getVarLong();
+    mUniqueActorId = stream.getVarLong();
     mPosition = stream.getVector3f();
     mIdentifier = stream.getString();
 

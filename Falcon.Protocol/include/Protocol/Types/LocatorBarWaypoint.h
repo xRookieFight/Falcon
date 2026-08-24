@@ -22,7 +22,7 @@ public:
     std::optional<Vector2f> mIconSize;
     std::optional<int32_t> mColor;
     std::optional<bool> mClientPositionAuthority;
-    std::optional<int64_t> mEntityUniqueId;
+    std::optional<int64_t> mActorUniqueId;
 };
 
 enum class LocatorBarAction {

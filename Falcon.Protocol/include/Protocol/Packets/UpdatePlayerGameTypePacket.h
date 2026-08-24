@@ -22,6 +22,6 @@ public:
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
     GameType mGameType = GameType::Survival;
-    int64_t mEntityId = 0;
+    int64_t mActorId = 0;
     int64_t mTick = 0;
 };

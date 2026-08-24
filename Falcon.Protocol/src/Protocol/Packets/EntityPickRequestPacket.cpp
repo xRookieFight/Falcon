@@ -3,16 +3,16 @@
 #include "Protocol/NetworkPacketHandler.h"
 
 EntityPickRequestPacket::EntityPickRequestPacket()
-        : mRuntimeEntityId(0), mHotbarSlot(0), mWithData(false) {}
+        : mRuntimeActorId(0), mHotbarSlot(0), mWithData(false) {}
 
 void EntityPickRequestPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putLLong(mRuntimeEntityId);
+    stream.putLLong(mRuntimeActorId);
     stream.putByte((unsigned char) mHotbarSlot);
     stream.putBool(mWithData);
 }
 
 void EntityPickRequestPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mRuntimeEntityId = stream.getLLong();
+    mRuntimeActorId = stream.getLLong();
     mHotbarSlot = stream.getByte();
     mWithData = stream.getBool();
 }

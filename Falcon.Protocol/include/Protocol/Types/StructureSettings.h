@@ -33,7 +33,7 @@ struct StructureSettings {
     bool mNonTickingPlayersAndTickingAreasEnabled;
     Vector3i mSize;
     Vector3i mOffset;
-    int64_t mLastEditedByEntityId;
+    int64_t mLastEditedByActorId;
     StructureRotation mRotation;
     StructureMirror mMirror;
     StructureAnimationMode mAnimationMode;
@@ -44,7 +44,7 @@ struct StructureSettings {
 
     StructureSettings()
             : mIgnoringEntities(false), mIgnoringBlocks(false), mNonTickingPlayersAndTickingAreasEnabled(false),
-              mLastEditedByEntityId(0), mRotation(StructureRotation::None), mMirror(StructureMirror::None),
+              mLastEditedByActorId(0), mRotation(StructureRotation::None), mMirror(StructureMirror::None),
               mAnimationMode(StructureAnimationMode::None), mAnimationSeconds(0.0f), mIntegrityValue(0.0f),
               mIntegritySeed(0) {}
 

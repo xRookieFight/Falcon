@@ -26,5 +26,5 @@ public:
 
     Vector3f mPosition;
     State mState;
-    uint64_t mRuntimeEntityId;
+    uint64_t mRuntimeActorId;
 };

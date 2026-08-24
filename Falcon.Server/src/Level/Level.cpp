@@ -1,7 +1,7 @@
 #include "Level/Level.h"
 
 #include "Block/BlockData.h"
-#include "Block/VanillaBlocks.h"
+#include "Block/Blocks/VanillaBlocks.h"
 #include "Core/Debug/BedrockLog.h"
 
 #include <algorithm>

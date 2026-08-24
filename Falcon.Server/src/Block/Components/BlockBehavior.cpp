@@ -1,4 +1,4 @@
-#include "Block/BlockBehavior.h"
+#include "Block/Components/BlockBehavior.h"
 
 #include "Actor/Actor.h"
 

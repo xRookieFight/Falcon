@@ -6,13 +6,13 @@ UpdatePlayerGameTypePacket::UpdatePlayerGameTypePacket() = default;
 
 void UpdatePlayerGameTypePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putVarInt((int32_t) mGameType);
-    stream.putVarLong(mEntityId);
+    stream.putVarLong(mActorId);
     stream.putUnsignedVarLong((uint64_t) mTick);
 }
 
 void UpdatePlayerGameTypePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mGameType = (GameType) stream.getVarInt();
-    mEntityId = stream.getVarLong();
+    mActorId = stream.getVarLong();
     mTick = (int64_t) stream.getUnsignedVarLong();
 }
 

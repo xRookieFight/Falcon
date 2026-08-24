@@ -23,7 +23,7 @@ public:
 
         Action mAction = Action::Add;
         Uuid mUuid;
-        int64_t mEntityId = 0;
+        int64_t mActorId = 0;
         std::string mName;
         std::string mXuid;
         std::string mPlatformChatId;

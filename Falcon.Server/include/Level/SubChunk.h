@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Core/Utility/BinaryStream.h"
-#include "Level/BlockState.h"
+#include "Block/BlockState.h"
 
 #include <cstdint>
 #include <vector>

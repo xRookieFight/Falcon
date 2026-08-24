@@ -198,7 +198,7 @@ void InventoryManager::syncSelectedHotbarSlot() {
     }
 
     MobEquipmentPacket equipment;
-    equipment.mRuntimeEntityId = (int64_t) mPlayer->getRuntimeId();
+    equipment.mRuntimeActorId = (int64_t) mPlayer->getRuntimeId();
     equipment.mItem = inventory.getItemInHand();
     equipment.mInventorySlot = selected;
     equipment.mHotbarSlot = selected;
@@ -250,7 +250,7 @@ void InventoryManager::onClientOpenMainInventory() {
     open.mWindowId = (int8_t) windowId;
     open.mType = mCurrentWindowType;
     open.mBlockPosition = Vector3i(0, 0, 0);
-    open.mUniqueEntityId = mPlayer->getUniqueId();
+    open.mUniqueActorId = mPlayer->getUniqueId();
     mSender->sendPacketTo(mPlayer->getNetworkIdentifier(), open);
 }
 

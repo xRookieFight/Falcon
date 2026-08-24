@@ -30,7 +30,7 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    uint64_t mRuntimeEntityId = 0;
+    uint64_t mRuntimeActorId = 0;
     uint8_t mEventId = 0;
     int32_t mEventData = 0;
     bool mHasFirePosition = false;

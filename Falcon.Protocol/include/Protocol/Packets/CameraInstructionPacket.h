@@ -43,6 +43,6 @@ public:
     bool mHasAttachInstruction = false;
     CameraAttachToEntityInstruction mAttachInstruction;
 
-    bool mHasDetachFromEntity = false;
-    bool mDetachFromEntity = false;
+    bool mHasDetachFromActor = false;
+    bool mDetachFromActor = false;
 };

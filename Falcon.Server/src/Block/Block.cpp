@@ -1,7 +1,7 @@
 #include "Block/Block.h"
 
-#include "Block/BlockBehavior.h"
-#include "Block/BlockBehaviorRegistry.h"
+#include "Block/Components/BlockBehavior.h"
+#include "Block/Components/BlockBehaviorRegistry.h"
 #include "Block/BlockData.h"
 
 const BlockData *Block::getData() const {

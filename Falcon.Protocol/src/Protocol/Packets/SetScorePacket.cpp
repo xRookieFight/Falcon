@@ -40,7 +40,7 @@ void SetScorePacket::write(BinaryStream &stream, const PacketCodecContext &conte
             case ScorerType::Entity:
                 stream.putString(info.mObjectiveId.empty() ? " " : info.mObjectiveId);
                 stream.putLInt((uint32_t) info.mScore);
-                stream.putVarLong(info.mEntityId);
+                stream.putVarLong(info.mActorId);
                 break;
             case ScorerType::Fake:
                 stream.putString(info.mObjectiveId.empty() ? " " : info.mObjectiveId);
@@ -69,7 +69,7 @@ void SetScorePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext
             case ScorerType::Entity:
                 info.mObjectiveId = stream.getString();
                 info.mScore = (int32_t) stream.getLInt();
-                info.mEntityId = stream.getVarLong();
+                info.mActorId = stream.getVarLong();
                 break;
             case ScorerType::Fake:
                 info.mObjectiveId = stream.getString();

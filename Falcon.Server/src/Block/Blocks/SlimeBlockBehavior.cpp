@@ -1,4 +1,4 @@
-#include "Block/SlimeBlockBehavior.h"
+#include "Block/Blocks/SlimeBlockBehavior.h"
 
 #include "Actor/Actor.h"
 #include "Actor/ActorFlags.h"

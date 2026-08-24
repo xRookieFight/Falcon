@@ -43,9 +43,9 @@ void CameraCodec::writeSetInstruction(BinaryStream &stream, const CameraSetInstr
         stream.putVector2f(instruction.mViewOffset);
     }
 
-    stream.putOptionalPresent(instruction.mHasEntityOffset);
-    if (instruction.mHasEntityOffset) {
-        stream.putVector3f(instruction.mEntityOffset);
+    stream.putOptionalPresent(instruction.mHasActorOffset);
+    if (instruction.mHasActorOffset) {
+        stream.putVector3f(instruction.mActorOffset);
     }
 
     stream.putBool(instruction.mHasDefaultPreset);
@@ -82,9 +82,9 @@ CameraSetInstruction CameraCodec::readSetInstruction(ReadOnlyBinaryStream &strea
         instruction.mViewOffset = stream.getVector2f();
     }
 
-    instruction.mHasEntityOffset = stream.getOptionalPresent();
-    if (instruction.mHasEntityOffset) {
-        instruction.mEntityOffset = stream.getVector3f();
+    instruction.mHasActorOffset = stream.getOptionalPresent();
+    if (instruction.mHasActorOffset) {
+        instruction.mActorOffset = stream.getVector3f();
     }
 
     instruction.mHasDefaultPreset = stream.getBool();
@@ -307,9 +307,9 @@ void CameraCodec::writePreset(BinaryStream &stream, const CameraPreset &preset) 
         stream.putVector2f(preset.mViewOffset);
     }
 
-    stream.putOptionalPresent(preset.mHasEntityOffset);
-    if (preset.mHasEntityOffset) {
-        stream.putVector3f(preset.mEntityOffset);
+    stream.putOptionalPresent(preset.mHasActorOffset);
+    if (preset.mHasActorOffset) {
+        stream.putVector3f(preset.mActorOffset);
     }
 
     stream.putOptionalPresent(preset.mHasRadius);
@@ -409,9 +409,9 @@ CameraPreset CameraCodec::readPreset(ReadOnlyBinaryStream &stream) {
         preset.mViewOffset = stream.getVector2f();
     }
 
-    preset.mHasEntityOffset = stream.getOptionalPresent();
-    if (preset.mHasEntityOffset) {
-        preset.mEntityOffset = stream.getVector3f();
+    preset.mHasActorOffset = stream.getOptionalPresent();
+    if (preset.mHasActorOffset) {
+        preset.mActorOffset = stream.getVector3f();
     }
 
     preset.mHasRadius = stream.getOptionalPresent();

@@ -31,7 +31,7 @@ public:
 
     Uuid mUuid;
     std::string mUsername;
-    int64_t mRuntimeEntityId = 0;
+    int64_t mRuntimeActorId = 0;
     std::string mPlatformChatId;
     Vector3f mPosition;
     Vector3f mMotion;
@@ -41,7 +41,7 @@ public:
     EntityDataMap mMetadata;
     EntityProperties mProperties;
     PlayerAbilityData mAbilities;
-    std::vector<EntityLinkData> mEntityLinks;
+    std::vector<EntityLinkData> mActorLinks;
     std::string mDeviceId;
     int32_t mBuildPlatform = 0;
 };

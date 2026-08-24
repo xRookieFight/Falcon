@@ -28,8 +28,8 @@ public:
     bool mLocked = false;
     Vector3i mOrigin;
 
-    bool mHasTrackedEntityIds = false;
-    std::vector<int64_t> mTrackedEntityIds;
+    bool mHasTrackedActorIds = false;
+    std::vector<int64_t> mTrackedActorIds;
 
     bool mHasScale = false;
     int8_t mScale = 0;

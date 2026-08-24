@@ -144,19 +144,29 @@ public:
 
     double getBreakProgress() const { return mBreakProgress; }
 
+    double getBreakSpeed() const { return mBreakSpeed; }
+
+    int64_t getBreakStartTick() const { return mBreakStartTick; }
+
     void addBreakProgress(double amount) { mBreakProgress += amount; }
 
-    void startBreakingBlock(const Vector3i &position, int32_t face) {
+    void setBreakSpeed(double speed) { mBreakSpeed = speed; }
+
+    void startBreakingBlock(const Vector3i &position, int32_t face, double speed, int64_t startTick = 0) {
         mIsBreakingBlock = true;
         mBreakingBlockPosition = position;
         mBreakingFace = face;
+        mBreakSpeed = speed;
         mBreakProgress = 0.0;
         mBreakingFxTicker = 0;
+        mBreakStartTick = startTick;
     }
 
     void stopBreakingBlock() {
         mIsBreakingBlock = false;
+        mBreakSpeed = 0.0;
         mBreakProgress = 0.0;
+        mBreakStartTick = 0;
     }
 
     int getBreakingFxTicker() { return mBreakingFxTicker++; }
@@ -209,6 +219,8 @@ private:
     Vector3i mBreakingBlockPosition;
     int32_t mBreakingFace = 0;
     double mBreakProgress = 0.0;
+    double mBreakSpeed = 0.0;
+    int64_t mBreakStartTick = 0;
     int mBreakingFxTicker = 0;
     bool mSawNonZeroClientTick = false;
     std::unordered_set<int64_t> mSentChunks;

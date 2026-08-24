@@ -59,7 +59,7 @@ namespace {
 EventPacket::EventPacket() = default;
 
 void EventPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putVarLong(mUniqueEntityId);
+    stream.putVarLong(mUniqueActorId);
     stream.putVarInt((int32_t) mEventData.mType);
     stream.putBool(mUsePlayerId);
     stream.putUnsignedVarInt((uint32_t) toPayloadType(mEventData.mType));
@@ -70,8 +70,8 @@ void EventPacket::write(BinaryStream &stream, const PacketCodecContext &context)
             break;
         case EventDataType::EntityInteract:
             stream.putVarInt(mEventData.mInteractionType);
-            stream.putVarInt(mEventData.mLegacyEntityTypeId);
-            stream.putVarInt(mEventData.mEntityVariant);
+            stream.putVarInt(mEventData.mLegacyActorTypeId);
+            stream.putVarInt(mEventData.mActorVariant);
             stream.putByte((unsigned char) mEventData.mPaletteColor);
             break;
         case EventDataType::PortalBuilt:
@@ -82,9 +82,9 @@ void EventPacket::write(BinaryStream &stream, const PacketCodecContext &context)
             stream.putVarInt(mEventData.mToDimensionId);
             break;
         case EventDataType::MobKilled:
-            stream.putVarLong(mEventData.mKillerUniqueEntityId);
-            stream.putVarLong(mEventData.mVictimUniqueEntityId);
-            stream.putVarInt(mEventData.mEntityDamageCause);
+            stream.putVarLong(mEventData.mKillerUniqueActorId);
+            stream.putVarLong(mEventData.mVictimUniqueActorId);
+            stream.putVarInt(mEventData.mActorDamageCause);
             stream.putVarInt(mEventData.mVillagerTradeTier);
             stream.putString(mEventData.mVillagerDisplayName);
             break;
@@ -94,13 +94,13 @@ void EventPacket::write(BinaryStream &stream, const PacketCodecContext &context)
             stream.putVarInt(mEventData.mFillLevel);
             break;
         case EventDataType::PlayerDied:
-            stream.putVarInt(mEventData.mAttackerEntityId);
-            stream.putVarInt(mEventData.mEntityDamageCause);
+            stream.putVarInt(mEventData.mAttackerActorId);
+            stream.putVarInt(mEventData.mActorDamageCause);
             break;
         case EventDataType::BossKilled:
-            stream.putVarLong(mEventData.mBossUniqueEntityId);
+            stream.putVarLong(mEventData.mBossUniqueActorId);
             stream.putVarInt(mEventData.mPlayerPartySize);
-            stream.putVarInt(mEventData.mBossEntityType);
+            stream.putVarInt(mEventData.mBossActorType);
             break;
         case EventDataType::AgentCommand:
             stream.putVarInt((int32_t) mEventData.mAgentResult);
@@ -127,7 +127,7 @@ void EventPacket::write(BinaryStream &stream, const PacketCodecContext &context)
         case EventDataType::FishBucketed:
             stream.putVarInt(mEventData.mFishPattern);
             stream.putVarInt(mEventData.mFishPreset);
-            stream.putVarInt(mEventData.mFishBucketedEntityType);
+            stream.putVarInt(mEventData.mFishBucketedActorType);
             stream.putBool(mEventData.mFishReleaseEvent);
             break;
         default:
@@ -136,7 +136,7 @@ void EventPacket::write(BinaryStream &stream, const PacketCodecContext &context)
 }
 
 void EventPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mUniqueEntityId = stream.getVarLong();
+    mUniqueActorId = stream.getVarLong();
     mEventData = EventData();
     mEventData.mType = (EventDataType) stream.getVarInt();
     mUsePlayerId = stream.getBool();
@@ -148,8 +148,8 @@ void EventPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &c
             break;
         case EventDataType::EntityInteract:
             mEventData.mInteractionType = stream.getVarInt();
-            mEventData.mLegacyEntityTypeId = stream.getVarInt();
-            mEventData.mEntityVariant = stream.getVarInt();
+            mEventData.mLegacyActorTypeId = stream.getVarInt();
+            mEventData.mActorVariant = stream.getVarInt();
             mEventData.mPaletteColor = stream.getByte();
             break;
         case EventDataType::PortalBuilt:
@@ -160,9 +160,9 @@ void EventPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &c
             mEventData.mToDimensionId = stream.getVarInt();
             break;
         case EventDataType::MobKilled:
-            mEventData.mKillerUniqueEntityId = stream.getVarLong();
-            mEventData.mVictimUniqueEntityId = stream.getVarLong();
-            mEventData.mEntityDamageCause = stream.getVarInt();
+            mEventData.mKillerUniqueActorId = stream.getVarLong();
+            mEventData.mVictimUniqueActorId = stream.getVarLong();
+            mEventData.mActorDamageCause = stream.getVarInt();
             mEventData.mVillagerTradeTier = stream.getVarInt();
             mEventData.mVillagerDisplayName = stream.getString();
             break;
@@ -172,13 +172,13 @@ void EventPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &c
             mEventData.mFillLevel = stream.getVarInt();
             break;
         case EventDataType::PlayerDied:
-            mEventData.mAttackerEntityId = stream.getVarInt();
-            mEventData.mEntityDamageCause = stream.getVarInt();
+            mEventData.mAttackerActorId = stream.getVarInt();
+            mEventData.mActorDamageCause = stream.getVarInt();
             break;
         case EventDataType::BossKilled:
-            mEventData.mBossUniqueEntityId = stream.getVarLong();
+            mEventData.mBossUniqueActorId = stream.getVarLong();
             mEventData.mPlayerPartySize = stream.getVarInt();
-            mEventData.mBossEntityType = stream.getVarInt();
+            mEventData.mBossActorType = stream.getVarInt();
             break;
         case EventDataType::AgentCommand:
             mEventData.mAgentResult = (AgentResult) stream.getVarInt();
@@ -205,7 +205,7 @@ void EventPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &c
         case EventDataType::FishBucketed:
             mEventData.mFishPattern = stream.getVarInt();
             mEventData.mFishPreset = stream.getVarInt();
-            mEventData.mFishBucketedEntityType = stream.getVarInt();
+            mEventData.mFishBucketedActorType = stream.getVarInt();
             mEventData.mFishReleaseEvent = stream.getBool();
             break;
         default:

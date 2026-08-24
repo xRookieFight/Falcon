@@ -27,7 +27,7 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    uint64_t mEntityRuntimeId = 0;
+    uint64_t mActorRuntimeId = 0;
     MovementEffectType mEffectType = MovementEffectType::Invalid;
     uint32_t mDuration = 0;
     uint64_t mTick = 0;

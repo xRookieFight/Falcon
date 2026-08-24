@@ -10,7 +10,7 @@ void LevelSoundEventPacket::write(BinaryStream &stream, const PacketCodecContext
     stream.putString(mSound);
     stream.putVector3f(mPosition);
     stream.putVarInt(mExtraData);
-    stream.putString(mEntityType);
+    stream.putString(mActorType);
     stream.putBool(mIsBabyMob);
     stream.putBool(mDisableRelativeVolume);
     stream.putLLong((uint64_t) mActorUniqueId);
@@ -23,7 +23,7 @@ void LevelSoundEventPacket::read(ReadOnlyBinaryStream &stream, const PacketCodec
     mSound = stream.getString();
     mPosition = stream.getVector3f();
     mExtraData = stream.getVarInt();
-    mEntityType = stream.getString();
+    mActorType = stream.getString();
     mIsBabyMob = stream.getBool();
     mDisableRelativeVolume = stream.getBool();
     mActorUniqueId = (int64_t) stream.getLLong();

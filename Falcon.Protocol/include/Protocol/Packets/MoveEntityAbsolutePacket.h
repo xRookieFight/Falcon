@@ -21,7 +21,7 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
-    int64_t mRuntimeEntityId = 0;
+    int64_t mRuntimeActorId = 0;
     Vector3f mPosition;
     Vector3f mRotation;
     bool mOnGround = false;

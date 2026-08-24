@@ -46,8 +46,8 @@ public:
     bool mHasDimension = false;
     int32_t mDimension = -1;
 
-    bool mHasAttachedToEntityId = false;
-    uint64_t mAttachedToEntityId = 0;
+    bool mHasAttachedToActorId = false;
+    uint64_t mAttachedToActorId = 0;
 
     bool mHasArrowEndPosition = false;
     Vector3f mArrowEndPosition;

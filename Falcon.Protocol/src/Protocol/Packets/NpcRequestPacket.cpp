@@ -3,10 +3,10 @@
 #include "Protocol/NetworkPacketHandler.h"
 
 NpcRequestPacket::NpcRequestPacket()
-        : mRuntimeEntityId(0), mRequestType(RequestType::SetAction), mActionType(0) {}
+        : mRuntimeActorId(0), mRequestType(RequestType::SetAction), mActionType(0) {}
 
 void NpcRequestPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putUnsignedVarLong(mRuntimeEntityId);
+    stream.putUnsignedVarLong(mRuntimeActorId);
     stream.putByte((unsigned char) mRequestType);
     stream.putString(mCommand);
     stream.putByte((unsigned char) mActionType);
@@ -14,7 +14,7 @@ void NpcRequestPacket::write(BinaryStream &stream, const PacketCodecContext &con
 }
 
 void NpcRequestPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mRuntimeEntityId = stream.getUnsignedVarLong();
+    mRuntimeActorId = stream.getUnsignedVarLong();
     mRequestType = (RequestType) stream.getByte();
     mCommand = stream.getString();
     mActionType = stream.getByte();

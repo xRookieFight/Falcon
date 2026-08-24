@@ -5,7 +5,7 @@
 MoveEntityDeltaPacket::MoveEntityDeltaPacket() = default;
 
 void MoveEntityDeltaPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putUnsignedVarLong(mRuntimeEntityId);
+    stream.putUnsignedVarLong(mRuntimeActorId);
 
     stream.putOptionalPresent(mHasX);
     if (mHasX)
@@ -33,12 +33,12 @@ void MoveEntityDeltaPacket::write(BinaryStream &stream, const PacketCodecContext
 
     stream.putBool(mOnGround);
     stream.putBool(mForceMove);
-    stream.putBool(mForceMoveLocalEntity);
+    stream.putBool(mForceMoveLocalActor);
     stream.putBool(mForceCompletion);
 }
 
 void MoveEntityDeltaPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mRuntimeEntityId = stream.getUnsignedVarLong();
+    mRuntimeActorId = stream.getUnsignedVarLong();
 
     mHasX = stream.getOptionalPresent();
     if (mHasX)
@@ -66,7 +66,7 @@ void MoveEntityDeltaPacket::read(ReadOnlyBinaryStream &stream, const PacketCodec
 
     mOnGround = stream.getBool();
     mForceMove = stream.getBool();
-    mForceMoveLocalEntity = stream.getBool();
+    mForceMoveLocalActor = stream.getBool();
     mForceCompletion = stream.getBool();
 }
 

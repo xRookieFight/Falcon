@@ -3,15 +3,15 @@
 #include "Protocol/NetworkPacketHandler.h"
 
 DebugInfoPacket::DebugInfoPacket()
-        : mUniqueEntityId(0) {}
+        : mUniqueActorId(0) {}
 
 void DebugInfoPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putVarLong(mUniqueEntityId);
+    stream.putVarLong(mUniqueActorId);
     stream.putString(mData);
 }
 
 void DebugInfoPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mUniqueEntityId = stream.getVarLong();
+    mUniqueActorId = stream.getVarLong();
     mData = stream.getString();
 }
 

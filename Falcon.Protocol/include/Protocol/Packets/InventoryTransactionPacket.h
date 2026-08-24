@@ -35,7 +35,7 @@ public:
     std::vector<InventoryActionData> mActions;
     InventoryTransactionType mTransactionType = InventoryTransactionType::Normal;
     int32_t mActionType = 0;
-    int64_t mRuntimeEntityId = 0;
+    int64_t mRuntimeActorId = 0;
     Vector3i mBlockPosition;
     int32_t mBlockFace = 0;
     int32_t mHotbarSlot = 0;

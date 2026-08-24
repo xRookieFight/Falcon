@@ -3,18 +3,18 @@
 #include "Protocol/NetworkPacketHandler.h"
 
 RespawnPacket::RespawnPacket()
-        : mState(State::ServerSearching), mRuntimeEntityId(0) {}
+        : mState(State::ServerSearching), mRuntimeActorId(0) {}
 
 void RespawnPacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putVector3f(mPosition);
     stream.putByte((unsigned char) mState);
-    stream.putUnsignedVarLong(mRuntimeEntityId);
+    stream.putUnsignedVarLong(mRuntimeActorId);
 }
 
 void RespawnPacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mPosition = stream.getVector3f();
     mState = (State) stream.getByte();
-    mRuntimeEntityId = stream.getUnsignedVarLong();
+    mRuntimeActorId = stream.getUnsignedVarLong();
 }
 
 void RespawnPacket::handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const {

@@ -1,7 +1,7 @@
 #include "Network/LoginHandler.h"
 
-#include "Block/CreativeContentTable.h"
-#include "Block/VanillaBlocks.h"
+#include "Block/Components/CreativeContentTable.h"
+#include "Block/Blocks/VanillaBlocks.h"
 #include "Command/Command.h"
 #include "Core/Debug/BedrockLog.h"
 #include "Core/NBT/NbtIo.h"
@@ -292,8 +292,8 @@ void LoginHandler::sendStartGame(ServerNetworkHandler &owner, ServerPlayer &play
     player.setHungerEnabled(player.getGameType() == (int32_t) GameType::Survival);
 
     StartGamePacket startGame;
-    startGame.mUniqueEntityId = player.getUniqueId();
-    startGame.mRuntimeEntityId = player.getRuntimeId();
+    startGame.mUniqueActorId = player.getUniqueId();
+    startGame.mRuntimeActorId = player.getRuntimeId();
     startGame.mPlayerGameType = (GameType) player.getGameType();
     startGame.mPlayerPosition = Vector3f(player.getPosition().x, player.getPosition().y + PLAYER_BASE_OFFSET,
                                         player.getPosition().z);
@@ -406,7 +406,7 @@ void LoginHandler::sendAbilities(ServerNetworkHandler &owner, ServerPlayer &play
     layer.mVerticalFlySpeed = 1.0f;
 
     UpdateAbilitiesPacket abilities;
-    abilities.mAbilities.mUniqueEntityId = player.getUniqueId();
+    abilities.mAbilities.mUniqueActorId = player.getUniqueId();
     abilities.mAbilities.mPlayerPermission = (uint8_t) (player.isOp() ? PlayerPermission::Operator
                                                                      : owner.getProperties().getDefaultPlayerPermissionLevel());
     abilities.mAbilities.mCommandPermission = (uint8_t) (player.isOp() ? CommandPermission::GameDirectors
@@ -623,7 +623,7 @@ void LoginHandler::sendAvailableCommands(ServerNetworkHandler &owner, ServerPlay
 
 void LoginHandler::sendAttributes(ServerNetworkHandler &owner, ServerPlayer &player) {
     UpdateAttributesPacket attributes;
-    attributes.mRuntimeEntityId = (int64_t) player.getRuntimeId();
+    attributes.mRuntimeActorId = (int64_t) player.getRuntimeId();
     attributes.mTick = 0;
     attributes.mAttributes = player.getAttributes().getAll();
 
@@ -632,7 +632,7 @@ void LoginHandler::sendAttributes(ServerNetworkHandler &owner, ServerPlayer &pla
 
 void LoginHandler::addToPlayerList(ServerNetworkHandler &owner, ServerPlayer &player) {
     PlayerListPacket::Entry newEntry(listUuidFor(player));
-    newEntry.mEntityId = player.getUniqueId();
+    newEntry.mActorId = player.getUniqueId();
     newEntry.mName = player.getName();
     newEntry.mXuid = player.getXuid();
     newEntry.mSkin = player.getSkin();
@@ -651,7 +651,7 @@ void LoginHandler::addToPlayerList(ServerNetworkHandler &owner, ServerPlayer &pl
 
         if (&entry.second != &player) {
             PlayerListPacket::Entry existingEntry(listUuidFor(entry.second));
-            existingEntry.mEntityId = entry.second.getUniqueId();
+            existingEntry.mActorId = entry.second.getUniqueId();
             existingEntry.mName = entry.second.getName();
             existingEntry.mXuid = entry.second.getXuid();
             existingEntry.mSkin = entry.second.getSkin();

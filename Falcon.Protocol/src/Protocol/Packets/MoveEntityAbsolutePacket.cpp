@@ -12,7 +12,7 @@ namespace {
 MoveEntityAbsolutePacket::MoveEntityAbsolutePacket() = default;
 
 void MoveEntityAbsolutePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putUnsignedVarLong((uint64_t) mRuntimeEntityId);
+    stream.putUnsignedVarLong((uint64_t) mRuntimeActorId);
 
     int flags = 0;
     if (mOnGround) flags |= FLAG_ON_GROUND;
@@ -29,7 +29,7 @@ void MoveEntityAbsolutePacket::write(BinaryStream &stream, const PacketCodecCont
 }
 
 void MoveEntityAbsolutePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mRuntimeEntityId = (int64_t) stream.getUnsignedVarLong();
+    mRuntimeActorId = (int64_t) stream.getUnsignedVarLong();
 
     int flags = stream.getByte();
     mOnGround = (flags & FLAG_ON_GROUND) != 0;

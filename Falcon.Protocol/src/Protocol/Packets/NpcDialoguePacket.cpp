@@ -5,7 +5,7 @@
 NpcDialoguePacket::NpcDialoguePacket() = default;
 
 void NpcDialoguePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putLLong((uint64_t) mUniqueEntityId);
+    stream.putLLong((uint64_t) mUniqueActorId);
     stream.putVarInt((int32_t) mAction);
     stream.putString(mDialogue);
     stream.putString(mSceneName);
@@ -14,7 +14,7 @@ void NpcDialoguePacket::write(BinaryStream &stream, const PacketCodecContext &co
 }
 
 void NpcDialoguePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
-    mUniqueEntityId = (int64_t) stream.getLLong();
+    mUniqueActorId = (int64_t) stream.getLLong();
     mAction = (Action) stream.getVarInt();
     mDialogue = stream.getString();
     mSceneName = stream.getString();
