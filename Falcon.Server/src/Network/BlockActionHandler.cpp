@@ -4,7 +4,7 @@
 #include "Actor/ServerPlayer.h"
 #include "Item/ItemData.h"
 #include "Item/ItemEnchantments.h"
-#include "Item/ItemNetworkIdTable.h"
+#include "Item/Items/BucketItem.h"
 #include "Item/StringToItemParser.h"
 #include "Inventory/InventoryManager.h"
 #include "Level/Level.h"
@@ -340,7 +340,11 @@ void BlockActionHandler::startBreakingBlock(ServerNetworkHandler &owner, ServerP
     }
 
     const BlockData *blockData = BlockDataTable::find(state.mName.c_str());
-    const double breakSpeed = calculateBreakProgressPerTick(player, blockData);
+    const bool creative = player.getGameType() == (int32_t) GameType::Creative;
+    if (creative && blockData != nullptr && blockData->mHardness < 0.0f)
+        return;
+
+    const double breakSpeed = creative ? 1.0 : calculateBreakProgressPerTick(player, blockData);
 
     if (breakSpeed <= 0.0) {
         return;
@@ -354,10 +358,16 @@ void BlockActionHandler::startBreakingBlock(ServerNetworkHandler &owner, ServerP
     start.mData = breakSpeedEventData(breakSpeed);
 
     broadcastToViewers(owner, start.mPosition, start);
+
+    if (creative)
+        completeBreakingBlock(owner, player, position);
 }
 
 void BlockActionHandler::continueBreakingBlock(ServerNetworkHandler &owner, ServerPlayer &player) {
     if (!player.isBreakingBlock())
+        return;
+
+    if (owner.getCurrentTick() <= player.getBreakStartTick())
         return;
 
     const Vector3i position = player.getBreakingBlockPosition();
@@ -410,6 +420,11 @@ void BlockActionHandler::completeBreakingBlock(ServerNetworkHandler &owner, Serv
         return;
 
     const bool creative = player.getGameType() == (int32_t) GameType::Creative;
+    if (creative && !player.isBreakingBlock()) {
+        startBreakingBlock(owner, player, position, 0);
+        return;
+    }
+
     if (!creative) {
         if (!player.isBreakingBlock() || player.getBreakingBlockPosition() != position) {
             sendCurrentBlockState(owner, position);
@@ -425,7 +440,7 @@ void BlockActionHandler::completeBreakingBlock(ServerNetworkHandler &owner, Serv
         }
 
         const BlockData *blockData = BlockDataTable::find(state.mName.c_str());
-        if (!hasReachedBreakTime(owner, player, blockData) &&
+        if (!hasReachedBreakTime(owner, player, blockData) ||
             player.getBreakProgress() + BREAK_PROGRESS_EPSILON < 1.0) {
             sendCurrentBlockState(owner, position);
             return;
@@ -514,13 +529,15 @@ void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &p
     }
 
     const ItemStack &heldItem = inventory.getItemInHand();
+    const bool bucket = BucketItem::isBucket(heldItem);
     if (heldItem.isAir() || heldItem.mCount <= 0 || heldItem.mDefinition == nullptr
-        || heldItem.mBlockDefinition == nullptr || transaction.mItemInHand.isAir()
+        || (!bucket && heldItem.mBlockDefinition == nullptr) || transaction.mItemInHand.isAir()
         || transaction.mItemInHand.mCount <= 0 || transaction.mItemInHand.mDefinition == nullptr
         || transaction.mItemInHand.mDefinition->getIdentifier() != heldItem.mDefinition->getIdentifier()
         || transaction.mItemInHand.mDamage != heldItem.mDamage
-        || transaction.mItemInHand.mBlockDefinition == nullptr
-        || transaction.mItemInHand.mBlockDefinition->getIdentifier() != heldItem.mBlockDefinition->getIdentifier()) {
+        || (!bucket && (transaction.mItemInHand.mBlockDefinition == nullptr
+                        || transaction.mItemInHand.mBlockDefinition->getIdentifier()
+                           != heldItem.mBlockDefinition->getIdentifier()))) {
         owner._sendInventory(player);
         return;
     }
@@ -529,6 +546,11 @@ void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &p
     const BlockState clickedState = level.getBlockState(transaction.mBlockPosition.x,
                                                         transaction.mBlockPosition.y,
                                                         transaction.mBlockPosition.z);
+
+    if (bucket) {
+        BucketItem::use(owner, player, transaction);
+        return;
+    }
 
     if (clickedState.mName == "minecraft:air") {
         sendCurrentBlockState(owner, transaction.mBlockPosition);

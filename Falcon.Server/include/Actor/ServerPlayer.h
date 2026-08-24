@@ -136,6 +136,12 @@ public:
 
     void setItemUseStartTick(int64_t tick) { mItemUseStartTick = tick; }
 
+    int getAirSupply() const { return mAirSupply; }
+
+    void setAirSupply(int airSupply) { mAirSupply = airSupply; }
+
+    void resetAirSupply() { mAirSupply = 300; }
+
     bool isBreakingBlock() const { return mIsBreakingBlock; }
 
     const Vector3i &getBreakingBlockPosition() const { return mBreakingBlockPosition; }
@@ -210,6 +216,7 @@ private:
     int mBuildPlatform = -1;
     bool mForceMoveSync = false;
     int64_t mItemUseStartTick = 0;
+    int mAirSupply = 300;
     bool mHasPendingMove = false;
     Vector3f mPendingMovePosition;
     Vector3f mPendingMoveRotation;

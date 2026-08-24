@@ -16,4 +16,6 @@ public:
                                const Vector3f &rotation);
 
     static bool checkGroundState(ServerNetworkHandler &owner, const Vector3f &feetPosition);
+
+    static void tickFluidEffects(ServerNetworkHandler &owner, ServerPlayer &player);
 };

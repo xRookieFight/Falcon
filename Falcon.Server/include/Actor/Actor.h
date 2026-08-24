@@ -41,6 +41,10 @@ public:
 
     const ActorAttributes &getAttributes() const { return mAttributes; }
 
+    bool isOnFire() const { return mFlags.get(ActorFlag::OnFire); }
+
+    void setOnFire(bool onFire = true) { mFlags.set(ActorFlag::OnFire, onFire); }
+
     bool isOnGround() const { return mOnGround; }
 
     void setOnGround(bool onGround) { mOnGround = onGround; }

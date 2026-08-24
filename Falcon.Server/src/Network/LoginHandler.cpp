@@ -35,6 +35,7 @@
 #include "Protocol/Packets/ResourcePackStackPacket.h"
 #include "Protocol/Packets/ResourcePacksInfoPacket.h"
 #include "Protocol/Packets/StartGamePacket.h"
+#include "Protocol/Packets/SetTimePacket.h"
 #include "Protocol/Packets/UpdateAbilitiesPacket.h"
 #include "Protocol/Packets/UpdateAttributesPacket.h"
 #include "Server/PropertiesSettings.h"
@@ -326,6 +327,10 @@ void LoginHandler::sendStartGame(ServerNetworkHandler &owner, ServerPlayer &play
     startGame.mGamerules.push_back(GameRuleData::ofBool("showcoordinates", true));
 
     owner.getNetworkHandler().send(id, startGame, owner.getCodecContext());
+
+    SetTimePacket time;
+    time.mTime = (int32_t) owner.getLevel().getDayTime();
+    owner.getNetworkHandler().send(id, time, owner.getCodecContext());
 
     player.setLoginState(ServerPlayer::LoginState::StartGameSent);
     LOG_INFO(LogAreaID::Server, "Sent StartGame to %s", player.getName().c_str());

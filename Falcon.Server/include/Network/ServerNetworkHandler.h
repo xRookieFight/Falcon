@@ -103,6 +103,8 @@ public:
 
     void broadcastTranslation(const std::string &key, const std::vector<std::string> &parameters = {});
 
+    void broadcastWorldTime();
+
     ItemActor *dropItem(const Vector3f &position, const ItemStack &item, const Vector3f &motion, int pickupDelay);
 
     void applyDamage(ServerPlayer &player, float amount, const std::string &deathMessageKey,

@@ -5,9 +5,24 @@
 #include "Core/Debug/BedrockLog.h"
 
 #include <algorithm>
+#include <utility>
 
 Level::Level(const std::string &name, int viewDistance)
-        : mName(name), mViewDistance(viewDistance) {}
+        : mName(name), mViewDistance(viewDistance), mLiquidPhysics(*this) {}
+
+Level &Level::operator=(Level &&other) noexcept {
+    if (this == &other)
+        return *this;
+
+    mName = std::move(other.mName);
+    mViewDistance = other.mViewDistance;
+    mTime = other.mTime;
+    mGenerator = std::move(other.mGenerator);
+    mStorage = std::move(other.mStorage);
+    mChunks = std::move(other.mChunks);
+    mLiquidPhysics.moveStateFrom(std::move(other.mLiquidPhysics));
+    return *this;
+}
 
 bool Level::openStorage(const std::string &worldsDirectory) {
     if (!mStorage.open(worldsDirectory, mName, getDimensionId()))
@@ -85,7 +100,9 @@ Chunk &Level::getChunk(int32_t chunkX, int32_t chunkZ) {
     if (!mStorage.isOpen() || !mStorage.loadChunk(chunk))
         _generate(chunk);
 
-    return mChunks.emplace(key, std::move(chunk)).first->second;
+    auto result = mChunks.emplace(key, std::move(chunk));
+    mLiquidPhysics.onChunkLoaded(result.first->second);
+    return result.first->second;
 }
 
 std::string Level::getChunkData(int32_t chunkX, int32_t chunkZ) {
@@ -120,7 +137,15 @@ bool Level::isSolidAt(int32_t x, int32_t y, int32_t z) {
 }
 
 void Level::setBlockState(int32_t x, int32_t y, int32_t z, const BlockState &state) {
-    getChunk(x >> 4, z >> 4).setBlock(x & 15, y, z & 15, state);
+    if (y < Chunk::MIN_Y || y > Chunk::MAX_Y)
+        return;
+
+    Chunk &chunk = getChunk(x >> 4, z >> 4);
+    if (chunk.getBlock(x & 15, y, z & 15) == state)
+        return;
+
+    chunk.setBlock(x & 15, y, z & 15, state);
+    mLiquidPhysics.onBlockChanged(x, y, z);
 }
 
 void Level::setBlock(int32_t x, int32_t y, int32_t z, int32_t blockHash) {
@@ -130,6 +155,26 @@ void Level::setBlock(int32_t x, int32_t y, int32_t z, int32_t blockHash) {
     }
 
     setBlockState(x, y, z, VanillaBlocks::STONE().toBlockState());
+}
+
+LiquidInfo Level::getLiquidInfo(int32_t x, int32_t y, int32_t z) {
+    return mLiquidPhysics.getLiquidInfo(x, y, z);
+}
+
+Vector3f Level::getLiquidFlowVector(const Vector3i &position) {
+    return mLiquidPhysics.getFlowVector(position);
+}
+
+void Level::scheduleFluidTick(const Vector3i &position, int64_t delay) {
+    mLiquidPhysics.schedule(position, delay);
+}
+
+void Level::tickFluids() {
+    mLiquidPhysics.tick();
+}
+
+std::vector<Level::FluidChange> Level::consumeFluidChanges() {
+    return mLiquidPhysics.consumeChanges();
 }
 
 std::vector<Level::ChunkPosition> Level::getChunksAround(int32_t centerChunkX, int32_t centerChunkZ) const {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Block/Systems/LiquidPhysicsSystem.h"
 #include "Core/Math/Vector3f.h"
 #include "Core/Math/Vector3i.h"
 #include "Level/Chunk.h"
@@ -20,11 +21,23 @@ public:
 
     Level(const std::string &name, int viewDistance);
 
+    Level &operator=(Level &&other) noexcept;
+
     const std::string &getName() const { return mName; }
 
     int getViewDistance() const { return mViewDistance; }
 
     int getDimensionId() const { return 0; }
+
+    int64_t getTime() const { return mTime; }
+
+    int64_t getDayTime() const { return mTime % 24000; }
+
+    void setTime(int64_t time) { mTime = time < 0 ? 0 : time; }
+
+    void addTime(int64_t time) { setTime(mTime + time); }
+
+    void tickTime() { ++mTime; }
 
     bool openStorage(const std::string &worldsDirectory);
 
@@ -56,6 +69,18 @@ public:
 
     void setBlockState(int32_t x, int32_t y, int32_t z, const BlockState &state);
 
+    LiquidInfo getLiquidInfo(int32_t x, int32_t y, int32_t z);
+
+    Vector3f getLiquidFlowVector(const Vector3i &position);
+
+    void scheduleFluidTick(const Vector3i &position, int64_t delay = 1);
+
+    void tickFluids();
+
+    using FluidChange = LiquidChange;
+
+    std::vector<FluidChange> consumeFluidChanges();
+
     int32_t getAirHash() const { return mGenerator.getAirHash(); }
 
 private:
@@ -67,5 +92,7 @@ private:
     int mViewDistance;
     FlatChunkGenerator mGenerator;
     LevelStorage mStorage;
+    LiquidPhysicsSystem mLiquidPhysics;
     std::unordered_map<int64_t, Chunk> mChunks;
+    int64_t mTime = 0;
 };

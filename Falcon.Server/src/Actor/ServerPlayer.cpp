@@ -5,6 +5,7 @@
 #include "Protocol/Packets/TextPacket.h"
 #include "Protocol/Packets/MobEffectPacket.h"
 
+#include <algorithm>
 #include <chrono>
 #include <utility>
 
@@ -13,6 +14,7 @@ namespace {
     const char *TAG_MOTION = "Motion";
     const char *TAG_ROTATION = "Rotation";
     const char *TAG_HEALTH = "Health";
+    const char *TAG_AIR = "Air";
     const char *TAG_LEVEL = "Level";
     const char *TAG_GAME_MODE = "playerGameType";
     const char *TAG_FIRST_PLAYED = "firstPlayed";
@@ -166,6 +168,7 @@ Tag ServerPlayer::saveNbt(const std::string &levelName) const {
     data.put(TAG_ROTATION, floatList(mRotation.x, mRotation.y, mRotation.z));
 
     data.putFloat(TAG_HEALTH, mAttributes.get("minecraft:health"));
+    data.putInt(TAG_AIR, mAirSupply);
     data.putString(TAG_LEVEL, levelName);
     data.putInt(TAG_GAME_MODE, mGameType);
     data.putLong(TAG_FIRST_PLAYED, mFirstPlayed == 0 ? currentTimeMillis() : mFirstPlayed);
@@ -234,6 +237,7 @@ void ServerPlayer::loadNbt(const Tag &data, const PacketCodecContext &context) {
 
     const float storedHealth = data.getFloat(TAG_HEALTH, 20.0f);
     mAttributes.set("minecraft:health", storedHealth);
+    mAirSupply = std::clamp(data.getInt(TAG_AIR, 300), 0, 300);
     mGameType = data.getInt(TAG_GAME_MODE, mGameType);
     mFirstPlayed = data.getLong(TAG_FIRST_PLAYED, 0);
 

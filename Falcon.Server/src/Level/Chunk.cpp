@@ -23,6 +23,15 @@ void Chunk::setBlock(int x, int32_t y, int z, const BlockState &state) {
     mDirty = true;
 }
 
+void Chunk::forEachBlock(const std::function<void(int32_t, int32_t, int32_t, const BlockState &)> &callback) const {
+    for (int32_t y = MIN_Y; y <= MAX_Y; ++y) {
+        for (int32_t x = 0; x < 16; ++x) {
+            for (int32_t z = 0; z < 16; ++z)
+                callback(mX * 16 + x, y, mZ * 16 + z, getBlock(x, y, z));
+        }
+    }
+}
+
 int Chunk::getNetworkSubChunkCount() const {
     for (int i = SUB_CHUNK_COUNT - 1; i >= 0; i--) {
         if (!mSubChunks[i].isEmpty())

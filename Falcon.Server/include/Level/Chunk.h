@@ -3,6 +3,7 @@
 #include "Level/SubChunk.h"
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -29,6 +30,8 @@ public:
     const BlockState &getBlock(int x, int32_t y, int z) const;
 
     void setBlock(int x, int32_t y, int z, const BlockState &state);
+
+    void forEachBlock(const std::function<void(int32_t, int32_t, int32_t, const BlockState &)> &callback) const;
 
     void setBiome(uint32_t biomeId) { mBiomeId = biomeId; }
 

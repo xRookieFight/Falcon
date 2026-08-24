@@ -3,6 +3,9 @@
 #include "Actor/ActorFlags.h"
 #include "Actor/ServerPlayer.h"
 #include "Block/Block.h"
+#include "Block/Systems/LavaResetFallDistanceSystem.h"
+#include "Block/Systems/LiquidBlocksFetch.h"
+#include "Block/Systems/WaterMoveSystem.h"
 #include "Level/Level.h"
 #include "Network/BadPacketCheck.h"
 #include "Network/BlockActionHandler.h"
@@ -13,6 +16,7 @@
 #include "Protocol/Packets/SetEntityMotionPacket.h"
 #include "Protocol/Types/StartGameTypes.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace {
@@ -351,6 +355,30 @@ void MovementHandler::handleMovement(ServerNetworkHandler &owner, ServerPlayer &
             player.setHighestPosition(feetPosition.y);
 
         player.updateFallDistance();
+    }
+}
+
+void MovementHandler::tickFluidEffects(ServerNetworkHandler &owner, ServerPlayer &player) {
+    if (!player.isSpawned() || player.isDead())
+        return;
+
+    const LiquidContact contact = LiquidBlocksFetch::at(owner.getLevel(), player.getPosition());
+    WaterMoveSystem::tick(player, contact);
+    LavaResetFallDistanceSystem::tick(player, contact);
+
+    if (contact.lava && owner.getCurrentTick() % 10 == 0
+        && !player.hasEffect(MobEffectId::FireResistance)) {
+        owner.applyDamage(player, 4.0f, "death.attack.lava", {player.getName()});
+    }
+
+    if (contact.eyeSubmerged && !player.hasEffect(MobEffectId::WaterBreathing)) {
+        if (player.getAirSupply() > 0) {
+            player.setAirSupply(player.getAirSupply() - 1);
+        } else if (owner.getCurrentTick() % 20 == 0) {
+            owner.applyDamage(player, 2.0f, "death.attack.drown", {player.getName()});
+        }
+    } else {
+        player.resetAirSupply();
     }
 }
 

@@ -7,6 +7,7 @@
 #include "Command/GameModeCommand.h"
 #include "Command/GiveCommand.h"
 #include "Command/KillCommand.h"
+#include "Command/TimeCommand.h"
 #include "Command/OpCommand.h"
 #include "Command/PlayerCommandSender.h"
 #include "Core/Debug/BedrockLog.h"
@@ -57,8 +58,10 @@
 #include "Protocol/Packets/PlayerListPacket.h"
 #include "Protocol/Packets/TextPacket.h"
 #include "Protocol/Packets/UpdateAbilitiesPacket.h"
+#include "Protocol/Packets/UpdateBlockPacket.h"
 #include "Actor/PlayerAbility.h"
 #include "Protocol/Packets/StartGamePacket.h"
+#include "Protocol/Packets/SetTimePacket.h"
 #include "Protocol/Packets/AvailableEntityIdentifiersPacket.h"
 #include "Protocol/Packets/DeathInfoPacket.h"
 #include "Protocol/Packets/EntityEventPacket.h"
@@ -72,6 +75,7 @@
 #include "Protocol/Packets/ModalFormResponsePacket.h"
 #include "Protocol/Packets/PlayerSkinPacket.h"
 #include "Protocol/Packets/SetHealthPacket.h"
+#include "Protocol/BlockStateHasher.h"
 #include "Protocol/Packets/ContainerClosePacket.h"
 #include "Protocol/Packets/CraftingDataPacket.h"
 #include "Protocol/Packets/InteractPacket.h"
@@ -339,6 +343,7 @@ ServerNetworkHandler::ServerNetworkHandler(const std::string &serverName, const 
     mCommands.registerCommand(std::make_shared<EnchantCommand>(*this));
     mCommands.registerCommand(std::make_shared<EffectCommand>(*this));
     mCommands.registerCommand(std::make_shared<KillCommand>(*this));
+    mCommands.registerCommand(std::make_shared<TimeCommand>(*this));
 
     mResourcePacks.loadFromDirectory("resource_packs");
     _registerVanillaDefinitions();
@@ -458,6 +463,7 @@ void ServerNetworkHandler::tick() {
         return;
 
     mCurrentTick++;
+    mLevel.tickTime();
 
     {
         std::lock_guard<std::mutex> lock(mConsoleQueueMutex);
@@ -469,6 +475,20 @@ void ServerNetworkHandler::tick() {
     }
 
     mNetworkHandler->runEvents();
+
+    mLevel.tickFluids();
+    for (const Level::FluidChange &change: mLevel.consumeFluidChanges()) {
+        UpdateBlockPacket update;
+        update.mBlockPosition = change.position;
+        update.mRuntimeId = (uint32_t) BlockStateHasher::hash(change.state.mName, change.state.mStates);
+        update.mFlags = UpdateBlockPacket::Flag::All;
+        update.mDataLayer = 0;
+        BlockActionHandler::broadcastToViewers(*this,
+                                               Vector3f((float) change.position.x + 0.5f,
+                                                        (float) change.position.y + 0.5f,
+                                                        (float) change.position.z + 0.5f),
+                                               update);
+    }
 
     for (auto &entry: mPlayers) {
         ServerPlayer &player = entry.second;
@@ -483,6 +503,7 @@ void ServerNetworkHandler::tick() {
         }
 
         _handleVoidDamage(player);
+        MovementHandler::tickFluidEffects(*this, player);
 
         const bool effectAttributesDirty = player.getEffects().consumeAttributesDirty();
         const bool effectStateChanged = player.isSpawned() && player.tickEffects(1);
@@ -929,6 +950,7 @@ void ServerNetworkHandler::_respawnPlayer(ServerPlayer &player) {
     player.setOnGround(true);
     player.clearPendingMove();
     player.resetFallDistance();
+    player.resetAirSupply();
 
     const Vector3f eyePosition(spawn.x, spawn.y + PLAYER_BASE_OFFSET, spawn.z);
 
@@ -1243,6 +1265,15 @@ void ServerNetworkHandler::broadcastTranslation(const std::string &key,
     for (auto &entry: mPlayers) {
         if (entry.second.isSpawned())
             entry.second.sendTranslation(key, parameters);
+    }
+}
+
+void ServerNetworkHandler::broadcastWorldTime() {
+    SetTimePacket packet;
+    packet.mTime = (int32_t) getLevel().getDayTime();
+    for (auto &entry: mPlayers) {
+        if (entry.second.isSpawned())
+            mNetworkHandler->send(entry.first, packet, mCodecContext);
     }
 }
 
