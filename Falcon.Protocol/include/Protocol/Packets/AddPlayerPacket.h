@@ -1,13 +1,13 @@
 #pragma once
 
-#include "Core/Math/Vector3f.h"
-#include "Core/Utility/UUID.h"
-#include "Protocol/Packet.h"
-#include "Protocol/Types/EntityDataMap.h"
-#include "Protocol/Types/EntityLinkData.h"
-#include "Protocol/Types/EntityProperties.h"
-#include "Protocol/Types/ItemStack.h"
-#include "Protocol/Types/PlayerAbilityData.h"
+#include "core/math/Vector3f.h"
+#include "core/utility/UUID.h"
+#include "protocol/Packet.h"
+#include "protocol/types/EntityDataMap.h"
+#include "protocol/types/EntityLinkData.h"
+#include "protocol/types/EntityProperties.h"
+#include "protocol/types/ItemStack.h"
+#include "protocol/types/PlayerAbilityData.h"
 
 #include <cstdint>
 #include <string>

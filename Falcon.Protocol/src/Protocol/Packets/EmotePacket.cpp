@@ -1,6 +1,6 @@
-#include "Protocol/Packets/EmotePacket.h"
+#include "protocol/packets/EmotePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 EmotePacket::EmotePacket() = default;
 

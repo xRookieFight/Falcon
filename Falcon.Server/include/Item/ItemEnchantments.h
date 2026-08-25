@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Item/EnchantmentData.h"
-#include "Protocol/Types/ItemStack.h"
+#include "item/EnchantmentData.h"
+#include "protocol/types/ItemStack.h"
 
 #include <cstdint>
 #include <string>

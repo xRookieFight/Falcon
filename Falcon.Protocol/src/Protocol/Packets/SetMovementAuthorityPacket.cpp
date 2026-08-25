@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SetMovementAuthorityPacket.h"
+#include "protocol/packets/SetMovementAuthorityPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 SetMovementAuthorityPacket::SetMovementAuthorityPacket()
         : mMode(AuthoritativeMovementMode::Server) {}

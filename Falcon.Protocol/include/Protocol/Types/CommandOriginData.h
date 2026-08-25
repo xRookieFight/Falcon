@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Core/Utility/BinaryStream.h"
-#include "Core/Utility/ReadOnlyBinaryStream.h"
-#include "Core/Utility/UUID.h"
+#include "core/utility/BinaryStream.h"
+#include "core/utility/ReadOnlyBinaryStream.h"
+#include "core/utility/UUID.h"
 
 #include <cstdint>
 #include <string>

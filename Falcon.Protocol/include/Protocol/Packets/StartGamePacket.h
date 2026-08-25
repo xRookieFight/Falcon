@@ -1,11 +1,11 @@
 #pragma once
 
-#include "Core/Math/Vector3f.h"
-#include "Core/Math/Vector3i.h"
-#include "Core/NBT/Tag.h"
-#include "Core/Utility/UUID.h"
-#include "Protocol/Packet.h"
-#include "Protocol/Types/StartGameTypes.h"
+#include "core/math/Vector3f.h"
+#include "core/math/Vector3i.h"
+#include "core/nbt/Tag.h"
+#include "core/utility/UUID.h"
+#include "protocol/Packet.h"
+#include "protocol/types/StartGameTypes.h"
 
 #include <string>
 #include <vector>

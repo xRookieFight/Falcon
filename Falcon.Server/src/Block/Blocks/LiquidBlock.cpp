@@ -1,4 +1,4 @@
-#include "Block/Blocks/LiquidBlock.h"
+#include "block/blocks/LiquidBlock.h"
 
 #include <algorithm>
 

@@ -1,6 +1,6 @@
-#include "Protocol/Packets/CurrentStructureFeaturePacket.h"
+#include "protocol/packets/CurrentStructureFeaturePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 CurrentStructureFeaturePacket::CurrentStructureFeaturePacket() = default;
 

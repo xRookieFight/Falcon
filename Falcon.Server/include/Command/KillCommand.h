@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Command/Command.h"
+#include "command/Command.h"
 
 class ServerNetworkHandler;
 
@@ -8,7 +8,7 @@ class KillCommand : public Command {
 public:
     explicit KillCommand(ServerNetworkHandler &handler);
 
-    bool execute(CommandSender &sender, const std::vector<std::string> &arguments) override;
+    bool execute(CommandOrigin &sender, const std::vector<std::string> &arguments) override;
 
     CommandPermission getRequiredPermission() const override;
 

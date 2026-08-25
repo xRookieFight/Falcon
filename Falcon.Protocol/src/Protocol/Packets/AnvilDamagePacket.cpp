@@ -1,6 +1,6 @@
-#include "Protocol/Packets/AnvilDamagePacket.h"
+#include "protocol/packets/AnvilDamagePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 AnvilDamagePacket::AnvilDamagePacket() {}
 

@@ -1,6 +1,6 @@
-#include "Protocol/Packets/CameraShakePacket.h"
+#include "protocol/packets/CameraShakePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 CameraShakePacket::CameraShakePacket()
         : mIntensity(0.0f), mDuration(0.0f), mShakeType(ShakeType::Positional), mShakeAction(ShakeAction::Add) {}

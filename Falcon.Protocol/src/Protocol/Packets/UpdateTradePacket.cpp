@@ -1,7 +1,7 @@
-#include "Protocol/Packets/UpdateTradePacket.h"
+#include "protocol/packets/UpdateTradePacket.h"
 
-#include "Core/NBT/NbtIo.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "core/nbt/NbtIo.h"
+#include "protocol/NetworkPacketHandler.h"
 
 UpdateTradePacket::UpdateTradePacket()
         : mOffers(Tag::ofCompound()) {}

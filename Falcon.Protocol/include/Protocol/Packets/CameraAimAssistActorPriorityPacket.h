@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/CameraAimAssistTypes.h"
+#include "protocol/Packet.h"
+#include "protocol/types/CameraAimAssistTypes.h"
 
 #include <vector>
 

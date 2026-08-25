@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ServerSettingsResponsePacket.h"
+#include "protocol/packets/ServerSettingsResponsePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ServerSettingsResponsePacket::ServerSettingsResponsePacket()
         : mFormId(0) {}

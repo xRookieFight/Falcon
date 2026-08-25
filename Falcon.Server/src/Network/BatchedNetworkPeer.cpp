@@ -1,7 +1,7 @@
-#include "Network/BatchedNetworkPeer.h"
+#include "network/BatchedNetworkPeer.h"
 
-#include "Core/Utility/BinaryStream.h"
-#include "Core/Utility/ReadOnlyBinaryStream.h"
+#include "core/utility/BinaryStream.h"
+#include "core/utility/ReadOnlyBinaryStream.h"
 
 BatchedNetworkPeer::BatchedNetworkPeer(std::shared_ptr<NetworkPeer> peer)
         : mPeer(std::move(peer)), mBatchReliability(Reliability::ReliableOrdered),

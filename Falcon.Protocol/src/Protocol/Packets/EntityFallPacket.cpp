@@ -1,6 +1,6 @@
-#include "Protocol/Packets/EntityFallPacket.h"
+#include "protocol/packets/EntityFallPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 EntityFallPacket::EntityFallPacket() = default;
 

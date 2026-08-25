@@ -1,9 +1,9 @@
 #pragma once
 
-#include "Core/Utility/UUID.h"
-#include "Protocol/Packet.h"
-#include "Protocol/Types/CraftingType.h"
-#include "Protocol/Types/ItemStack.h"
+#include "core/utility/UUID.h"
+#include "protocol/Packet.h"
+#include "protocol/types/CraftingType.h"
+#include "protocol/types/ItemStack.h"
 
 #include <cstdint>
 #include <vector>

@@ -1,0 +1,267 @@
+#include "network/handler/ItemActorHandler.h"
+
+#include "actor/ActorFlags.h"
+#include "actor/ItemActor.h"
+#include "actor/ServerPlayer.h"
+#include "inventory/InventoryManager.h"
+#include "inventory/PlayerInventory.h"
+#include "item/ItemData.h"
+#include "level/Level.h"
+#include "network/handler/NetworkHandler.h"
+#include "network/handler/ServerNetworkHandler.h"
+#include "protocol/packets/AddItemActorPacket.h"
+#include "protocol/packets/MoveActorAbsolutePacket.h"
+#include "protocol/packets/RemoveActorPacket.h"
+#include "protocol/packets/TakeItemActorPacket.h"
+#include "protocol/types/StartGameTypes.h"
+
+#include <cmath>
+#include <string>
+
+namespace {
+    const float ITEM_GRAVITY = 0.04f;
+    const float ITEM_HORIZONTAL_DRAG = 0.02f;
+    const float ITEM_PICKUP_RANGE_SQUARED = 2.25f;
+
+    bool isFireBlock(const std::string &identifier) {
+        return identifier == "minecraft:fire" || identifier == "minecraft:soul_fire"
+               || identifier == "minecraft:lava" || identifier == "minecraft:flowing_lava"
+               || identifier == "minecraft:campfire" || identifier == "minecraft:soul_campfire";
+    }
+
+    bool isFireResistant(const ItemStack &item) {
+        if (item.isAir() || item.mDefinition == nullptr)
+            return false;
+
+        const FireResistantItemComponent *component = ItemDataTable::getComponents(
+                item.mDefinition->getIdentifier()).get<FireResistantItemComponent>();
+        return component != nullptr && component->isFireResistant();
+    }
+
+    bool isInFire(ServerNetworkHandler &owner, const ItemActor &actor) {
+        const Vector3f &position = actor.getPosition();
+        const int x = (int) std::floor(position.x);
+        const int y = (int) std::floor(position.y);
+        const int z = (int) std::floor(position.z);
+        if (y < LevelChunk::MIN_Y || y > LevelChunk::MAX_Y)
+            return false;
+        return isFireBlock(owner.getLevel().getBlockState(x, y, z).mName);
+    }
+
+    int freeSpaceFor(const PlayerInventory &inventory, const ItemStack &item) {
+        const int maxStackSize = PlayerInventory::getMaxStackSize(item);
+        int free = 0;
+
+        for (int slot = 0; slot < PlayerInventory::CONTAINER_SIZE; slot++) {
+            const ItemStack &existing = inventory.getItem(slot);
+
+            if (existing.isAir()) {
+                free += maxStackSize;
+                continue;
+            }
+
+            if (PlayerInventory::canStack(existing, item))
+                free += maxStackSize - existing.mCount;
+        }
+
+        return free;
+    }
+
+    void spawnItemActorTo(ServerNetworkHandler &owner, ServerPlayer &player, const ItemActor &actor) {
+        AddItemActorPacket add;
+    add.mUniqueActorId = actor.getUniqueId();
+    add.mRuntimeActorId = actor.getRuntimeId();
+        add.mItemInHand = actor.getItem();
+        add.mPosition = actor.getPosition();
+        add.mMotion = actor.getMotion();
+        add.mFromFishing = false;
+
+        EntityDataEntry flags;
+        flags.mId = ActorFlags::FLAGS_DATA_ID;
+        flags.mFormat = EntityDataFormat::Long;
+        flags.mLongValue = actor.getFlags().getLowBits();
+        add.mMetadata.mEntries.push_back(flags);
+
+        EntityDataEntry flags2;
+        flags2.mId = ActorFlags::FLAGS_2_DATA_ID;
+        flags2.mFormat = EntityDataFormat::Long;
+        flags2.mLongValue = actor.getFlags().getHighBits();
+        add.mMetadata.mEntries.push_back(flags2);
+
+        owner.getNetworkHandler().send(player.getNetworkIdentifier(), add, owner.getCodecContext());
+    }
+
+    void broadcastItemActorSpawn(ServerNetworkHandler &owner, const ItemActor &actor) {
+        for (auto &entry: owner.getPlayers()) {
+            if (entry.second.isSpawned())
+                spawnItemActorTo(owner, entry.second, actor);
+        }
+    }
+
+    void broadcastItemActorMove(ServerNetworkHandler &owner, const ItemActor &actor) {
+        MoveActorAbsolutePacket move;
+    move.mRuntimeActorId = (int64_t) actor.getRuntimeId();
+        move.mPosition = actor.getPosition();
+        move.mRotation = actor.getRotation();
+        move.mOnGround = actor.isOnGround();
+        move.mTeleported = false;
+        move.mForceMove = false;
+
+        for (auto &entry: owner.getPlayers()) {
+            if (entry.second.isSpawned())
+                owner.getNetworkHandler().send(entry.second.getNetworkIdentifier(), move, owner.getCodecContext());
+        }
+    }
+
+    void broadcastItemActorRemove(ServerNetworkHandler &owner, const ItemActor &actor) {
+        RemoveActorPacket remove;
+    remove.mUniqueActorId = actor.getUniqueId();
+
+        for (auto &entry: owner.getPlayers()) {
+            if (entry.second.isSpawned())
+                owner.getNetworkHandler().send(entry.second.getNetworkIdentifier(), remove, owner.getCodecContext());
+        }
+    }
+
+    void moveItemActor(ServerNetworkHandler &owner, ItemActor &actor) {
+        if (actor.isOnGround())
+            return;
+
+        Vector3f motion = actor.getMotion();
+        const Vector3f position = actor.getPosition();
+
+        motion.y -= ITEM_GRAVITY;
+
+        Vector3f next(position.x + motion.x, position.y + motion.y, position.z + motion.z);
+
+        const int32_t blockX = (int32_t) std::floor(next.x);
+        const int32_t blockZ = (int32_t) std::floor(next.z);
+        const int32_t blockY = (int32_t) std::floor(next.y);
+
+        if (motion.y < 0.0f && owner.getLevel().isSolidAt(blockX, blockY, blockZ)) {
+            next.y = (float) (blockY + 1);
+            motion = Vector3f(0.0f, 0.0f, 0.0f);
+            actor.setOnGround(true);
+        } else {
+            motion.x *= 1.0f - ITEM_HORIZONTAL_DRAG;
+            motion.z *= 1.0f - ITEM_HORIZONTAL_DRAG;
+        }
+
+        actor.setPosition(next);
+        actor.setMotion(motion);
+
+        broadcastItemActorMove(owner, actor);
+    }
+
+    void tryPickupItemActor(ServerNetworkHandler &owner, ItemActor &actor) {
+        if (actor.isRemoved() || !actor.canPickup())
+            return;
+
+        const Vector3f itemPosition = actor.getPosition();
+
+        for (auto &entry: owner.getPlayers()) {
+            ServerPlayer &player = entry.second;
+
+            if (!player.isSpawned() || player.isDead())
+                continue;
+
+            if (player.getGameType() == (int32_t) GameType::Spectator)
+                continue;
+
+            const Vector3f playerPosition = player.getPosition();
+            const float deltaX = playerPosition.x - itemPosition.x;
+            const float deltaY = playerPosition.y + 1.0f - itemPosition.y;
+            const float deltaZ = playerPosition.z - itemPosition.z;
+
+            if (deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ > ITEM_PICKUP_RANGE_SQUARED)
+                continue;
+
+            PlayerInventory &inventory = player.getInventory();
+            if (freeSpaceFor(inventory, actor.getItem()) < actor.getItem().mCount)
+                continue;
+
+            const ItemStack pickedItem = actor.getItem();
+
+            std::vector<int> touchedSlots;
+            if (!inventory.addItem(actor.getItem(), touchedSlots))
+                continue;
+
+            if (pickedItem.mDefinition != nullptr) {
+                EntityItemPickupAfterEvent pickupEvent(player, pickedItem.mDefinition->getIdentifier(),
+                                                       pickedItem.mCount);
+                owner.getEventBus().after().mEntityItemPickup.emit(pickupEvent);
+            }
+
+            TakeItemActorPacket take;
+    take.mItemRuntimeActorId = actor.getRuntimeId();
+    take.mRuntimeActorId = player.getRuntimeId();
+
+            for (auto &viewer: owner.getPlayers()) {
+                if (viewer.second.isSpawned())
+                    owner.getNetworkHandler().send(viewer.second.getNetworkIdentifier(), take, owner.getCodecContext());
+            }
+
+            for (int slot: touchedSlots)
+                player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, slot);
+
+            actor.setRemoved(true);
+            return;
+        }
+    }
+}
+
+ItemActor *ItemActorHandler::dropItem(ServerNetworkHandler &owner, const Vector3f &position, const ItemStack &item,
+                                      const Vector3f &motion, int pickupDelay) {
+    if (item.isAir() || item.mCount <= 0)
+        return nullptr;
+
+    std::unique_ptr<ItemActor> actor(new ItemActor(owner.allocateRuntimeId(), item));
+    actor->getItem().mUsingNetId = false;
+    actor->getItem().mNetId = 0;
+    actor->setPosition(position);
+    actor->setMotion(motion);
+    actor->setPickupDelay(pickupDelay);
+    actor->resetFallDistance();
+
+    ItemActor *result = actor.get();
+    owner.getItemEntities().push_back(std::move(actor));
+
+    broadcastItemActorSpawn(owner, *result);
+    return result;
+}
+
+void ItemActorHandler::sendItemActorsTo(ServerNetworkHandler &owner, ServerPlayer &player) {
+    for (const std::unique_ptr<ItemActor> &actor: owner.getItemEntities()) {
+        if (!actor->isRemoved())
+            spawnItemActorTo(owner, player, *actor);
+    }
+}
+
+void ItemActorHandler::tickItemActors(ServerNetworkHandler &owner) {
+    std::vector<std::unique_ptr<ItemActor>> &actors = owner.getItemEntities();
+
+    for (auto it = actors.begin(); it != actors.end();) {
+        ItemActor &actor = **it;
+
+        actor.tick();
+        const bool fireResistant = isFireResistant(actor.getItem());
+        if (!fireResistant && isInFire(owner, actor))
+            actor.setRemoved(true);
+
+        if (!actor.isRemoved())
+            moveItemActor(owner, actor);
+
+        if (!fireResistant && !actor.isRemoved() && isInFire(owner, actor))
+            actor.setRemoved(true);
+
+        tryPickupItemActor(owner, actor);
+
+        if (actor.isRemoved() || actor.isExpired()) {
+            broadcastItemActorRemove(owner, actor);
+            it = actors.erase(it);
+            continue;
+        }
+
+        ++it;
+    }
+}

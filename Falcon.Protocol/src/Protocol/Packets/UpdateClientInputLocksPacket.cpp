@@ -1,6 +1,6 @@
-#include "Protocol/Packets/UpdateClientInputLocksPacket.h"
+#include "protocol/packets/UpdateClientInputLocksPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 UpdateClientInputLocksPacket::UpdateClientInputLocksPacket() = default;
 

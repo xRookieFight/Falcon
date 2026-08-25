@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Packets/NetworkSettingsPacket.h"
-#include "Protocol/Types/StartGameTypes.h"
+#include "protocol/packets/NetworkSettingsPacket.h"
+#include "protocol/types/StartGameTypes.h"
 
 #include <string>
 #include <unordered_map>
@@ -78,6 +78,8 @@ public:
 
     int getMaxThreads() const { return getInt("max-threads", 8); }
 
+    int getFluidBudgetMs() const { return getInt("fluid-budget-ms", 10); }
+
     std::string getLevelName() const { return getString("level-name", "Bedrock level"); }
 
     std::string getLevelSeed() const { return getString("level-seed"); }
@@ -106,7 +108,12 @@ public:
 
     bool getDisableCustomSkins() const { return getBool("disable-custom-skins", false); }
 
+    // Renders the properties this build does not know about, the way BDS reports them at startup.
+    std::string getUnknownContents() const;
+
 private:
+    static bool _isKnownProperty(const std::string &key);
+
     static std::string _trim(const std::string &value);
 
     static void _writeDefault(const std::string &path);

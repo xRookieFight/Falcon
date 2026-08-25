@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SetDisplayObjectivePacket.h"
+#include "protocol/packets/SetDisplayObjectivePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 SetDisplayObjectivePacket::SetDisplayObjectivePacket() = default;
 

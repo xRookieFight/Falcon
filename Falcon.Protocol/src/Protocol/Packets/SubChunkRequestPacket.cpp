@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SubChunkRequestPacket.h"
+#include "protocol/packets/SubChunkRequestPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 SubChunkRequestPacket::SubChunkRequestPacket()
         : mDimension(0) {}

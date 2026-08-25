@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/PartyDestinationIntent.h"
+#include "protocol/Packet.h"
+#include "protocol/types/PartyDestinationIntent.h"
 
 #include <string>
 

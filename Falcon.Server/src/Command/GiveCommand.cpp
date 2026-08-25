@@ -1,8 +1,9 @@
-#include "Command/GiveCommand.h"
+#include "command/GiveCommand.h"
 
-#include "Actor/ServerPlayer.h"
-#include "Item/StringToItemParser.h"
-#include "Network/ServerNetworkHandler.h"
+#include "actor/ServerPlayer.h"
+#include "inventory/InventoryManager.h"
+#include "item/StringToItemParser.h"
+#include "network/handler/ServerNetworkHandler.h"
 
 #include <cstdlib>
 
@@ -54,7 +55,7 @@ bool GiveCommand::_parseCount(const std::string &value, int &out) {
     return true;
 }
 
-bool GiveCommand::execute(CommandSender &sender, const std::vector<std::string> &arguments) {
+bool GiveCommand::execute(CommandOrigin &sender, const std::vector<std::string> &arguments) {
     if (arguments.size() < 2) {
         sender.sendTranslation("commands.generic.usage", {getUsage()});
         return false;
@@ -101,7 +102,8 @@ bool GiveCommand::execute(CommandSender &sender, const std::vector<std::string> 
             continue;
         }
 
-        target->getInventoryManager().syncAll();
+        for (const int slot: touchedSlots)
+            target->getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, slot);
 
         sender.sendTranslation("commands.give.success", {item.getName(), std::to_string(given), target->getName()});
     }

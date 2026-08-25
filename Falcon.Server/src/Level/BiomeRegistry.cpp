@@ -1,4 +1,4 @@
-#include "Level/BiomeRegistry.h"
+#include "level/BiomeRegistry.h"
 
 BiomeRegistry::BiomeRegistry() {
     auto add = [this](const char *name) {

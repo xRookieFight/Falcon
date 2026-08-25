@@ -1,4 +1,4 @@
-#include "Protocol/CameraCodec.h"
+#include "protocol/CameraCodec.h"
 
 void CameraCodec::writeEase(BinaryStream &stream, const CameraEaseData &ease) {
     stream.putOptionalPresent(ease.mHasValue);

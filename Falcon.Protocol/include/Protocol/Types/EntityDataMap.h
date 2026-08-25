@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Core/Math/Vector3f.h"
-#include "Core/Math/Vector3i.h"
-#include "Core/NBT/Tag.h"
+#include "core/math/Vector3f.h"
+#include "core/math/Vector3i.h"
+#include "core/nbt/Tag.h"
 
 #include <cstdint>
 #include <string>

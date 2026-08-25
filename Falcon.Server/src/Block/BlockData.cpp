@@ -1,6 +1,6 @@
-#include "Block/BlockData.h"
+#include "block/BlockData.h"
 
-#include "Block/BlockTypeIds.h"
+#include "block/BlockTypeIds.h"
 
 #include <cstring>
 

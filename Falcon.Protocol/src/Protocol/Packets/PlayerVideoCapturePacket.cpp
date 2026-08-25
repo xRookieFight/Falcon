@@ -1,6 +1,6 @@
-#include "Protocol/Packets/PlayerVideoCapturePacket.h"
+#include "protocol/packets/PlayerVideoCapturePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 PlayerVideoCapturePacket::PlayerVideoCapturePacket() = default;
 

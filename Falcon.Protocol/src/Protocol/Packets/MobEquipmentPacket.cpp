@@ -1,7 +1,7 @@
-#include "Protocol/Packets/MobEquipmentPacket.h"
+#include "protocol/packets/MobEquipmentPacket.h"
 
-#include "Protocol/ItemCodec.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/ItemCodec.h"
+#include "protocol/NetworkPacketHandler.h"
 
 MobEquipmentPacket::MobEquipmentPacket() = default;
 

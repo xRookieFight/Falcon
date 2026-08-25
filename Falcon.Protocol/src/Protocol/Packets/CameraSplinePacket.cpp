@@ -1,7 +1,7 @@
-#include "Protocol/Packets/CameraSplinePacket.h"
+#include "protocol/packets/CameraSplinePacket.h"
 
-#include "Protocol/CameraCodec.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/CameraCodec.h"
+#include "protocol/NetworkPacketHandler.h"
 
 CameraSplinePacket::CameraSplinePacket() = default;
 

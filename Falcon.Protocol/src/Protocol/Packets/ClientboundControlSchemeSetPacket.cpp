@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ClientboundControlSchemeSetPacket.h"
+#include "protocol/packets/ClientboundControlSchemeSetPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ClientboundControlSchemeSetPacket::ClientboundControlSchemeSetPacket() = default;
 

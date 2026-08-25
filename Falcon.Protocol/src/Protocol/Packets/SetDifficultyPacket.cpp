@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SetDifficultyPacket.h"
+#include "protocol/packets/SetDifficultyPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 SetDifficultyPacket::SetDifficultyPacket()
         : mDifficulty(0) {}

@@ -15,6 +15,29 @@ file(READ "${FALCON_ITEM_TAGS_JSON}" FALCON_ITEM_TAGS_JSON_CONTENT)
 set(FALCON_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${FALCON_GENERATED_DIR}")
 configure_file(cmake/CraftingRecipeJson.h.in "${FALCON_GENERATED_DIR}/CraftingRecipeJson.h" @ONLY)
+
+set(FALCON_BUILD_VERSION "1.26.40.01")
+set(FALCON_BUILD_ID "0")
+set(FALCON_BUILD_BRANCH "unknown")
+set(FALCON_BUILD_COMMIT "unknown")
+find_package(Git QUIET)
+if(GIT_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/.git")
+    execute_process(COMMAND "${GIT_EXECUTABLE}" rev-list --count HEAD
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}" OUTPUT_VARIABLE FALCON_BUILD_ID
+            OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    execute_process(COMMAND "${GIT_EXECUTABLE}" rev-parse --abbrev-ref HEAD
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}" OUTPUT_VARIABLE FALCON_BUILD_BRANCH
+            OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    execute_process(COMMAND "${GIT_EXECUTABLE}" rev-parse HEAD
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}" OUTPUT_VARIABLE FALCON_BUILD_COMMIT
+            OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+endif()
+if(CMAKE_BUILD_TYPE)
+    set(FALCON_BUILD_CONFIGURATION "${CMAKE_BUILD_TYPE}")
+else()
+    set(FALCON_BUILD_CONFIGURATION "Publish")
+endif()
+configure_file(cmake/BuildInfo.h.in "${FALCON_GENERATED_DIR}/BuildInfo.h" @ONLY)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
         "${FALCON_RECIPES_JSON}" "${FALCON_ITEM_TAGS_JSON}")
 
@@ -29,7 +52,7 @@ find_package(OpenSSL REQUIRED)
 target_include_directories(FalconServer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${FALCON_GENERATED_DIR} ${ZLIB_INCLUDE_DIRS}
         ${OPENSSL_INCLUDE_DIR})
-target_link_libraries(FalconServer PRIVATE FalconNetwork FalconProtocol leveldb)
+target_link_libraries(FalconServer PRIVATE FalconNetwork FalconProtocol leveldb qjs)
 
 if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_link_options(FalconServer PRIVATE -static -fuse-ld=lld)

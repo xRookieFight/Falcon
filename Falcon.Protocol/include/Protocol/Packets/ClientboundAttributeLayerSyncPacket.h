@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/AttributeLayerTypes.h"
+#include "protocol/Packet.h"
+#include "protocol/types/AttributeLayerTypes.h"
 
 class ClientboundAttributeLayerSyncPacket : public Packet {
 public:

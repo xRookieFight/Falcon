@@ -1,6 +1,6 @@
-#include "Protocol/Packets/MapInfoRequestPacket.h"
+#include "protocol/packets/MapInfoRequestPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 MapInfoRequestPacket::MapInfoRequestPacket() = default;
 

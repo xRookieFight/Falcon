@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ChangeMobPropertyPacket.h"
+#include "protocol/packets/ChangeMobPropertyPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ChangeMobPropertyPacket::ChangeMobPropertyPacket() = default;
 

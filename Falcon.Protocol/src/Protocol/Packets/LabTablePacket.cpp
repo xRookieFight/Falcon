@@ -1,6 +1,6 @@
-#include "Protocol/Packets/LabTablePacket.h"
+#include "protocol/packets/LabTablePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 LabTablePacket::LabTablePacket() = default;
 

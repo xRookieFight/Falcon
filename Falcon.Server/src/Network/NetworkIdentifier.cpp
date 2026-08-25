@@ -1,4 +1,4 @@
-#include "Network/NetworkIdentifier.h"
+#include "network/NetworkIdentifier.h"
 
 const NetworkIdentifier INVALID_NETWORK_IDENTIFIER;
 

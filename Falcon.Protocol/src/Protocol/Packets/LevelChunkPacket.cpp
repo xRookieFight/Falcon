@@ -1,6 +1,6 @@
-#include "Protocol/Packets/LevelChunkPacket.h"
+#include "protocol/packets/LevelChunkPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 LevelChunkPacket::LevelChunkPacket()
         : mChunkX(0), mChunkZ(0), mDimension(0), mSubChunksLength(0), mCachingEnabled(false),

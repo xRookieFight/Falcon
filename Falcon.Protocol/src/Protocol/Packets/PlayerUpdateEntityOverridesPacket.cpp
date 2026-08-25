@@ -1,6 +1,6 @@
-#include "Protocol/Packets/PlayerUpdateEntityOverridesPacket.h"
+#include "protocol/packets/PlayerUpdateEntityOverridesPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 PlayerUpdateEntityOverridesPacket::PlayerUpdateEntityOverridesPacket() = default;
 

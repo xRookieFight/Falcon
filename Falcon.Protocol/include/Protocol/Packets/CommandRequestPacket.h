@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/CommandOriginData.h"
+#include "protocol/Packet.h"
+#include "protocol/types/CommandOriginData.h"
 
 #include <cstdint>
 #include <string>

@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ServerStatsPacket.h"
+#include "protocol/packets/ServerStatsPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ServerStatsPacket::ServerStatsPacket()
         : mServerTime(0.0f), mNetworkTime(0.0f) {}

@@ -1,6 +1,6 @@
-#include "Protocol/Packets/MultiplayerSettingsPacket.h"
+#include "protocol/packets/MultiplayerSettingsPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 MultiplayerSettingsPacket::MultiplayerSettingsPacket()
         : mMode(Mode::EnableMultiplayer) {}

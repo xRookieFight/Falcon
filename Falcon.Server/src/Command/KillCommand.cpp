@@ -1,7 +1,7 @@
-#include "Command/KillCommand.h"
+#include "command/KillCommand.h"
 
-#include "Actor/ServerPlayer.h"
-#include "Network/ServerNetworkHandler.h"
+#include "actor/ServerPlayer.h"
+#include "network/handler/ServerNetworkHandler.h"
 
 KillCommand::KillCommand(ServerNetworkHandler &handler)
         : Command("kill", "commands.kill.description", "/kill [player]"), mHandler(handler) {}
@@ -20,7 +20,7 @@ std::vector<CommandOverloadData> KillCommand::getOverloads() const {
     return {overload};
 }
 
-bool KillCommand::execute(CommandSender &sender, const std::vector<std::string> &arguments) {
+bool KillCommand::execute(CommandOrigin &sender, const std::vector<std::string> &arguments) {
     std::vector<ServerPlayer *> targets;
 
     if (arguments.empty()) {

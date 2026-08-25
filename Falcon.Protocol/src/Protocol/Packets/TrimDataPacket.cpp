@@ -1,6 +1,6 @@
-#include "Protocol/Packets/TrimDataPacket.h"
+#include "protocol/packets/TrimDataPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 TrimDataPacket::TrimDataPacket() = default;
 

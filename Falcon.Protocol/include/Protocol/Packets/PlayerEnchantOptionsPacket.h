@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/EnchantOptionData.h"
+#include "protocol/Packet.h"
+#include "protocol/types/EnchantOptionData.h"
 
 #include <vector>
 

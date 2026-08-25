@@ -1,4 +1,4 @@
-#include "Protocol/Types/LabTableType.h"
+#include "protocol/types/LabTableType.h"
 
 int32_t labTableTypeToId(LabTableType type) {
     return (int32_t) type;

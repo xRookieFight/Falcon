@@ -1,6 +1,6 @@
-#include "Protocol/Packets/PartyChangedPacket.h"
+#include "protocol/packets/PartyChangedPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 PartyChangedPacket::PartyChangedPacket() = default;
 

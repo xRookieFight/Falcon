@@ -1,8 +1,8 @@
-#include "Block/Block.h"
+#include "block/Block.h"
 
-#include "Block/Components/BlockBehavior.h"
-#include "Block/Components/BlockBehaviorRegistry.h"
-#include "Block/BlockData.h"
+#include "block/components/BlockBehavior.h"
+#include "block/components/BlockBehaviorRegistry.h"
+#include "block/BlockData.h"
 
 const BlockData *Block::getData() const {
     return BlockDataTable::find(mIdentifier.c_str());

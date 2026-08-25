@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Core/NBT/Tag.h"
-#include "Block/BlockState.h"
+#include "core/nbt/Tag.h"
+#include "block/BlockState.h"
 
 #include <cstdint>
 #include <optional>
@@ -29,6 +29,10 @@ public:
     const std::string &getIdentifier() const { return mIdentifier; }
 
     const std::string &getName() const { return mName; }
+
+    bool isFire() const {
+        return mIdentifier == "minecraft:fire" || mIdentifier == "minecraft:soul_fire";
+    }
 
     const Tag &getStates() const { return mStates; }
 

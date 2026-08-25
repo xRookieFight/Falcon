@@ -1,6 +1,6 @@
-#include "Protocol/Packets/StopSoundPacket.h"
+#include "protocol/packets/StopSoundPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 StopSoundPacket::StopSoundPacket()
         : mStoppingAllSound(false), mStopMusicLegacy(false) {}

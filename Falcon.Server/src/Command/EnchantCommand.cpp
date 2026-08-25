@@ -1,8 +1,8 @@
-#include "Command/EnchantCommand.h"
+#include "command/EnchantCommand.h"
 
-#include "Actor/ServerPlayer.h"
-#include "Item/ItemEnchantments.h"
-#include "Network/ServerNetworkHandler.h"
+#include "actor/ServerPlayer.h"
+#include "item/ItemEnchantments.h"
+#include "network/handler/ServerNetworkHandler.h"
 
 #include <cstdlib>
 
@@ -26,7 +26,7 @@ bool EnchantCommand::_parseLevel(const std::string &value, int32_t &out) {
     return true;
 }
 
-bool EnchantCommand::execute(CommandSender &sender, const std::vector<std::string> &arguments) {
+bool EnchantCommand::execute(CommandOrigin &sender, const std::vector<std::string> &arguments) {
     if (arguments.size() < 2) {
         sender.sendTranslation("commands.generic.usage", {getUsage()});
         return false;

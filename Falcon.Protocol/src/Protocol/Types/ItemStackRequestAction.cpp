@@ -1,6 +1,6 @@
-#include "Protocol/Types/ItemStackRequestAction.h"
+#include "protocol/types/ItemStackRequestAction.h"
 
-#include "Core/Utility/BinaryDataException.h"
+#include "core/utility/BinaryDataException.h"
 
 #include <string>
 

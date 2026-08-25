@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ClientCacheStatusPacket.h"
+#include "protocol/packets/ClientCacheStatusPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ClientCacheStatusPacket::ClientCacheStatusPacket()
         : mSupported(false) {}

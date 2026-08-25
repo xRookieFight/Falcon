@@ -1,6 +1,6 @@
-#include "Protocol/Packets/PlayerFogPacket.h"
+#include "protocol/packets/PlayerFogPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 PlayerFogPacket::PlayerFogPacket() {}
 

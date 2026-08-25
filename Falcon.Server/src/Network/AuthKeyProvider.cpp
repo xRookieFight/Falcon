@@ -1,4 +1,4 @@
-#include "Network/AuthKeyProvider.h"
+#include "network/AuthKeyProvider.h"
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -20,8 +20,8 @@
 #include <errno.h>
 #endif
 
-#include "Core/Debug/BedrockLog.h"
-#include "Network/ConnectionRequest.h"
+#include "core/debug/BedrockLog.h"
+#include "network/ConnectionRequest.h"
 
 #include <cctype>
 #include <cstdlib>
@@ -549,7 +549,7 @@ void AuthKeyProvider::_clear() {
 }
 
 bool AuthKeyProvider::_fetch(std::map<std::string, EVP_PKEY *> &outKeys, std::string &outIssuer) {
-    LOG_INFO(LogAreaID::Network, "Fetching authentication keys from the Minecraft services");
+    LOG_TRACE(LogAreaID::Network, "Fetching authentication keys from the Minecraft services");
 
     std::string authServiceUri = resolveAuthServiceUri();
     if (authServiceUri.empty()) {
@@ -608,8 +608,9 @@ bool AuthKeyProvider::_fetch(std::map<std::string, EVP_PKEY *> &outKeys, std::st
     outKeys = keys;
     outIssuer = issuer;
 
-    LOG_INFO(LogAreaID::Network, "Loaded %u authentication keys from issuer %s", (unsigned) keys.size(),
-             issuer.c_str());
+    LOG_TRACE(LogAreaID::Network, "Loaded %u authentication keys from issuer %s", (unsigned) keys.size(),
+              issuer.c_str());
+    LOG_INFO(LogAreaID::Network, "Signed in to signaling service successfully");
     return true;
 }
 

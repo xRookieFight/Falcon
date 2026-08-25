@@ -1,6 +1,6 @@
-#include "Protocol/Packets/TickSyncPacket.h"
+#include "protocol/packets/TickSyncPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 TickSyncPacket::TickSyncPacket() = default;
 

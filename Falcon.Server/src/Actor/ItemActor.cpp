@@ -1,4 +1,4 @@
-#include "Actor/ItemActor.h"
+#include "actor/ItemActor.h"
 
 ItemActor::ItemActor(uint64_t runtimeId, const ItemStack &item) : Actor(runtimeId), mItem(item) {
     mFlags.set(ActorFlag::HasCollision, true);

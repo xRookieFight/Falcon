@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Core/Math/Vector3i.h"
-#include "Level/BlockState.h"
+#include "core/math/Vector3i.h"
+#include "level/BlockState.h"
 
 class ItemStack;
 class ItemUseTransaction;
@@ -14,6 +14,7 @@ public:
         Empty,
         Water,
         Lava,
+        PowderSnow,
         None
     };
 

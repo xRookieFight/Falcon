@@ -1,4 +1,4 @@
-#include "Protocol/MinecraftPacketIds.h"
+#include "protocol/MinecraftPacketIds.h"
 
 const char *toString(MinecraftPacketIds id) {
     switch (id) {

@@ -1,4 +1,4 @@
-#include "Block/BlockPalette.h"
+#include "block/BlockPalette.h"
 
 #include <stdexcept>
 

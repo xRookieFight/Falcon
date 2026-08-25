@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ContainerClosePacket.h"
+#include "protocol/packets/ContainerClosePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ContainerClosePacket::ContainerClosePacket() = default;
 

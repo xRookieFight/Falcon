@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/MinecraftPacketIds.h"
-#include "Protocol/Packet.h"
+#include "protocol/MinecraftPacketIds.h"
+#include "protocol/Packet.h"
 
 #include <functional>
 #include <memory>

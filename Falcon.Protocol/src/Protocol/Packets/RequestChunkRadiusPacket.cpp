@@ -1,6 +1,6 @@
-#include "Protocol/Packets/RequestChunkRadiusPacket.h"
+#include "protocol/packets/RequestChunkRadiusPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 RequestChunkRadiusPacket::RequestChunkRadiusPacket()
         : mRadius(0), mMaxRadius(0) {}

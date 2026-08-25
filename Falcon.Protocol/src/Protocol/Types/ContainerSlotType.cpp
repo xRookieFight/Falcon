@@ -1,4 +1,4 @@
-#include "Protocol/Types/ContainerSlotType.h"
+#include "protocol/types/ContainerSlotType.h"
 
 namespace {
     const ContainerSlotType TYPES_BY_ID[] = {

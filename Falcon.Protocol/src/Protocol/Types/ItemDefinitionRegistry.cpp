@@ -1,4 +1,4 @@
-#include "Protocol/Types/ItemDefinitionRegistry.h"
+#include "protocol/types/ItemDefinitionRegistry.h"
 
 void ItemDefinitionRegistry::registerDefinition(std::shared_ptr<ItemDefinition> definition) {
     int runtimeId = definition->getRuntimeId();

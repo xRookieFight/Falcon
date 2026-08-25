@@ -1,4 +1,4 @@
-#include "Core/Debug/BedrockLog.h"
+#include "core/debug/BedrockLog.h"
 
 #include <algorithm>
 #include <cstdio>

@@ -1,6 +1,6 @@
-#include "Item/ItemEnchantments.h"
+#include "item/ItemEnchantments.h"
 
-#include "Item/ItemData.h"
+#include "item/ItemData.h"
 
 const char *ItemEnchantments::TAG_ENCHANTMENTS = "ench";
 const char *ItemEnchantments::TAG_ENCHANTMENT_ID = "id";

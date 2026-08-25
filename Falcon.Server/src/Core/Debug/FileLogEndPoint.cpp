@@ -1,4 +1,4 @@
-#include "Core/Debug/FileLogEndPoint.h"
+#include "core/debug/FileLogEndPoint.h"
 
 FileLogEndPoint::FileLogEndPoint(const std::string &filePath) : mFilePath(filePath) {
     mStream.open(filePath, std::ios::out | std::ios::app);
@@ -15,8 +15,8 @@ void FileLogEndPoint::log(const LogDetails &details) {
 
     std::lock_guard<std::mutex> guard(mMutex);
 
-    mStream << "[" << details.getTimestamp() << " " << toString(details.mLevel) << "]"
-            << "[" << toString(details.mArea) << "] " << details.mMessage << std::endl;
+    mStream << "[" << details.getTimestamp() << " " << toString(details.mLevel) << "] "
+            << details.mMessage << std::endl;
 }
 
 void FileLogEndPoint::flush() {

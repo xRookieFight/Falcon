@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Core/Utility/BinaryStream.h"
-#include "Core/Utility/ReadOnlyBinaryStream.h"
-#include "Protocol/Types/DataStoreTypes.h"
+#include "core/utility/BinaryStream.h"
+#include "core/utility/ReadOnlyBinaryStream.h"
+#include "protocol/types/DataStoreTypes.h"
 
 class DataStoreCodec {
 public:

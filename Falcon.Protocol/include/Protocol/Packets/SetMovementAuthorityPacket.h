@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Protocol/Packet.h"
+#include "protocol/Packet.h"
 
 enum class AuthoritativeMovementMode : unsigned char {
     Client = 0,

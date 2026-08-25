@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Core/Math/Vector3i.h"
-#include "Protocol/Packet.h"
-#include "Protocol/Types/BlockChangeEntry.h"
+#include "core/math/Vector3i.h"
+#include "protocol/Packet.h"
+#include "protocol/types/BlockChangeEntry.h"
 
 #include <vector>
 

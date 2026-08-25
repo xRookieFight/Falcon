@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ClientboundMapItemDataPacket.h"
+#include "protocol/packets/ClientboundMapItemDataPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ClientboundMapItemDataPacket::ClientboundMapItemDataPacket() = default;
 

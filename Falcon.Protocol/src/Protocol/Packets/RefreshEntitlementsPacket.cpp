@@ -1,6 +1,6 @@
-#include "Protocol/Packets/RefreshEntitlementsPacket.h"
+#include "protocol/packets/RefreshEntitlementsPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 RefreshEntitlementsPacket::RefreshEntitlementsPacket() {}
 

@@ -1,6 +1,6 @@
-#include "Block/Components/BlockBehavior.h"
+#include "block/components/BlockBehavior.h"
 
-#include "Actor/Actor.h"
+#include "actor/Actor.h"
 
 bool BlockBehavior::onEntityLand(Actor &actor, float downwardVelocity) const {
     (void) actor;

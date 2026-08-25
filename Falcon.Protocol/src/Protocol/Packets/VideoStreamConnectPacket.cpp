@@ -1,6 +1,6 @@
-#include "Protocol/Packets/VideoStreamConnectPacket.h"
+#include "protocol/packets/VideoStreamConnectPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 VideoStreamConnectPacket::VideoStreamConnectPacket() = default;
 

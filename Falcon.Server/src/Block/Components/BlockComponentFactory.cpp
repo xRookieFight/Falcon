@@ -1,6 +1,6 @@
-#include "Block/Components/BlockComponentFactory.h"
+#include "block/components/BlockComponentFactory.h"
 
-#include "Block/Components/BlockBehaviorRegistry.h"
+#include "block/components/BlockBehaviorRegistry.h"
 
 const BlockBehavior &BlockComponentFactory::getBehavior(const std::string &identifier) {
     return BlockBehaviorRegistry::get(identifier);

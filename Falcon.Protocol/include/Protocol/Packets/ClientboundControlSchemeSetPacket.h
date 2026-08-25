@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/CameraTypes.h"
+#include "protocol/Packet.h"
+#include "protocol/types/CameraTypes.h"
 
 class ClientboundControlSchemeSetPacket : public Packet {
 public:

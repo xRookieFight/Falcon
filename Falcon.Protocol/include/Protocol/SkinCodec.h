@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Core/Utility/BinaryStream.h"
-#include "Core/Utility/ReadOnlyBinaryStream.h"
-#include "Protocol/Types/SerializedSkin.h"
+#include "core/utility/BinaryStream.h"
+#include "core/utility/ReadOnlyBinaryStream.h"
+#include "protocol/types/SerializedSkin.h"
 
 class SkinCodec {
 public:

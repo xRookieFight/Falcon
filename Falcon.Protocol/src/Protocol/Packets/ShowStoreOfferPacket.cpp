@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ShowStoreOfferPacket.h"
+#include "protocol/packets/ShowStoreOfferPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ShowStoreOfferPacket::ShowStoreOfferPacket() = default;
 

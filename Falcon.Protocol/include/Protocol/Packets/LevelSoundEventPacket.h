@@ -1,9 +1,13 @@
 #pragma once
 
-#include "Core/Math/Vector3f.h"
-#include "Protocol/Packet.h"
+#include "core/math/Vector3f.h"
+#include "protocol/Packet.h"
 
 #include <string>
+
+namespace LevelSoundEvent {
+    inline constexpr const char *BURP = "burp";
+}
 
 class LevelSoundEventPacket : public Packet {
 public:

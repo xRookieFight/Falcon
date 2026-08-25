@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/FullContainerName.h"
-#include "Protocol/Types/ItemStack.h"
+#include "protocol/Packet.h"
+#include "protocol/types/FullContainerName.h"
+#include "protocol/types/ItemStack.h"
 
 #include <cstdint>
 

@@ -1,8 +1,8 @@
-#include "Network/LoginChainVerifier.h"
+#include "network/LoginChainVerifier.h"
 
-#include "Network/AuthKeyProvider.h"
-#include "Network/ConnectionRequest.h"
-#include "Core/Debug/BedrockLog.h"
+#include "network/AuthKeyProvider.h"
+#include "network/ConnectionRequest.h"
+#include "core/debug/BedrockLog.h"
 
 #include <cstdint>
 #include <cstdio>

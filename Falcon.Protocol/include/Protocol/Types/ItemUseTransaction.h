@@ -1,10 +1,10 @@
 #pragma once
 
-#include "Core/Math/Vector3f.h"
-#include "Core/Math/Vector3i.h"
-#include "Protocol/Types/BlockDefinition.h"
-#include "Protocol/Types/InventoryActionData.h"
-#include "Protocol/Types/ItemStack.h"
+#include "core/math/Vector3f.h"
+#include "core/math/Vector3i.h"
+#include "protocol/types/BlockDefinition.h"
+#include "protocol/types/InventoryActionData.h"
+#include "protocol/types/ItemStack.h"
 
 #include <cstdint>
 #include <memory>

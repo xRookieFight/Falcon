@@ -1,4 +1,4 @@
-#include "Protocol/Types/CraftingType.h"
+#include "protocol/types/CraftingType.h"
 
 int32_t craftingTypeToId(CraftingType type) {
     return (int32_t) type;

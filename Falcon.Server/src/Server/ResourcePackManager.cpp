@@ -1,7 +1,10 @@
-#include "Server/ResourcePackManager.h"
+#include "server/ResourcePackManager.h"
 
-#include "Core/Debug/BedrockLog.h"
+#include "core/archive/ZipArchive.h"
+#include "core/debug/BedrockLog.h"
+#include "core/pack/PackDependencies.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
@@ -222,16 +225,10 @@ std::string ResourcePackManager::_sha256(const std::string &data) {
     return std::string(reinterpret_cast<const char *>(digest), SHA256_DIGEST_LENGTH);
 }
 
-bool ResourcePackManager::_loadPackFile(const std::string &path, const std::string &fileName) {
-    std::string data;
-    if (!_readWholeFile(path, data)) {
-        LOG_WARN(LogAreaID::Server, "Could not read resource pack %s", fileName.c_str());
-        return false;
-    }
-
+bool ResourcePackManager::_loadPackBytes(std::string data, const std::string &label, const std::string &contentKey) {
     std::string manifest;
     if (!_extractZipEntry(data, "manifest.json", manifest)) {
-        LOG_WARN(LogAreaID::Server, "Resource pack %s has no readable manifest.json", fileName.c_str());
+        LOG_WARN(LogAreaID::Server, "Resource pack %s has no readable manifest.json", label.c_str());
         return false;
     }
 
@@ -239,18 +236,45 @@ bool ResourcePackManager::_loadPackFile(const std::string &path, const std::stri
     std::string version;
     std::string name;
     if (!_readManifest(manifest, uuid, version, name)) {
-        LOG_WARN(LogAreaID::Server, "Resource pack %s manifest is missing a header uuid", fileName.c_str());
+        LOG_WARN(LogAreaID::Server, "Resource pack %s manifest is missing a header uuid", label.c_str());
         return false;
     }
 
+    for (const ResourcePack &existing: mPacks) {
+        if (existing.mUuidString == uuid) {
+            LOG_WARN(LogAreaID::Server, "Skipping duplicate resource pack %s (uuid %s already loaded)",
+                     label.c_str(), uuid.c_str());
+            return false;
+        }
+    }
+
     ResourcePack pack;
+    pack.mDependencyUuids = collectPackDependencyUuids(manifest);
     pack.mUuidString = uuid;
     pack.mUuid = Uuid::fromString(uuid);
     pack.mVersion = version;
-    pack.mName = name.empty() ? fileName : name;
+    pack.mName = name.empty() ? label : name;
     pack.mData = std::move(data);
     pack.mSize = pack.mData.size();
     pack.mSha256 = _sha256(pack.mData);
+    pack.mContentKey = contentKey;
+
+    if (!contentKey.empty())
+        LOG_INFO(LogAreaID::Server, "Resource pack %s is encrypted (loaded content key)", pack.mName.c_str());
+
+    LOG_INFO(LogAreaID::Server, "Loaded resource pack %s v%s (%llu bytes)", pack.mName.c_str(), version.c_str(),
+             (unsigned long long) pack.mSize);
+
+    mPacks.push_back(std::move(pack));
+    return true;
+}
+
+bool ResourcePackManager::_loadPackFile(const std::string &path, const std::string &fileName) {
+    std::string data;
+    if (!_readWholeFile(path, data)) {
+        LOG_WARN(LogAreaID::Server, "Could not read resource pack %s", fileName.c_str());
+        return false;
+    }
 
     std::filesystem::path keyPath = std::filesystem::path(path);
     keyPath.replace_extension(".key");
@@ -259,16 +283,92 @@ bool ResourcePackManager::_loadPackFile(const std::string &path, const std::stri
     if (_readWholeFile(keyPath.string(), key)) {
         while (!key.empty() && (key.back() == '\n' || key.back() == '\r' || key.back() == ' ' || key.back() == '\t'))
             key.pop_back();
-
-        pack.mContentKey = key;
-        LOG_INFO(LogAreaID::Server, "Resource pack %s is encrypted (loaded content key)", pack.mName.c_str());
+    } else {
+        key.clear();
     }
 
-    LOG_INFO(LogAreaID::Server, "Loaded resource pack %s v%s (%llu bytes)", pack.mName.c_str(), version.c_str(),
-             (unsigned long long) pack.mSize);
+    return _loadPackBytes(std::move(data), fileName, key);
+}
 
-    mPacks.push_back(std::move(pack));
-    return true;
+void ResourcePackManager::_loadFolder(const std::string &path, const std::string &label) {
+    std::error_code error;
+    if (!std::filesystem::exists(std::filesystem::path(path) / "manifest.json", error))
+        return;
+
+    ZipWriter writer;
+    const std::filesystem::path base(path);
+
+    for (const std::filesystem::directory_entry &entry:
+                 std::filesystem::recursive_directory_iterator(base, error)) {
+        if (!entry.is_regular_file())
+            continue;
+
+        std::string content;
+        if (!_readWholeFile(entry.path().string(), content))
+            continue;
+
+        const std::string relative = std::filesystem::relative(entry.path(), base, error).generic_string();
+        writer.addFile(relative, content);
+    }
+
+    _loadPackBytes(writer.finish(), label, std::string());
+}
+
+void ResourcePackManager::loadBundledAddonsFrom(const std::string &directory) {
+    std::error_code error;
+    const std::filesystem::path root(directory);
+    if (!std::filesystem::exists(root, error))
+        return;
+
+    for (const std::filesystem::directory_entry &entry: std::filesystem::directory_iterator(root, error)) {
+        if (!entry.is_regular_file())
+            continue;
+
+        if (entry.path().extension().string() != ".mcaddon")
+            continue;
+
+        std::string data;
+        if (_readWholeFile(entry.path().string(), data))
+            _loadAddon(data);
+    }
+}
+
+void ResourcePackManager::_loadAddon(const std::string &data) {
+    std::vector<ZipEntry> entries;
+    if (!ZipArchive::listEntries(data, entries))
+        return;
+
+    std::vector<std::string> packRoots;
+    for (const ZipEntry &entry: entries) {
+        const std::string suffix = "manifest.json";
+        if (entry.mName.size() < suffix.size()
+            || entry.mName.compare(entry.mName.size() - suffix.size(), suffix.size(), suffix) != 0)
+            continue;
+
+        const size_t slash = entry.mName.find_last_of('/');
+        packRoots.push_back(slash == std::string::npos ? std::string() : entry.mName.substr(0, slash + 1));
+    }
+
+    for (const std::string &packRoot: packRoots) {
+        std::string manifest;
+        for (const ZipEntry &entry: entries) {
+            if (entry.mName == packRoot + "manifest.json") {
+                manifest = entry.mData;
+                break;
+            }
+        }
+
+        if (manifest.find("\"resources\"") == std::string::npos)
+            continue;
+
+        ZipWriter writer;
+        for (const ZipEntry &entry: entries) {
+            if (packRoot.empty() || entry.mName.compare(0, packRoot.size(), packRoot) == 0)
+                writer.addFile(entry.mName.substr(packRoot.size()), entry.mData);
+        }
+
+        _loadPackBytes(writer.finish(), "addon:" + packRoot, std::string());
+    }
 }
 
 void ResourcePackManager::loadFromDirectory(const std::string &directory) {
@@ -281,17 +381,26 @@ void ResourcePackManager::loadFromDirectory(const std::string &directory) {
     }
 
     for (const std::filesystem::directory_entry &entry: std::filesystem::directory_iterator(directory, error)) {
+        if (entry.is_directory()) {
+            _loadFolder(entry.path().string(), entry.path().filename().string());
+            continue;
+        }
+
         if (!entry.is_regular_file())
             continue;
 
         const std::string extension = entry.path().extension().string();
-        if (extension != ".zip" && extension != ".mcpack")
-            continue;
 
-        _loadPackFile(entry.path().string(), entry.path().filename().string());
+        if (extension == ".zip" || extension == ".mcpack") {
+            _loadPackFile(entry.path().string(), entry.path().filename().string());
+        } else if (extension == ".mcaddon") {
+            std::string data;
+            if (_readWholeFile(entry.path().string(), data))
+                _loadAddon(data);
+        }
     }
 
-    LOG_INFO(LogAreaID::Server, "Resource pack manager loaded %zu pack(s)", mPacks.size());
+    LOG_TRACE(LogAreaID::Server, "Resource pack manager loaded %zu pack(s)", mPacks.size());
 }
 
 const ResourcePack *ResourcePackManager::findById(const std::string &uuid) const {
@@ -300,4 +409,37 @@ const ResourcePack *ResourcePackManager::findById(const std::string &uuid) const
             return &pack;
     }
     return nullptr;
+}
+
+std::vector<std::string> ResourcePackManager::getLoadedUuids() const {
+    std::vector<std::string> uuids;
+    uuids.reserve(mPacks.size());
+    for (const ResourcePack &pack: mPacks)
+        uuids.push_back(pack.mUuidString);
+    return uuids;
+}
+
+size_t ResourcePackManager::pruneUnsatisfied(const std::vector<std::string> &availableUuids) {
+    size_t removed = 0;
+
+    for (size_t i = 0; i < mPacks.size();) {
+        bool satisfied = true;
+        for (const std::string &dependency: mPacks[i].mDependencyUuids) {
+            if (std::find(availableUuids.begin(), availableUuids.end(), dependency) == availableUuids.end()) {
+                satisfied = false;
+                break;
+            }
+        }
+
+        if (satisfied) {
+            ++i;
+            continue;
+        }
+
+        LOG_WARN(LogAreaID::Server, "Skipping resource pack %s: missing dependency pack", mPacks[i].mName.c_str());
+        mPacks.erase(mPacks.begin() + (long) i);
+        removed++;
+    }
+
+    return removed;
 }

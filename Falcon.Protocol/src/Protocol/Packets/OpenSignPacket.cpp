@@ -1,6 +1,6 @@
-#include "Protocol/Packets/OpenSignPacket.h"
+#include "protocol/packets/OpenSignPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 OpenSignPacket::OpenSignPacket()
         : mFrontSide(false) {}

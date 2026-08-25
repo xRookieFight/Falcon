@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Block/Block.h"
-#include "Block/BlockTypeIds.h"
+#include "block/Block.h"
+#include "block/BlockTypeIds.h"
 
 class SlimeBlock final : public Block {
 public:

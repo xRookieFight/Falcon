@@ -1,4 +1,4 @@
-#include "Protocol/Types/LabTableReactionType.h"
+#include "protocol/types/LabTableReactionType.h"
 
 namespace {
     const LabTableReactionType TYPES_BY_ID[] = {

@@ -1,7 +1,7 @@
-#include "Command/GameModeCommand.h"
+#include "command/GameModeCommand.h"
 
-#include "Actor/ServerPlayer.h"
-#include "Network/ServerNetworkHandler.h"
+#include "actor/ServerPlayer.h"
+#include "network/handler/ServerNetworkHandler.h"
 
 #include <algorithm>
 #include <cctype>
@@ -49,7 +49,7 @@ const char *GameModeCommand::getGameModeName(int gameMode) {
     }
 }
 
-bool GameModeCommand::execute(CommandSender &sender, const std::vector<std::string> &arguments) {
+bool GameModeCommand::execute(CommandOrigin &sender, const std::vector<std::string> &arguments) {
     if (arguments.empty()) {
         sender.sendTranslation("commands.generic.usage", {getUsage()});
         return false;

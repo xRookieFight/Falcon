@@ -1,6 +1,6 @@
-#include "Protocol/Packets/BossEventPacket.h"
+#include "protocol/packets/BossEventPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 BossEventPacket::BossEventPacket()
         : mBossUniqueActorId(0), mPlayerUniqueActorId(0), mAction(Action::Create), mHealthPercentage(0.0f), mColor(0), mOverlay(0) {}

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Core/NBT/Tag.h"
-#include "Core/Utility/BinaryStream.h"
+#include "core/nbt/Tag.h"
+#include "core/utility/BinaryStream.h"
 
 #include <string>
 #include <vector>

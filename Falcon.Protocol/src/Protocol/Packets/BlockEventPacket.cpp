@@ -1,6 +1,6 @@
-#include "Protocol/Packets/BlockEventPacket.h"
+#include "protocol/packets/BlockEventPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 BlockEventPacket::BlockEventPacket() = default;
 

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Protocol/Types/AdventureSettingData.h"
-#include "Protocol/Types/CommandEnumData.h"
-#include "Protocol/Types/CommandParam.h"
+#include "protocol/types/AdventureSettingData.h"
+#include "protocol/types/CommandEnumData.h"
+#include "protocol/types/CommandParam.h"
 
 #include <cstdint>
 #include <string>

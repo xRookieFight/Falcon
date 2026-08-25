@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ScriptCustomEventPacket.h"
+#include "protocol/packets/ScriptCustomEventPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ScriptCustomEventPacket::ScriptCustomEventPacket() = default;
 

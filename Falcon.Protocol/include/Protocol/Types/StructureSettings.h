@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Core/Math/Vector3f.h"
-#include "Core/Math/Vector3i.h"
-#include "Core/Utility/BinaryStream.h"
+#include "core/math/Vector3f.h"
+#include "core/math/Vector3i.h"
+#include "core/utility/BinaryStream.h"
 
 #include <string>
 

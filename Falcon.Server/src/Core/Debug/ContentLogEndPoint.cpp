@@ -1,4 +1,4 @@
-#include "Core/Debug/ContentLogEndPoint.h"
+#include "core/debug/ContentLogEndPoint.h"
 
 #include <cstdio>
 

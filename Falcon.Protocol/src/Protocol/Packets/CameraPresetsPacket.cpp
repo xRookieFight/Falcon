@@ -1,7 +1,7 @@
-#include "Protocol/Packets/CameraPresetsPacket.h"
+#include "protocol/packets/CameraPresetsPacket.h"
 
-#include "Protocol/CameraCodec.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/CameraCodec.h"
+#include "protocol/NetworkPacketHandler.h"
 
 CameraPresetsPacket::CameraPresetsPacket() = default;
 

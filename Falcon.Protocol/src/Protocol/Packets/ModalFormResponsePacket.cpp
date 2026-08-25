@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ModalFormResponsePacket.h"
+#include "protocol/packets/ModalFormResponsePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ModalFormResponsePacket::ModalFormResponsePacket()
         : mFormId(0), mHasFormData(false), mHasCancelReason(false), mCancelReason(CancelReason::UserClosed) {}

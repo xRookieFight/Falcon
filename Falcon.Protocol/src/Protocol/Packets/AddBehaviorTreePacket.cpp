@@ -1,6 +1,6 @@
-#include "Protocol/Packets/AddBehaviorTreePacket.h"
+#include "protocol/packets/AddBehaviorTreePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 AddBehaviorTreePacket::AddBehaviorTreePacket() {}
 

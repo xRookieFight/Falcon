@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Network/NetworkIdentifier.h"
-#include "Network/NetworkPeer.h"
-#include "RakNet/RakPeerInterface.h"
+#include "network/NetworkIdentifier.h"
+#include "network/NetworkPeer.h"
+#include "raknet/RakPeerInterface.h"
 
 #include <deque>
 #include <mutex>

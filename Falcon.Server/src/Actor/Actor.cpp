@@ -1,7 +1,8 @@
-#include "Actor/Actor.h"
+#include "actor/Actor.h"
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 
 namespace {
     const char *ATTRIBUTE_HEALTH = "minecraft:health";
@@ -19,6 +20,46 @@ const float Actor::EXHAUSTION_PER_UNIT = 4.0f;
 const float Actor::FALL_DAMAGE_THRESHOLD = 3.0f;
 
 Actor::Actor(uint64_t runtimeId) : mRuntimeId(runtimeId), mEffects(*this) {}
+
+void Actor::setOnFire(bool onFire) {
+    if (onFire)
+        setFireTicks(std::max(mFireTicks, 160));
+    else
+        extinguish();
+}
+
+void Actor::setFireTicks(int fireTicks) {
+    mFireTicks = std::max(0, std::min(fireTicks, 32767));
+    mFlags.set(ActorFlag::OnFire, mFireTicks > 0);
+}
+
+void Actor::extinguish() {
+    mFireTicks = 0;
+    mFlags.set(ActorFlag::OnFire, false);
+}
+
+bool Actor::tickFire() {
+    if (mFireTicks <= 0) {
+        mFlags.set(ActorFlag::OnFire, false);
+        return false;
+    }
+
+    --mFireTicks;
+    if (mFireTicks <= 0) {
+        mFlags.set(ActorFlag::OnFire, false);
+        return false;
+    }
+
+    mFlags.set(ActorFlag::OnFire, true);
+    return mFireTicks % 20 == 0;
+}
+
+void Actor::teleport(const Vector3f &position) {
+    mPosition = position;
+    mMotion = Vector3f(0.0f, 0.0f, 0.0f);
+    mOnGround = true;
+    resetFallDistance();
+}
 
 void Actor::setXpAndProgress(int level, float progress) {
     mExperience.setXpAndProgress(level, progress);
@@ -45,6 +86,33 @@ float Actor::getMaxHealth() const {
 
 bool Actor::isAlive() const {
     return getHealth() > 0.0f;
+}
+
+void Actor::tickCombat(int tickDiff) {
+    if (tickDiff <= 0)
+        return;
+
+    mNoDamageTicks = std::max(0, mNoDamageTicks - tickDiff);
+    mAttackTime = std::max(0, mAttackTime - tickDiff);
+    if (mNoDamageTicks == 0)
+        mLastDamageAmount = 0.0f;
+}
+
+void Actor::knockBack(float x, float z, float force, float verticalLimit) {
+    const float length = std::sqrt(x * x + z * z);
+    if (length <= 0.0f || force <= 0.0f)
+        return;
+
+    const float resistance = std::clamp(getAttributes().get("minecraft:knockback_resistance"), 0.0f, 1.0f);
+    if ((float) std::rand() / (float) RAND_MAX <= resistance)
+        return;
+
+    const float inverse = 1.0f / length;
+    Vector3f motion = getMotion();
+    motion.x = motion.x * 0.5f + x * inverse * force;
+    motion.y = std::min(motion.y * 0.5f + force, verticalLimit);
+    motion.z = motion.z * 0.5f + z * inverse * force;
+    setMotion(motion);
 }
 
 float Actor::getFood() const {
@@ -183,7 +251,7 @@ bool Actor::tickHunger(int tickDiff, int difficulty) {
                                 || difficulty == DIFFICULTY_HARD;
 
             if (starve)
-                mAttributes.setClamped(ATTRIBUTE_HEALTH, health - 1.0f);
+                mPendingStarveDamage = true;
         }
     }
 
@@ -199,9 +267,13 @@ bool Actor::tickHunger(int tickDiff, int difficulty) {
 void Actor::kill() {
     mIsDead = true;
     mEffects.clear();
+    extinguish();
     mAttributes.set(ATTRIBUTE_HEALTH, 0.0f);
     setMotion(Vector3f(0.0f, 0.0f, 0.0f));
     resetFallDistance();
+    mNoDamageTicks = 0;
+    mAttackTime = 0;
+    mLastDamageAmount = 0.0f;
 }
 
 float Actor::reduceHealth(float amount) {

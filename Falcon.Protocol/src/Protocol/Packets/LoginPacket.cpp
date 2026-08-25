@@ -1,6 +1,6 @@
-#include "Protocol/Packets/LoginPacket.h"
+#include "protocol/packets/LoginPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 LoginPacket::LoginPacket()
         : mProtocolVersion(0) {}

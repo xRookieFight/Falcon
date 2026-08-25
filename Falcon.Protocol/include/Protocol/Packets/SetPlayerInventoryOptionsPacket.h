@@ -1,9 +1,9 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/InventoryLayout.h"
-#include "Protocol/Types/InventoryTabLeft.h"
-#include "Protocol/Types/InventoryTabRight.h"
+#include "protocol/Packet.h"
+#include "protocol/types/InventoryLayout.h"
+#include "protocol/types/InventoryTabLeft.h"
+#include "protocol/types/InventoryTabRight.h"
 
 class SetPlayerInventoryOptionsPacket : public Packet {
 public:

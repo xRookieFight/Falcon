@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Protocol/Packet.h"
+#include "protocol/Packet.h"
 
 class HurtArmorPacket : public Packet {
 public:

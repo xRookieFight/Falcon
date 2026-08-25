@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ToastRequestPacket.h"
+#include "protocol/packets/ToastRequestPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ToastRequestPacket::ToastRequestPacket() {}
 

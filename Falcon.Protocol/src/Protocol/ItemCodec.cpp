@@ -1,6 +1,6 @@
-#include "Protocol/ItemCodec.h"
+#include "protocol/ItemCodec.h"
 
-#include "Core/NBT/NbtIo.h"
+#include "core/nbt/NbtIo.h"
 
 namespace {
     const std::string BLOCKING_ID = "minecraft:shield";

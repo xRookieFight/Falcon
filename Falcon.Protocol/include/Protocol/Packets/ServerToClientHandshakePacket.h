@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Protocol/Packet.h"
+#include "protocol/Packet.h"
 
 class ServerToClientHandshakePacket : public Packet {
 public:

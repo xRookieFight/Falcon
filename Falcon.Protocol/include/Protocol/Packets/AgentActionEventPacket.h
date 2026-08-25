@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/AgentActionType.h"
+#include "protocol/Packet.h"
+#include "protocol/types/AgentActionType.h"
 
 #include <string>
 

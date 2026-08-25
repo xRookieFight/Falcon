@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Protocol/Types/ItemStackRequestAction.h"
+#include "protocol/types/ItemStackRequestAction.h"
 
 #include <cstdint>
 #include <string>

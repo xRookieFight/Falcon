@@ -15,16 +15,12 @@
 
 ## What is this?
 
-Falcon is a Minecraft: Bedrock Edition server built from the ground up in C++17. There is no game
-engine and no third-party networking library underneath it - RakNet, the Bedrock protocol and the
-server logic are all implemented in this repository.
+Falcon is a Minecraft: Bedrock Edition server built from the ground up in C++17.
 
-- ⚡ **Native C++17** - no runtime to install, the server ships as a single self-contained executable
-- 🧱 **Own RakNet implementation** - sockets, reliability layer and connection handshake written here
-- 📦 **230+ protocol packets** - encoded and decoded against the current Bedrock wire format
-- 🗜️ **Batching and compression** - zlib game-packet pipeline, as the vanilla client expects
-- 🌍 **Flat world generation** - sub-chunk encoding with hashed block runtime IDs
-- 🧩 **Layered architecture** - network, protocol and server concerns stay separate
+-  **Native C++17** - no runtime to install, the server ships as a single self-contained executable
+-  **Own RakNet implementation** - sockets, reliability layer and connection handshake written here
+-  **Flat world generation** - sub-chunk encoding with hashed block runtime IDs
+-  **Layered architecture** - network, protocol and server concerns stay separate
 
 ## Building
 
@@ -35,10 +31,6 @@ UCRT64.
 cmake -B build -G Ninja
 cmake --build build
 ```
-
-On Windows, `build.bat` runs a full clean rebuild in one step. The resulting binary,
-`build/Falcon.Server/FalconServer.exe`, is statically linked and runs without any accompanying
-runtime DLLs.
 
 ## Licensing information
 

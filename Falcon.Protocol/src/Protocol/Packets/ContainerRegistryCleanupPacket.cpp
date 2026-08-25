@@ -1,7 +1,7 @@
-#include "Protocol/Packets/ContainerRegistryCleanupPacket.h"
+#include "protocol/packets/ContainerRegistryCleanupPacket.h"
 
-#include "Protocol/InventoryCodec.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/InventoryCodec.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ContainerRegistryCleanupPacket::ContainerRegistryCleanupPacket() = default;
 

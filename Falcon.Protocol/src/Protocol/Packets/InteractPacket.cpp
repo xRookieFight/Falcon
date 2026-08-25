@@ -1,6 +1,6 @@
-#include "Protocol/Packets/InteractPacket.h"
+#include "protocol/packets/InteractPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 InteractPacket::InteractPacket()
         : mAction(Action::None), mRuntimeActorId(0), mHasMousePosition(false) {}

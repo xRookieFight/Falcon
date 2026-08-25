@@ -1,4 +1,4 @@
-#include "Network/CompressedNetworkPeer.h"
+#include "network/CompressedNetworkPeer.h"
 
 #include <zlib.h>
 

@@ -1,6 +1,6 @@
-#include "Protocol/Packets/PlayStatusPacket.h"
+#include "protocol/packets/PlayStatusPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 PlayStatusPacket::PlayStatusPacket()
         : mStatus(Status::LoginSuccess) {}

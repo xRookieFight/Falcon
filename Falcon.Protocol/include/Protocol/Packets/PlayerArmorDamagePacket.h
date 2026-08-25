@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/PlayerArmorDamageFlag.h"
+#include "protocol/Packet.h"
+#include "protocol/types/PlayerArmorDamageFlag.h"
 
 #include <array>
 #include <cstdint>

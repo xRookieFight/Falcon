@@ -1,4 +1,4 @@
-#include "Block/Components/CreativeContentTable.h"
+#include "block/components/CreativeContentTable.h"
 
 namespace {
     const CreativeGroupEntry GROUPS[] = {

@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ShowCreditsPacket.h"
+#include "protocol/packets/ShowCreditsPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ShowCreditsPacket::ShowCreditsPacket()
         : mRuntimeActorId(0), mStatus(Status::StartCredits) {}

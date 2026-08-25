@@ -1,6 +1,6 @@
-#include "Network/RakPeerHelper.h"
+#include "network/RakPeerHelper.h"
 
-#include "RakNet/RakNetTypes.h"
+#include "raknet/RakNetTypes.h"
 
 RakPeerHelper::RakPeerHelper(IPSupportInterface *ipSupportInterface) : mIPSupportInterface(ipSupportInterface) {}
 

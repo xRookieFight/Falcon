@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Network/PingedCompatibleServer.h"
-#include "RakNet/RakPeerInterface.h"
+#include "network/PingedCompatibleServer.h"
+#include "raknet/RakPeerInterface.h"
 
 #include <string>
 

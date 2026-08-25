@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ClientCacheMissResponsePacket.h"
+#include "protocol/packets/ClientCacheMissResponsePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 void ClientCacheMissResponsePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
     stream.putArrayLength((uint32_t) mBlobs.size());

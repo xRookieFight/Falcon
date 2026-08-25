@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/FullContainerName.h"
+#include "protocol/Packet.h"
+#include "protocol/types/FullContainerName.h"
 
 #include <vector>
 

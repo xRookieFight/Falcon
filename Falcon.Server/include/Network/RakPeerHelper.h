@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Network/ConnectionDefinition.h"
-#include "RakNet/RakPeerInterface.h"
+#include "network/ConnectionDefinition.h"
+#include "raknet/RakPeerInterface.h"
 
 class RakPeerHelper {
 public:

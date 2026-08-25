@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Core/Utility/UUID.h"
-#include "Protocol/Packet.h"
-#include "Protocol/Types/SerializedSkin.h"
+#include "core/utility/UUID.h"
+#include "protocol/Packet.h"
+#include "protocol/types/SerializedSkin.h"
 
 #include <string>
 

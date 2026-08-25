@@ -1,6 +1,6 @@
-#include "Protocol/Packets/PhotoInfoRequestPacket.h"
+#include "protocol/packets/PhotoInfoRequestPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 PhotoInfoRequestPacket::PhotoInfoRequestPacket() = default;
 

@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SetCommandsEnabledPacket.h"
+#include "protocol/packets/SetCommandsEnabledPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 SetCommandsEnabledPacket::SetCommandsEnabledPacket()
         : mCommandsEnabled(false) {}

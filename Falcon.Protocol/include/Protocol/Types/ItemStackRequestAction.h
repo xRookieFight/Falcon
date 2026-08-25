@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Protocol/Types/ItemDescriptor.h"
-#include "Protocol/Types/ItemStack.h"
-#include "Protocol/Types/ItemStackRequestSlotData.h"
+#include "protocol/types/ItemDescriptor.h"
+#include "protocol/types/ItemStack.h"
+#include "protocol/types/ItemStackRequestSlotData.h"
 
 #include <cstdint>
 #include <string>

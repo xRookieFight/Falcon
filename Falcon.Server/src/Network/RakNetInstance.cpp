@@ -1,6 +1,6 @@
-#include "Network/RakNetInstance.h"
+#include "network/RakNetInstance.h"
 
-#include "RakNet/MessageIdentifiers.h"
+#include "raknet/MessageIdentifiers.h"
 
 
 RakNetInstance::RakNetInstance(RakPeerHelper::IPSupportInterface &ipSupport, bool isServer)

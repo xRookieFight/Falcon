@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ChunkRadiusUpdatedPacket.h"
+#include "protocol/packets/ChunkRadiusUpdatedPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ChunkRadiusUpdatedPacket::ChunkRadiusUpdatedPacket()
         : mRadius(0) {}

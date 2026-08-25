@@ -1,6 +1,6 @@
-#include "Protocol/Packets/PacketViolationWarningPacket.h"
+#include "protocol/packets/PacketViolationWarningPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 PacketViolationWarningPacket::PacketViolationWarningPacket() = default;
 

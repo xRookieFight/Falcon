@@ -1,4 +1,4 @@
-#include "Protocol/Types/EntityFlagSet.h"
+#include "protocol/types/EntityFlagSet.h"
 
 void EntityFlagCodec::writeFlags(BinaryStream &stream, const std::vector<bool> &flags) {
     size_t total = flags.size();

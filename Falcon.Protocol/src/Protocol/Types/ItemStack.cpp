@@ -1,4 +1,4 @@
-#include "Protocol/Types/ItemStack.h"
+#include "protocol/types/ItemStack.h"
 
 ItemStack ItemStack::air() {
     return ItemStack();

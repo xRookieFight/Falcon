@@ -1,4 +1,4 @@
-#include "Network/NetworkEnums.h"
+#include "network/NetworkEnums.h"
 
 const char *toString(DisconnectFailReason reason) {
     switch (reason) {

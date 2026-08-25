@@ -1,6 +1,6 @@
-#include "Protocol/Packets/AgentActionEventPacket.h"
+#include "protocol/packets/AgentActionEventPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 AgentActionEventPacket::AgentActionEventPacket() = default;
 

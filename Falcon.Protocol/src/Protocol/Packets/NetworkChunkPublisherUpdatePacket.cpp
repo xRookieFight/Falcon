@@ -1,6 +1,6 @@
-#include "Protocol/Packets/NetworkChunkPublisherUpdatePacket.h"
+#include "protocol/packets/NetworkChunkPublisherUpdatePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 NetworkChunkPublisherUpdatePacket::NetworkChunkPublisherUpdatePacket()
         : mRadius(0) {}

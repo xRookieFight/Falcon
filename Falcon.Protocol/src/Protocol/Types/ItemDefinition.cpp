@@ -1,4 +1,4 @@
-#include "Protocol/Types/ItemDefinition.h"
+#include "protocol/types/ItemDefinition.h"
 
 ItemDefinition::ItemDefinition(std::string identifier, int runtimeId, bool componentBased, Tag componentData)
         : mIdentifier(std::move(identifier)), mRuntimeId(runtimeId), mComponentBased(componentBased),

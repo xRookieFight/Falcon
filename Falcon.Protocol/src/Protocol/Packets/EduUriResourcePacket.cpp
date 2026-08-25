@@ -1,6 +1,6 @@
-#include "Protocol/Packets/EduUriResourcePacket.h"
+#include "protocol/packets/EduUriResourcePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 EduUriResourcePacket::EduUriResourcePacket() = default;
 

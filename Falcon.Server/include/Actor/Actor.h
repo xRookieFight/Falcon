@@ -1,12 +1,13 @@
 #pragma once
 
-#include "Actor/ActorAttributes.h"
-#include "Actor/ActorFlags.h"
-#include "Actor/MobEffect.h"
-#include "Actor/ExperienceManager.h"
-#include "Core/Math/Vector3f.h"
+#include "actor/ActorAttributes.h"
+#include "actor/ActorFlags.h"
+#include "actor/MobEffect.h"
+#include "actor/ExperienceManager.h"
+#include "core/math/Vector3f.h"
 
 #include <cstdint>
+#include <algorithm>
 #include <string>
 
 class Actor {
@@ -24,6 +25,8 @@ public:
     const Vector3f &getPosition() const { return mPosition; }
 
     void setPosition(const Vector3f &position) { mPosition = position; }
+
+    void teleport(const Vector3f &position);
 
     const Vector3f &getRotation() const { return mRotation; }
 
@@ -43,7 +46,15 @@ public:
 
     bool isOnFire() const { return mFlags.get(ActorFlag::OnFire); }
 
-    void setOnFire(bool onFire = true) { mFlags.set(ActorFlag::OnFire, onFire); }
+    void setOnFire(bool onFire = true);
+
+    void setFireTicks(int fireTicks);
+
+    void extinguish();
+
+    int getFireTicks() const { return mFireTicks; }
+
+    bool tickFire();
 
     bool isOnGround() const { return mOnGround; }
 
@@ -80,6 +91,22 @@ public:
 
     bool isAlive() const;
 
+    int getNoDamageTicks() const { return mNoDamageTicks; }
+
+    void setNoDamageTicks(int ticks) { mNoDamageTicks = std::max(0, ticks); }
+
+    float getLastDamageAmount() const { return mLastDamageAmount; }
+
+    void setLastDamageAmount(float amount) { mLastDamageAmount = std::max(0.0f, amount); }
+
+    int getAttackTime() const { return mAttackTime; }
+
+    void setAttackTime(int ticks) { mAttackTime = std::max(0, ticks); }
+
+    void tickCombat(int tickDiff = 1);
+
+    void knockBack(float x, float z, float force = 0.4f, float verticalLimit = 0.4f);
+
     float getFood() const;
 
     float getMaxFood() const;
@@ -89,6 +116,12 @@ public:
     void addFood(float amount);
 
     bool isHungry() const;
+
+    bool consumeStarveDamage() {
+        const bool starving = mPendingStarveDamage;
+        mPendingStarveDamage = false;
+        return starving;
+    }
 
     bool canSprint() const { return getFood() > 6.0f; }
 
@@ -162,11 +195,16 @@ protected:
     ActorFlags mFlags;
     ActorAttributes mAttributes;
     bool mOnGround = false;
+    int mFireTicks = 0;
     float mFallDistance = 0.0f;
     float mHighestPosition = 0.0f;
     ExperienceManager mExperience;
     MobEffectManager mEffects;
     int mFoodTickTimer = 0;
     bool mHungerEnabled = true;
+    bool mPendingStarveDamage = false;
     bool mIsDead = false;
+    int mNoDamageTicks = 0;
+    int mAttackTime = 0;
+    float mLastDamageAmount = 0.0f;
 };

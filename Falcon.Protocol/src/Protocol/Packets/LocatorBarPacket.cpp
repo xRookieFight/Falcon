@@ -1,6 +1,6 @@
-#include "Protocol/Packets/LocatorBarPacket.h"
+#include "protocol/packets/LocatorBarPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 LocatorBarPacket::LocatorBarPacket() = default;
 

@@ -1,7 +1,7 @@
-#include "Protocol/Packets/StructureTemplateDataResponsePacket.h"
+#include "protocol/packets/StructureTemplateDataResponsePacket.h"
 
-#include "Core/NBT/NbtIo.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "core/nbt/NbtIo.h"
+#include "protocol/NetworkPacketHandler.h"
 
 StructureTemplateDataResponsePacket::StructureTemplateDataResponsePacket()
         : mSave(false), mTag(Tag::ofCompound()), mType(Type::None) {}

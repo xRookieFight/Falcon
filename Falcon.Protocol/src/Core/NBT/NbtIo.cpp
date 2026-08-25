@@ -1,4 +1,4 @@
-#include "Core/NBT/NbtIo.h"
+#include "core/nbt/NbtIo.h"
 
 namespace {
 

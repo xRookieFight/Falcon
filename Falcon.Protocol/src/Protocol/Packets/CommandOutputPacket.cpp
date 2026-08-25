@@ -1,6 +1,6 @@
-#include "Protocol/Packets/CommandOutputPacket.h"
+#include "protocol/packets/CommandOutputPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 #include <array>
 

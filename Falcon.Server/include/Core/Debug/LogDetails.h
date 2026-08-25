@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Core/Debug/LogAreaID.h"
-#include "Core/Debug/LogLevel.h"
+#include "core/debug/LogAreaID.h"
+#include "core/debug/LogLevel.h"
 
 #include <chrono>
 #include <string>

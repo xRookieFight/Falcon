@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Protocol/Types/StartGameTypes.h"
+#include "protocol/types/StartGameTypes.h"
 
 enum class AdventureSetting {
     WorldImmutable,

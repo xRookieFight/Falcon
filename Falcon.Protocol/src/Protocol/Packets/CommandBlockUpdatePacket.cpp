@@ -1,6 +1,6 @@
-#include "Protocol/Packets/CommandBlockUpdatePacket.h"
+#include "protocol/packets/CommandBlockUpdatePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 CommandBlockUpdatePacket::CommandBlockUpdatePacket() = default;
 

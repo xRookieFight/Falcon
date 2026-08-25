@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Core/NBT/Tag.h"
+#include "core/nbt/Tag.h"
 
 #include <string>
 

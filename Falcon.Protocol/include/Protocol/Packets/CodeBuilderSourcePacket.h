@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/CodeBuilderData.h"
+#include "protocol/Packet.h"
+#include "protocol/types/CodeBuilderData.h"
 
 class CodeBuilderSourcePacket : public Packet {
 public:

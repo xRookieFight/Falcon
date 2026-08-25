@@ -1,6 +1,6 @@
-#include "Protocol/Packets/PlayerArmorDamagePacket.h"
+#include "protocol/packets/PlayerArmorDamagePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 PlayerArmorDamagePacket::PlayerArmorDamagePacket() = default;
 

@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ResourcePackDataInfoPacket.h"
+#include "protocol/packets/ResourcePackDataInfoPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 #include <cstdio>
 

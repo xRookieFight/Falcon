@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Core/Utility/UUID.h"
+#include "core/utility/UUID.h"
 
 #include <cstdint>
 #include <string>
@@ -16,11 +16,14 @@ public:
     std::string mData;
     std::string mSha256;
     uint64_t mSize = 0;
+    std::vector<std::string> mDependencyUuids;
 };
 
 class ResourcePackManager {
 public:
     void loadFromDirectory(const std::string &directory);
+
+    void loadBundledAddonsFrom(const std::string &directory);
 
     const std::vector<ResourcePack> &getPacks() const { return mPacks; }
 
@@ -28,8 +31,18 @@ public:
 
     size_t count() const { return mPacks.size(); }
 
+    std::vector<std::string> getLoadedUuids() const;
+
+    size_t pruneUnsatisfied(const std::vector<std::string> &availableUuids);
+
 private:
     bool _loadPackFile(const std::string &path, const std::string &fileName);
+
+    bool _loadPackBytes(std::string data, const std::string &label, const std::string &contentKey);
+
+    void _loadFolder(const std::string &path, const std::string &label);
+
+    void _loadAddon(const std::string &data);
 
     static bool _readWholeFile(const std::string &path, std::string &out);
 

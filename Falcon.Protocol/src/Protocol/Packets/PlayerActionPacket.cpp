@@ -1,6 +1,6 @@
-#include "Protocol/Packets/PlayerActionPacket.h"
+#include "protocol/packets/PlayerActionPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 PlayerActionPacket::PlayerActionPacket() = default;
 

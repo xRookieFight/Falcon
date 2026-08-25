@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Protocol/Types/BlockDefinition.h"
+#include "protocol/types/BlockDefinition.h"
 
 #include <memory>
 #include <string>

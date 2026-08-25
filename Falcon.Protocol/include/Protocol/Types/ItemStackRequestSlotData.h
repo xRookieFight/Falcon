@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Types/ContainerSlotType.h"
-#include "Protocol/Types/FullContainerName.h"
+#include "protocol/types/ContainerSlotType.h"
+#include "protocol/types/FullContainerName.h"
 
 #include <cstdint>
 

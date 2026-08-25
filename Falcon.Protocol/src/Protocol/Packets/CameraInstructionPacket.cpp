@@ -1,7 +1,7 @@
-#include "Protocol/Packets/CameraInstructionPacket.h"
+#include "protocol/packets/CameraInstructionPacket.h"
 
-#include "Protocol/CameraCodec.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/CameraCodec.h"
+#include "protocol/NetworkPacketHandler.h"
 
 CameraInstructionPacket::CameraInstructionPacket() = default;
 

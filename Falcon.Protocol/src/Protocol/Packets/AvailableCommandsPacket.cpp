@@ -1,6 +1,6 @@
-#include "Protocol/Packets/AvailableCommandsPacket.h"
+#include "protocol/packets/AvailableCommandsPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 #include <algorithm>
 #include <array>

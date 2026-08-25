@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Types/ContainerSlotType.h"
-#include "Protocol/Types/ItemStack.h"
+#include "protocol/types/ContainerSlotType.h"
+#include "protocol/types/ItemStack.h"
 
 #include <cstdint>
 #include <vector>
@@ -12,6 +12,8 @@ public:
     static const int CONTAINER_SIZE = 36;
     static const int ARMOR_SIZE = 4;
     static const int CRAFTING_SIZE = 4;
+    static const int CRAFTING_TABLE_SIZE = 9;
+    static const int FURNACE_SIZE = 3;
     static const int SAVED_SIZE = CONTAINER_SIZE + ARMOR_SIZE;
 
     static const int CONTAINER_ID_INVENTORY = 0;
@@ -21,6 +23,7 @@ public:
 
     static const int OFFHAND_NETWORK_SLOT = 1;
     static const int CRAFTING_NETWORK_SLOT_FIRST = 28;
+    static const int CRAFTING_TABLE_NETWORK_SLOT_FIRST = 32;
 
     static const int ARMOR_HEAD = 0;
     static const int ARMOR_TORSO = 1;
@@ -50,6 +53,18 @@ public:
     const ItemStack &getCraftingItem(int slot) const;
 
     void setCraftingItem(int slot, ItemStack item);
+
+    const std::vector<ItemStack> &getCraftingTableContents() const { return mCraftingTable; }
+
+    const ItemStack &getCraftingTableItem(int slot) const;
+
+    void setCraftingTableItem(int slot, ItemStack item);
+
+    const std::vector<ItemStack> &getFurnaceContents() const { return mFurnace; }
+
+    const ItemStack &getFurnaceItem(int slot) const;
+
+    void setFurnaceItem(int slot, ItemStack item);
 
     const ItemStack &getOffhand() const { return mOffhand; }
 
@@ -91,6 +106,8 @@ private:
     std::vector<ItemStack> mItems;
     std::vector<ItemStack> mArmor;
     std::vector<ItemStack> mCrafting;
+    std::vector<ItemStack> mCraftingTable;
+    std::vector<ItemStack> mFurnace;
     ItemStack mOffhand;
     ItemStack mCursor;
     int mSelectedSlot;

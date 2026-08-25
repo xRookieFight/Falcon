@@ -1,7 +1,7 @@
-#include "Protocol/Packets/ClientCheatAbilityPacket.h"
+#include "protocol/packets/ClientCheatAbilityPacket.h"
 
-#include "Protocol/EntityCodec.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/EntityCodec.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ClientCheatAbilityPacket::ClientCheatAbilityPacket() = default;
 

@@ -1,6 +1,6 @@
-#include "Protocol/Packets/RequestPermissionsPacket.h"
+#include "protocol/packets/RequestPermissionsPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 RequestPermissionsPacket::RequestPermissionsPacket() = default;
 

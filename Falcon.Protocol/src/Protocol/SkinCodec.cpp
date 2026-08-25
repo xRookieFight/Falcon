@@ -1,4 +1,4 @@
-#include "Protocol/SkinCodec.h"
+#include "protocol/SkinCodec.h"
 
 void SkinCodec::writeImage(BinaryStream &stream, const SkinImageData &image) {
     stream.putLInt((uint32_t) image.mWidth);

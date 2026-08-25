@@ -1,7 +1,7 @@
-#include "Protocol/Packets/UpdateAbilitiesPacket.h"
+#include "protocol/packets/UpdateAbilitiesPacket.h"
 
-#include "Protocol/EntityCodec.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/EntityCodec.h"
+#include "protocol/NetworkPacketHandler.h"
 
 UpdateAbilitiesPacket::UpdateAbilitiesPacket() = default;
 

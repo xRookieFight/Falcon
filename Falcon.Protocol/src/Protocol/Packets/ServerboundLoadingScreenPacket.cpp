@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ServerboundLoadingScreenPacket.h"
+#include "protocol/packets/ServerboundLoadingScreenPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ServerboundLoadingScreenPacket::ServerboundLoadingScreenPacket() = default;
 

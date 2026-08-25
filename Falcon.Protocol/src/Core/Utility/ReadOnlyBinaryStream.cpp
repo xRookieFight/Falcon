@@ -1,4 +1,4 @@
-#include "Core/Utility/ReadOnlyBinaryStream.h"
+#include "core/utility/ReadOnlyBinaryStream.h"
 
 #include <cstring>
 

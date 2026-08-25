@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ClientboundCloseFormPacket.h"
+#include "protocol/packets/ClientboundCloseFormPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ClientboundCloseFormPacket::ClientboundCloseFormPacket() {}
 

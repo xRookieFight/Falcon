@@ -1,6 +1,6 @@
-#include "Protocol/Packets/CommandRequestPacket.h"
+#include "protocol/packets/CommandRequestPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 namespace {
     const char *LATEST_VERSION_NAME = "latest";

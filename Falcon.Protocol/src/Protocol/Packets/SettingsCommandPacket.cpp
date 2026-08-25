@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SettingsCommandPacket.h"
+#include "protocol/packets/SettingsCommandPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 SettingsCommandPacket::SettingsCommandPacket()
         : mSuppressingOutput(false) {}

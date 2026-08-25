@@ -1,6 +1,6 @@
-#include "Protocol/Packets/AddPaintingPacket.h"
+#include "protocol/packets/AddPaintingPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 AddPaintingPacket::AddPaintingPacket() = default;
 

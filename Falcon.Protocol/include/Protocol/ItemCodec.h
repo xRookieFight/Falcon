@@ -1,9 +1,9 @@
 #pragma once
 
-#include "Core/Utility/BinaryStream.h"
-#include "Core/Utility/ReadOnlyBinaryStream.h"
-#include "Protocol/PacketCodecContext.h"
-#include "Protocol/Types/ItemStack.h"
+#include "core/utility/BinaryStream.h"
+#include "core/utility/ReadOnlyBinaryStream.h"
+#include "protocol/PacketCodecContext.h"
+#include "protocol/types/ItemStack.h"
 
 class ItemCodec {
 public:

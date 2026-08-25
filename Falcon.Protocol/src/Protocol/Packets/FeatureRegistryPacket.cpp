@@ -1,6 +1,6 @@
-#include "Protocol/Packets/FeatureRegistryPacket.h"
+#include "protocol/packets/FeatureRegistryPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 FeatureRegistryPacket::FeatureRegistryPacket() = default;
 

@@ -1,8 +1,8 @@
-#include "Command/EffectCommand.h"
+#include "command/EffectCommand.h"
 
-#include "Actor/MobEffect.h"
-#include "Actor/ServerPlayer.h"
-#include "Network/ServerNetworkHandler.h"
+#include "actor/MobEffect.h"
+#include "actor/ServerPlayer.h"
+#include "network/handler/ServerNetworkHandler.h"
 
 #include <algorithm>
 #include <cctype>
@@ -77,7 +77,7 @@ std::vector<CommandOverloadData> EffectCommand::getOverloads() const {
     return {overload};
 }
 
-bool EffectCommand::execute(CommandSender &sender, const std::vector<std::string> &arguments) {
+bool EffectCommand::execute(CommandOrigin &sender, const std::vector<std::string> &arguments) {
     if (arguments.size() < 2) {
         sender.sendTranslation("commands.generic.usage", {getUsage()});
         return false;

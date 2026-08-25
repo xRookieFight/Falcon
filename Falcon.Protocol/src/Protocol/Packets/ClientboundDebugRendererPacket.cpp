@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ClientboundDebugRendererPacket.h"
+#include "protocol/packets/ClientboundDebugRendererPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ClientboundDebugRendererPacket::ClientboundDebugRendererPacket() = default;
 

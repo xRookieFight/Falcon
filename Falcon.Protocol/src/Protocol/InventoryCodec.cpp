@@ -1,7 +1,7 @@
-#include "Protocol/InventoryCodec.h"
+#include "protocol/InventoryCodec.h"
 
-#include "Core/Utility/BinaryDataException.h"
-#include "Protocol/ItemCodec.h"
+#include "core/utility/BinaryDataException.h"
+#include "protocol/ItemCodec.h"
 
 namespace {
 

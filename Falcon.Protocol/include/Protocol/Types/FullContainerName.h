@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Protocol/Types/ContainerSlotType.h"
+#include "protocol/types/ContainerSlotType.h"
 
 #include <cstdint>
 

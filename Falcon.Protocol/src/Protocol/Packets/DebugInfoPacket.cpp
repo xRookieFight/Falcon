@@ -1,6 +1,6 @@
-#include "Protocol/Packets/DebugInfoPacket.h"
+#include "protocol/packets/DebugInfoPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 DebugInfoPacket::DebugInfoPacket()
         : mUniqueActorId(0) {}

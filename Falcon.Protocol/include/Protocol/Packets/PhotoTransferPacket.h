@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/PhotoType.h"
+#include "protocol/Packet.h"
+#include "protocol/types/PhotoType.h"
 
 #include <cstdint>
 #include <string>

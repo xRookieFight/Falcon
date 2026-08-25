@@ -1,6 +1,6 @@
-#include "Protocol/Packets/UpdateBlockPacket.h"
+#include "protocol/packets/UpdateBlockPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 UpdateBlockPacket::UpdateBlockPacket()
         : mRuntimeId(0), mFlags(Flag::All), mDataLayer(0) {}

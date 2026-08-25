@@ -1,6 +1,6 @@
-#include "Protocol/Packets/VoxelShapesPacket.h"
+#include "protocol/packets/VoxelShapesPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 VoxelShapesPacket::VoxelShapesPacket() = default;
 

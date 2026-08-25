@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SetScorePacket.h"
+#include "protocol/packets/SetScorePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 namespace {
 
@@ -24,6 +24,7 @@ namespace {
 SetScorePacket::SetScorePacket() = default;
 
 void SetScorePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
+    stream.putByte((uint8_t) mAction);
     stream.putArrayLength((uint32_t) mInfos.size());
     for (const ScoreInfoEntry &info: mInfos) {
         stream.putUnsignedVarInt((uint32_t) info.mType);
@@ -53,6 +54,7 @@ void SetScorePacket::write(BinaryStream &stream, const PacketCodecContext &conte
 
 void SetScorePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mInfos.clear();
+    mAction = (Action) stream.getByte();
     uint32_t count = stream.getArrayLength();
     for (uint32_t i = 0; i < count; i++) {
         ScoreInfoEntry info;

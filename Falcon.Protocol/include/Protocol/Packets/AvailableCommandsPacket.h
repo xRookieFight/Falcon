@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/CommandData.h"
+#include "protocol/Packet.h"
+#include "protocol/types/CommandData.h"
 
 #include <string>
 #include <vector>

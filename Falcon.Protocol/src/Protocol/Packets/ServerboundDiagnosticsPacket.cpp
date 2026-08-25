@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ServerboundDiagnosticsPacket.h"
+#include "protocol/packets/ServerboundDiagnosticsPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ServerboundDiagnosticsPacket::ServerboundDiagnosticsPacket() = default;
 

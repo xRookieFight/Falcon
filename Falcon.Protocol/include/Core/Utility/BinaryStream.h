@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Core/Utility/ReadOnlyBinaryStream.h"
+#include "core/utility/ReadOnlyBinaryStream.h"
 
 class BinaryStream : public ReadOnlyBinaryStream {
 public:

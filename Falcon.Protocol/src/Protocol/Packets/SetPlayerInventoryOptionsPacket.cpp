@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SetPlayerInventoryOptionsPacket.h"
+#include "protocol/packets/SetPlayerInventoryOptionsPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 SetPlayerInventoryOptionsPacket::SetPlayerInventoryOptionsPacket() = default;
 

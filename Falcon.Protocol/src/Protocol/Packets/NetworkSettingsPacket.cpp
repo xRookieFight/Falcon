@@ -1,6 +1,6 @@
-#include "Protocol/Packets/NetworkSettingsPacket.h"
+#include "protocol/packets/NetworkSettingsPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 NetworkSettingsPacket::NetworkSettingsPacket()
         : mCompressionThreshold(0), mCompressionAlgorithm(CompressionAlgorithm::ZLib), mClientThrottleEnabled(false), mClientThrottleThreshold(0), mClientThrottleScalar(0.0f) {

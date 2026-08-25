@@ -1,7 +1,7 @@
-#include "Protocol/Packets/AddVolumeEntityPacket.h"
+#include "protocol/packets/AddVolumeEntityPacket.h"
 
-#include "Core/NBT/NbtIo.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "core/nbt/NbtIo.h"
+#include "protocol/NetworkPacketHandler.h"
 
 AddVolumeEntityPacket::AddVolumeEntityPacket() : mData(Tag::ofCompound()) {}
 

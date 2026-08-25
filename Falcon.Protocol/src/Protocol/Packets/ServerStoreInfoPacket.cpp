@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ServerStoreInfoPacket.h"
+#include "protocol/packets/ServerStoreInfoPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ServerStoreInfoPacket::ServerStoreInfoPacket() = default;
 

@@ -1,4 +1,4 @@
-#include "Network/ConnectionRequest.h"
+#include "network/ConnectionRequest.h"
 
 #include <cstdint>
 #include <vector>

@@ -1,7 +1,7 @@
-#include "Protocol/Packets/UpdateEquipPacket.h"
+#include "protocol/packets/UpdateEquipPacket.h"
 
-#include "Core/NBT/NbtIo.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "core/nbt/NbtIo.h"
+#include "protocol/NetworkPacketHandler.h"
 
 UpdateEquipPacket::UpdateEquipPacket()
         : mTag(Tag::ofCompound()) {}

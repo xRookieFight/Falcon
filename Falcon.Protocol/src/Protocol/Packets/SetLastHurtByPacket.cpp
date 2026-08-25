@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SetLastHurtByPacket.h"
+#include "protocol/packets/SetLastHurtByPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 SetLastHurtByPacket::SetLastHurtByPacket()
         : mActorTypeId(0) {}

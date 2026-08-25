@@ -1,6 +1,6 @@
-#include "Protocol/Packets/NpcRequestPacket.h"
+#include "protocol/packets/NpcRequestPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 NpcRequestPacket::NpcRequestPacket()
         : mRuntimeActorId(0), mRequestType(RequestType::SetAction), mActionType(0) {}

@@ -1,6 +1,6 @@
-#include "Protocol/Packets/UpdateAdventureSettingsPacket.h"
+#include "protocol/packets/UpdateAdventureSettingsPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 UpdateAdventureSettingsPacket::UpdateAdventureSettingsPacket() = default;
 

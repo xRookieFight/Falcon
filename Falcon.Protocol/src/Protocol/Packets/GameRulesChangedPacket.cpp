@@ -1,6 +1,6 @@
-#include "Protocol/Packets/GameRulesChangedPacket.h"
+#include "protocol/packets/GameRulesChangedPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 namespace {
 

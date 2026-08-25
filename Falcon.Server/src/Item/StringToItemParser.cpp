@@ -1,9 +1,9 @@
-#include "Item/StringToItemParser.h"
+#include "item/StringToItemParser.h"
 
-#include "Block/BlockData.h"
-#include "Block/Blocks/VanillaBlocks.h"
-#include "Item/ItemData.h"
-#include "Item/VanillaItems.h"
+#include "block/BlockData.h"
+#include "block/blocks/VanillaBlocks.h"
+#include "item/ItemData.h"
+#include "item/VanillaItems.h"
 
 StringToItemParser::StringToItemParser() {
     _registerDefaults();

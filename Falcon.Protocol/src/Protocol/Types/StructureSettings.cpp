@@ -1,4 +1,4 @@
-#include "Protocol/Types/StructureSettings.h"
+#include "protocol/types/StructureSettings.h"
 
 void StructureSettings::write(BinaryStream &stream) const {
     stream.putString(mPaletteName);

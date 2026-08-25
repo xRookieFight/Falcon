@@ -1,7 +1,7 @@
-#include "Protocol/Packets/EditorNetworkPacket.h"
+#include "protocol/packets/EditorNetworkPacket.h"
 
-#include "Core/NBT/NbtIo.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "core/nbt/NbtIo.h"
+#include "protocol/NetworkPacketHandler.h"
 
 EditorNetworkPacket::EditorNetworkPacket() = default;
 

@@ -1,6 +1,6 @@
-#include "Protocol/Packets/CameraAimAssistPacket.h"
+#include "protocol/packets/CameraAimAssistPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 CameraAimAssistPacket::CameraAimAssistPacket() = default;
 

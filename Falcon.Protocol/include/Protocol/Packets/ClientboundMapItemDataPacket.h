@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Core/Math/Vector3i.h"
-#include "Protocol/Packet.h"
-#include "Protocol/Types/MapTypes.h"
+#include "core/math/Vector3i.h"
+#include "protocol/Packet.h"
+#include "protocol/types/MapTypes.h"
 
 #include <cstdint>
 #include <vector>

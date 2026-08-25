@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/ScoreboardIdentityEntry.h"
+#include "protocol/Packet.h"
+#include "protocol/types/ScoreboardIdentityEntry.h"
 
 #include <vector>
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Core/Math/Vector3f.h"
-#include "Core/Utility/UUID.h"
+#include "core/math/Vector3f.h"
+#include "core/utility/UUID.h"
 
 #include <cstdint>
 #include <optional>

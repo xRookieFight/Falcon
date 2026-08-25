@@ -1,4 +1,4 @@
-#include "Network/PingedCompatibleServer.h"
+#include "network/PingedCompatibleServer.h"
 
 #include <cstdlib>
 #include <vector>

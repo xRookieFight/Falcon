@@ -1,6 +1,6 @@
-#include "Protocol/Packets/CodeBuilderSourcePacket.h"
+#include "protocol/packets/CodeBuilderSourcePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 CodeBuilderSourcePacket::CodeBuilderSourcePacket() = default;
 

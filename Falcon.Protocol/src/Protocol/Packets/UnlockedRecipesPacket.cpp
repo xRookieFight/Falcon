@@ -1,6 +1,6 @@
-#include "Protocol/Packets/UnlockedRecipesPacket.h"
+#include "protocol/packets/UnlockedRecipesPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 UnlockedRecipesPacket::UnlockedRecipesPacket() = default;
 

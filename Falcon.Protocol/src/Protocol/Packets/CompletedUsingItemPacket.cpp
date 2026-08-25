@@ -1,6 +1,6 @@
-#include "Protocol/Packets/CompletedUsingItemPacket.h"
+#include "protocol/packets/CompletedUsingItemPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 CompletedUsingItemPacket::CompletedUsingItemPacket() = default;
 

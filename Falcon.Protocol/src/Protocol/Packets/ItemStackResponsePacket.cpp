@@ -1,8 +1,8 @@
-#include "Protocol/Packets/ItemStackResponsePacket.h"
+#include "protocol/packets/ItemStackResponsePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
-#include "Protocol/Types/ContainerSlotType.h"
-#include "Protocol/Types/FullContainerName.h"
+#include "protocol/NetworkPacketHandler.h"
+#include "protocol/types/ContainerSlotType.h"
+#include "protocol/types/FullContainerName.h"
 
 namespace {
     void writeFullContainerName(BinaryStream &stream, const FullContainerName &name) {

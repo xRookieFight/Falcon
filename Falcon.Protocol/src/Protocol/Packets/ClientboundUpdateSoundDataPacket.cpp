@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ClientboundUpdateSoundDataPacket.h"
+#include "protocol/packets/ClientboundUpdateSoundDataPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ClientboundUpdateSoundDataPacket::ClientboundUpdateSoundDataPacket() = default;
 

@@ -1,6 +1,6 @@
-#include "Protocol/Packets/DimensionDataPacket.h"
+#include "protocol/packets/DimensionDataPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 DimensionDataPacket::DimensionDataPacket() = default;
 

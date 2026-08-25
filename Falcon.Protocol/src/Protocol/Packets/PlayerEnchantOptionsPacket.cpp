@@ -1,6 +1,6 @@
-#include "Protocol/Packets/PlayerEnchantOptionsPacket.h"
+#include "protocol/packets/PlayerEnchantOptionsPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 namespace {
 

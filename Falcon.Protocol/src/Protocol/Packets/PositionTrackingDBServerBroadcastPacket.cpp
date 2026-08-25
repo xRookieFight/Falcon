@@ -1,7 +1,7 @@
-#include "Protocol/Packets/PositionTrackingDBServerBroadcastPacket.h"
+#include "protocol/packets/PositionTrackingDBServerBroadcastPacket.h"
 
-#include "Core/NBT/NbtIo.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "core/nbt/NbtIo.h"
+#include "protocol/NetworkPacketHandler.h"
 
 PositionTrackingDBServerBroadcastPacket::PositionTrackingDBServerBroadcastPacket() = default;
 

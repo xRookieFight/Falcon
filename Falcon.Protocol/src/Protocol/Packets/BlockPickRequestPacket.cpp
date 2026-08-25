@@ -1,6 +1,6 @@
-#include "Protocol/Packets/BlockPickRequestPacket.h"
+#include "protocol/packets/BlockPickRequestPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 BlockPickRequestPacket::BlockPickRequestPacket()
         : mAddUserData(false), mHotbarSlot(0) {}

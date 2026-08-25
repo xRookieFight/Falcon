@@ -1,6 +1,6 @@
-#include "Command/TimeCommand.h"
+#include "command/TimeCommand.h"
 
-#include "Network/ServerNetworkHandler.h"
+#include "network/handler/ServerNetworkHandler.h"
 
 #include <cctype>
 #include <cerrno>
@@ -64,7 +64,7 @@ std::vector<CommandOverloadData> TimeCommand::getOverloads() const {
     return {overload};
 }
 
-bool TimeCommand::execute(CommandSender &sender, const std::vector<std::string> &arguments) {
+bool TimeCommand::execute(CommandOrigin &sender, const std::vector<std::string> &arguments) {
     if (arguments.size() < 2) {
         sender.sendTranslation("commands.generic.usage", {getUsage()});
         return false;

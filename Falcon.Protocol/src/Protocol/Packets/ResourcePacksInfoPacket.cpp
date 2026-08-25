@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ResourcePacksInfoPacket.h"
+#include "protocol/packets/ResourcePacksInfoPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ResourcePacksInfoPacket::ResourcePacksInfoPacket()
         : mForcedToAccept(false), mHasAddonPacks(false), mScriptingEnabled(false),

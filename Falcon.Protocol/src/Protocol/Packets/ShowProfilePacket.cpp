@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ShowProfilePacket.h"
+#include "protocol/packets/ShowProfilePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ShowProfilePacket::ShowProfilePacket() {}
 

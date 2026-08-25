@@ -1,9 +1,9 @@
 #pragma once
 
-#include "Network/Connector.h"
-#include "Network/RakNetRemotePeer.h"
-#include "Network/RakNetServerLocator.h"
-#include "Network/RakPeerHelper.h"
+#include "network/Connector.h"
+#include "network/RakNetRemotePeer.h"
+#include "network/RakNetServerLocator.h"
+#include "network/RakPeerHelper.h"
 
 #include <memory>
 #include <unordered_map>

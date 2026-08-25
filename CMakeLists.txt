@@ -20,6 +20,17 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(leveldb)
 
+set(QJS_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(QJS_BUILD_LIBC OFF CACHE BOOL "" FORCE)
+set(QJS_ENABLE_ASAN OFF CACHE BOOL "" FORCE)
+
+FetchContent_Declare(
+    quickjs
+    GIT_REPOSITORY https://github.com/quickjs-ng/quickjs.git
+    GIT_TAG v0.10.1
+)
+FetchContent_MakeAvailable(quickjs)
+
 add_subdirectory(Falcon.Network)
 add_subdirectory(Falcon.Protocol)
 add_subdirectory(Falcon.Server)

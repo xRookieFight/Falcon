@@ -1,4 +1,4 @@
-#include "Core/Debug/LogDetails.h"
+#include "core/debug/LogDetails.h"
 
 #include <cstdio>
 #include <ctime>

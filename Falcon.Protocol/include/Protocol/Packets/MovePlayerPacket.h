@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Core/Math/Vector3f.h"
-#include "Protocol/Packet.h"
+#include "core/math/Vector3f.h"
+#include "protocol/Packet.h"
 
 #include <cstdint>
 

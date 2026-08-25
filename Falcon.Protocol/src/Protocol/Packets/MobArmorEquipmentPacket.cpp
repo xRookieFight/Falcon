@@ -1,7 +1,7 @@
-#include "Protocol/Packets/MobArmorEquipmentPacket.h"
+#include "protocol/packets/MobArmorEquipmentPacket.h"
 
-#include "Protocol/ItemCodec.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/ItemCodec.h"
+#include "protocol/NetworkPacketHandler.h"
 
 MobArmorEquipmentPacket::MobArmorEquipmentPacket() = default;
 

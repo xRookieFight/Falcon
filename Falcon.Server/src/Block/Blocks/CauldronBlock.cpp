@@ -1,4 +1,4 @@
-#include "Block/Blocks/CauldronBlock.h"
+#include "block/blocks/CauldronBlock.h"
 
 #include <algorithm>
 

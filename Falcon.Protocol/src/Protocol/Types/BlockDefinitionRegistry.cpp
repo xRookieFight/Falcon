@@ -1,4 +1,4 @@
-#include "Protocol/Types/BlockDefinitionRegistry.h"
+#include "protocol/types/BlockDefinitionRegistry.h"
 
 void BlockDefinitionRegistry::registerDefinition(std::shared_ptr<BlockDefinition> definition) {
     int runtimeId = definition->getRuntimeId();

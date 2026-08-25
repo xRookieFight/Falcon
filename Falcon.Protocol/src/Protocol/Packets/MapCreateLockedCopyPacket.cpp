@@ -1,6 +1,6 @@
-#include "Protocol/Packets/MapCreateLockedCopyPacket.h"
+#include "protocol/packets/MapCreateLockedCopyPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 MapCreateLockedCopyPacket::MapCreateLockedCopyPacket()
         : mOriginalMapId(0), mNewMapId(0) {}

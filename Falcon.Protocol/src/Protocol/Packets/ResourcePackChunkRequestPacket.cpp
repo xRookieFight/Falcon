@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ResourcePackChunkRequestPacket.h"
+#include "protocol/packets/ResourcePackChunkRequestPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 #include <cstdio>
 

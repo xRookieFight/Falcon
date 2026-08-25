@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ScriptMessagePacket.h"
+#include "protocol/packets/ScriptMessagePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ScriptMessagePacket::ScriptMessagePacket() {}
 

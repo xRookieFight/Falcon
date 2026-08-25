@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Core/Debug/ILogEndPoint.h"
+#include "core/debug/ILogEndPoint.h"
 
 #include <fstream>
 #include <mutex>

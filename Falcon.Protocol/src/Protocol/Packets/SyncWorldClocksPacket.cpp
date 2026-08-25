@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SyncWorldClocksPacket.h"
+#include "protocol/packets/SyncWorldClocksPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 namespace {
 

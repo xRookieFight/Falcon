@@ -1,6 +1,6 @@
-#include "Protocol/Packets/StructureTemplateDataRequestPacket.h"
+#include "protocol/packets/StructureTemplateDataRequestPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 StructureTemplateDataRequestPacket::StructureTemplateDataRequestPacket()
         : mOperation(Operation::None) {}

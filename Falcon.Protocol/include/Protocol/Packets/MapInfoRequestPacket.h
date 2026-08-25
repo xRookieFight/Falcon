@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/MapPixel.h"
+#include "protocol/Packet.h"
+#include "protocol/types/MapPixel.h"
 
 #include <cstdint>
 #include <vector>

@@ -3,8 +3,8 @@
 class NetworkIdentifier;
 
 class AddBehaviorTreePacket;
-class AddEntityPacket;
-class AddItemEntityPacket;
+class AddActorPacket;
+class AddItemActorPacket;
 class AddPaintingPacket;
 class AddPlayerPacket;
 class AddVolumeEntityPacket;
@@ -17,9 +17,9 @@ class AnvilDamagePacket;
 class AutomationClientConnectPacket;
 class AwardAchievementPacket;
 class AvailableCommandsPacket;
-class AvailableEntityIdentifiersPacket;
+class AvailableActorIdentifiersPacket;
 class BiomeDefinitionListPacket;
-class BlockEntityDataPacket;
+class BlockActorDataPacket;
 class BlockEventPacket;
 class BlockPickRequestPacket;
 class BookEditPacket;
@@ -27,7 +27,7 @@ class BossEventPacket;
 class CameraPacket;
 class CameraAimAssistPacket;
 class CameraAimAssistActorPriorityPacket;
-class CameraAimAssistInstructionPacket;
+class ClientCameraAimAssistPacket;
 class CameraAimAssistPresetsPacket;
 class CameraInstructionPacket;
 class CameraPresetsPacket;
@@ -69,7 +69,7 @@ class CreatePhotoPacket;
 class CreativeContentPacket;
 class CurrentStructureFeaturePacket;
 class DeathInfoPacket;
-class DebugDrawerPacket;
+class PrimitiveShapesPacket;
 class DebugInfoPacket;
 class DimensionDataPacket;
 class DisconnectPacket;
@@ -78,23 +78,23 @@ class EducationSettingsPacket;
 class EduUriResourcePacket;
 class EmoteListPacket;
 class EmotePacket;
-class EntityEventPacket;
+class ActorEventPacket;
 class EntityFallPacket;
-class EntityPickRequestPacket;
-class EventPacket;
+class ActorPickRequestPacket;
+class LegacyTelemetryEventPacket;
 class FeatureRegistryPacket;
 class FilterTextPacket;
 class GameRulesChangedPacket;
 class GameTestRequestPacket;
 class GameTestResultsPacket;
-class GraphicsParameterOverridePacket;
+class GraphicsOverrideParameterPacket;
 class GuiDataPickItemPacket;
 class HurtArmorPacket;
 class InteractPacket;
 class InventoryContentPacket;
 class InventorySlotPacket;
 class InventoryTransactionPacket;
-class ItemComponentPacket;
+class ItemRegistryPacket;
 class ItemStackRequestPacket;
 class ItemStackResponsePacket;
 class JigsawStructureDataPacket;
@@ -113,11 +113,11 @@ class MobEquipmentPacket;
 class ModalFormRequestPacket;
 class ModalFormResponsePacket;
 class MotionPredictionHintsPacket;
-class MoveEntityAbsolutePacket;
-class MoveEntityDeltaPacket;
+class MoveActorAbsolutePacket;
+class MoveActorDeltaPacket;
 class MovePlayerPacket;
 class MovementEffectPacket;
-class MovementPredictionSyncPacket;
+class ClientMovementPredictionSyncPacket;
 class MultiplayerSettingsPacket;
 class NetworkChunkPublisherUpdatePacket;
 class NetworkSettingsPacket;
@@ -149,7 +149,7 @@ class PositionTrackingDBClientRequestPacket;
 class PositionTrackingDBServerBroadcastPacket;
 class PurchaseReceiptPacket;
 class RefreshEntitlementsPacket;
-class RemoveEntityPacket;
+class RemoveActorPacket;
 class RemoveObjectivePacket;
 class RemoveVolumeEntityPacket;
 class RequestAbilityPacket;
@@ -183,9 +183,9 @@ class SetCommandsEnabledPacket;
 class SetDefaultGameTypePacket;
 class SetDifficultyPacket;
 class SetDisplayObjectivePacket;
-class SetEntityDataPacket;
-class SetEntityLinkPacket;
-class SetEntityMotionPacket;
+class SetActorDataPacket;
+class SetActorLinkPacket;
+class SetActorMotionPacket;
 class SetHealthPacket;
 class SetHudPacket;
 class SetLastHurtByPacket;
@@ -213,14 +213,14 @@ class StructureTemplateDataResponsePacket;
 class SubChunkPacket;
 class SubChunkRequestPacket;
 class SubClientLoginPacket;
-class SyncEntityPropertyPacket;
+class SyncActorPropertyPacket;
 class SyncWorldClocksPacket;
-class TakeItemEntityPacket;
+class TakeItemActorPacket;
 class TextPacket;
 class TickSyncPacket;
 class TickingAreasLoadStatusPacket;
 class ToastRequestPacket;
-class ToggleCrafterSlotRequestPacket;
+class PlayerToggleCrafterSlotRequestPacket;
 class TransferPacket;
 class TrimDataPacket;
 class UpdateAbilitiesPacket;
@@ -246,9 +246,9 @@ public:
 
     virtual void handle(const NetworkIdentifier &, const AddBehaviorTreePacket &) {}
 
-    virtual void handle(const NetworkIdentifier &, const AddEntityPacket &) {}
+    virtual void handle(const NetworkIdentifier &, const AddActorPacket &) {}
 
-    virtual void handle(const NetworkIdentifier &, const AddItemEntityPacket &) {}
+    virtual void handle(const NetworkIdentifier &, const AddItemActorPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const AddPaintingPacket &) {}
 
@@ -274,11 +274,11 @@ public:
 
     virtual void handle(const NetworkIdentifier &, const AvailableCommandsPacket &) {}
 
-    virtual void handle(const NetworkIdentifier &, const AvailableEntityIdentifiersPacket &) {}
+    virtual void handle(const NetworkIdentifier &, const AvailableActorIdentifiersPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const BiomeDefinitionListPacket &) {}
 
-    virtual void handle(const NetworkIdentifier &, const BlockEntityDataPacket &) {}
+    virtual void handle(const NetworkIdentifier &, const BlockActorDataPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const BlockEventPacket &) {}
 
@@ -294,7 +294,7 @@ public:
 
     virtual void handle(const NetworkIdentifier &, const CameraAimAssistActorPriorityPacket &) {}
 
-    virtual void handle(const NetworkIdentifier &, const CameraAimAssistInstructionPacket &) {}
+    virtual void handle(const NetworkIdentifier &, const ClientCameraAimAssistPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const CameraAimAssistPresetsPacket &) {}
 
@@ -378,7 +378,7 @@ public:
 
     virtual void handle(const NetworkIdentifier &, const DeathInfoPacket &) {}
 
-    virtual void handle(const NetworkIdentifier &, const DebugDrawerPacket &) {}
+    virtual void handle(const NetworkIdentifier &, const PrimitiveShapesPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const DebugInfoPacket &) {}
 
@@ -396,13 +396,13 @@ public:
 
     virtual void handle(const NetworkIdentifier &, const EmotePacket &) {}
 
-    virtual void handle(const NetworkIdentifier &, const EntityEventPacket &) {}
+    virtual void handle(const NetworkIdentifier &, const ActorEventPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const EntityFallPacket &) {}
 
-    virtual void handle(const NetworkIdentifier &, const EntityPickRequestPacket &) {}
+    virtual void handle(const NetworkIdentifier &, const ActorPickRequestPacket &) {}
 
-    virtual void handle(const NetworkIdentifier &, const EventPacket &) {}
+    virtual void handle(const NetworkIdentifier &, const LegacyTelemetryEventPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const FeatureRegistryPacket &) {}
 
@@ -414,7 +414,7 @@ public:
 
     virtual void handle(const NetworkIdentifier &, const GameTestResultsPacket &) {}
 
-    virtual void handle(const NetworkIdentifier &, const GraphicsParameterOverridePacket &) {}
+    virtual void handle(const NetworkIdentifier &, const GraphicsOverrideParameterPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const GuiDataPickItemPacket &) {}
 
@@ -428,7 +428,7 @@ public:
 
     virtual void handle(const NetworkIdentifier &, const InventoryTransactionPacket &) {}
 
-    virtual void handle(const NetworkIdentifier &, const ItemComponentPacket &) {}
+    virtual void handle(const NetworkIdentifier &, const ItemRegistryPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const ItemStackRequestPacket &) {}
 
@@ -466,15 +466,15 @@ public:
 
     virtual void handle(const NetworkIdentifier &, const MotionPredictionHintsPacket &) {}
 
-    virtual void handle(const NetworkIdentifier &, const MoveEntityAbsolutePacket &) {}
+    virtual void handle(const NetworkIdentifier &, const MoveActorAbsolutePacket &) {}
 
-    virtual void handle(const NetworkIdentifier &, const MoveEntityDeltaPacket &) {}
+    virtual void handle(const NetworkIdentifier &, const MoveActorDeltaPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const MovePlayerPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const MovementEffectPacket &) {}
 
-    virtual void handle(const NetworkIdentifier &, const MovementPredictionSyncPacket &) {}
+    virtual void handle(const NetworkIdentifier &, const ClientMovementPredictionSyncPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const MultiplayerSettingsPacket &) {}
 
@@ -538,7 +538,7 @@ public:
 
     virtual void handle(const NetworkIdentifier &, const RefreshEntitlementsPacket &) {}
 
-    virtual void handle(const NetworkIdentifier &, const RemoveEntityPacket &) {}
+    virtual void handle(const NetworkIdentifier &, const RemoveActorPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const RemoveObjectivePacket &) {}
 
@@ -606,11 +606,11 @@ public:
 
     virtual void handle(const NetworkIdentifier &, const SetDisplayObjectivePacket &) {}
 
-    virtual void handle(const NetworkIdentifier &, const SetEntityDataPacket &) {}
+    virtual void handle(const NetworkIdentifier &, const SetActorDataPacket &) {}
 
-    virtual void handle(const NetworkIdentifier &, const SetEntityLinkPacket &) {}
+    virtual void handle(const NetworkIdentifier &, const SetActorLinkPacket &) {}
 
-    virtual void handle(const NetworkIdentifier &, const SetEntityMotionPacket &) {}
+    virtual void handle(const NetworkIdentifier &, const SetActorMotionPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const SetHealthPacket &) {}
 
@@ -666,11 +666,11 @@ public:
 
     virtual void handle(const NetworkIdentifier &, const SubClientLoginPacket &) {}
 
-    virtual void handle(const NetworkIdentifier &, const SyncEntityPropertyPacket &) {}
+    virtual void handle(const NetworkIdentifier &, const SyncActorPropertyPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const SyncWorldClocksPacket &) {}
 
-    virtual void handle(const NetworkIdentifier &, const TakeItemEntityPacket &) {}
+    virtual void handle(const NetworkIdentifier &, const TakeItemActorPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const TextPacket &) {}
 
@@ -680,7 +680,7 @@ public:
 
     virtual void handle(const NetworkIdentifier &, const ToastRequestPacket &) {}
 
-    virtual void handle(const NetworkIdentifier &, const ToggleCrafterSlotRequestPacket &) {}
+    virtual void handle(const NetworkIdentifier &, const PlayerToggleCrafterSlotRequestPacket &) {}
 
     virtual void handle(const NetworkIdentifier &, const TransferPacket &) {}
 

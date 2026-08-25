@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SimulationTypePacket.h"
+#include "protocol/packets/SimulationTypePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 SimulationTypePacket::SimulationTypePacket()
         : mType(Type::Game) {}

@@ -1,4 +1,4 @@
-#include "Item/CraftingRecipeTable.h"
+#include "item/CraftingRecipeTable.h"
 #include "CraftingRecipeJson.h"
 
 #include <cctype>
@@ -240,6 +240,7 @@ namespace {
         std::vector<CraftingIngredientData> mIngredients;
         std::vector<CraftingOutputData> mOutputs;
         std::vector<CraftingRecipeData> mRecipes;
+        std::vector<FurnaceRecipeData> mFurnaceRecipes;
         std::deque<std::string> mStrings;
         bool mLoaded = false;
 
@@ -439,6 +440,45 @@ namespace {
         addVariants(storage, source, 0, 0, choices);
     }
 
+    void loadFurnaceRecipe(RecipeStorage &storage, const JsonValue &source, const TagMap &tags) {
+        const JsonValue *inputData = source.get("input");
+        const JsonValue *outputData = source.get("output");
+        if (inputData == nullptr || inputData->mType != JsonValue::Type::Array || inputData->mArray.empty()
+            || outputData == nullptr || outputData->mType != JsonValue::Type::Array || outputData->mArray.empty()) {
+            return;
+        }
+
+        const std::vector<IngredientChoice> choices = parseIngredient(*inputData->mArray.front(), tags);
+        if (choices.empty()) {
+            return;
+        }
+
+        const JsonValue *output = outputData->mArray.front()->get("id");
+        if (output == nullptr || output->mType != JsonValue::Type::String) {
+            return;
+        }
+
+        const JsonValue *countValue = outputData->mArray.front()->get("count");
+        const int32_t outputCount = countValue == nullptr ? 1 : countValue->integer(1);
+        if (outputCount <= 0) {
+            return;
+        }
+
+        const JsonValue *id = source.get("id");
+        const std::string baseId = id == nullptr ? "falcon.furnace" : id->string("falcon.furnace");
+        const int32_t priority = source.get("priority") == nullptr ? 0 : source.get("priority")->integer(0);
+        for (size_t index = 0; index < choices.size(); ++index) {
+            const IngredientChoice &choice = choices[index];
+            if (choice.mEmpty || choice.mItemId.empty() || choice.mCount <= 0) {
+                continue;
+            }
+            const std::string recipeId = index == 0 ? baseId : baseId + "#" + std::to_string(index);
+            storage.mFurnaceRecipes.push_back({storage.store(recipeId), storage.store(choice.mItemId),
+                                               choice.mAuxValue, choice.mCount, storage.store(output->mString),
+                                               outputCount, priority});
+        }
+    }
+
     RecipeStorage &getStorage() {
         static RecipeStorage storage;
         if (storage.mLoaded)
@@ -456,7 +496,17 @@ namespace {
         for (const std::unique_ptr<JsonValue> &recipe: recipes->mArray) {
             const JsonValue *type = recipe->get("type");
             const JsonValue *block = recipe->get("block");
-            if (type == nullptr || block == nullptr || block->string() != "crafting_table")
+            if (type == nullptr || block == nullptr)
+                continue;
+
+            if (block->string() == "furnace") {
+                if (type->integer(-1) == 1) {
+                    loadFurnaceRecipe(storage, *recipe, tags);
+                }
+                continue;
+            }
+
+            if (block->string() != "crafting_table")
                 continue;
 
             switch (type->integer(-1)) {
@@ -489,4 +539,12 @@ const CraftingIngredientData *CraftingRecipeTable::getIngredients() {
 
 const CraftingOutputData *CraftingRecipeTable::getOutputs() {
     return getStorage().mOutputs.data();
+}
+
+const FurnaceRecipeData *CraftingRecipeTable::getFurnaceRecipes() {
+    return getStorage().mFurnaceRecipes.data();
+}
+
+size_t CraftingRecipeTable::getFurnaceRecipeCount() {
+    return getStorage().mFurnaceRecipes.size();
 }

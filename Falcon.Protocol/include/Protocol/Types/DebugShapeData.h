@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Core/Math/Vector3f.h"
+#include "core/math/Vector3f.h"
 
 #include <cstdint>
 #include <string>

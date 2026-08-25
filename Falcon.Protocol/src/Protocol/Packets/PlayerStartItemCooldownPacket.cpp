@@ -1,6 +1,6 @@
-#include "Protocol/Packets/PlayerStartItemCooldownPacket.h"
+#include "protocol/packets/PlayerStartItemCooldownPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 PlayerStartItemCooldownPacket::PlayerStartItemCooldownPacket() = default;
 

@@ -1,4 +1,4 @@
-#include "Actor/ExperienceManager.h"
+#include "actor/ExperienceManager.h"
 
 #include <algorithm>
 #include <cmath>

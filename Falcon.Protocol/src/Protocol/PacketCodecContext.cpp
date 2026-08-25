@@ -1,4 +1,4 @@
-#include "Protocol/PacketCodecContext.h"
+#include "protocol/PacketCodecContext.h"
 
 PacketCodecContext::PacketCodecContext(const BlockDefinitionRegistry &blockDefinitions,
                                        const ItemDefinitionRegistry &itemDefinitions)

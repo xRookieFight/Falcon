@@ -1,8 +1,9 @@
-#include "Level/SubChunk.h"
+#include "level/SubChunk.h"
 
-#include "Block/Blocks/VanillaBlocks.h"
-#include "Core/Debug/BedrockLog.h"
-#include "Core/NBT/NbtIo.h"
+#include "block/blocks/VanillaBlocks.h"
+#include "core/debug/BedrockLog.h"
+#include "scripting/content/CustomContentRegistry.h"
+#include "core/nbt/NbtIo.h"
 
 SubChunk::SubChunk(int8_t y) : mY(y) {
     mPalette.push_back(BlockState("minecraft:air"));
@@ -79,7 +80,7 @@ void SubChunk::_writeStorage(BinaryStream &stream, bool persistent) const {
 
     stream.putVarInt((int32_t) mPalette.size());
     for (const BlockState &state: mPalette)
-        stream.putVarInt(state.mHash);
+        stream.putVarInt(state.getHash());
 }
 
 void SubChunk::writeNetwork(BinaryStream &stream) const {
@@ -106,7 +107,7 @@ void SubChunk::_writeEmptyStorage(BinaryStream &stream, bool persistent) const {
     }
 
     stream.putVarInt(1);
-    stream.putVarInt(air.mHash);
+    stream.putVarInt(air.getHash());
 }
 
 void SubChunk::writePersistent(BinaryStream &stream) const {
@@ -160,7 +161,8 @@ bool SubChunk::readPersistent(ReadOnlyBinaryStream &stream) {
         const std::string name = tag.getString("name", "minecraft:air");
         const Tag *states = tag.get("states");
 
-        if (VanillaBlocks::fromIdentifier(name) == nullptr) {
+        if (VanillaBlocks::fromIdentifier(name) == nullptr &&
+            !CustomContentRegistry::getInstance().isCustomBlock(name)) {
             LOG_ERROR(LogAreaID::Level, "Skipping unknown block %s while loading chunk data", name.c_str());
             mPalette.push_back(BlockState("minecraft:air"));
             continue;

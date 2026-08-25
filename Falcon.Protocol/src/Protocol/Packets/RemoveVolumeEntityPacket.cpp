@@ -1,6 +1,6 @@
-#include "Protocol/Packets/RemoveVolumeEntityPacket.h"
+#include "protocol/packets/RemoveVolumeEntityPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 RemoveVolumeEntityPacket::RemoveVolumeEntityPacket() = default;
 

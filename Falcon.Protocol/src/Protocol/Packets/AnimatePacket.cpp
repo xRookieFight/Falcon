@@ -1,6 +1,6 @@
-#include "Protocol/Packets/AnimatePacket.h"
+#include "protocol/packets/AnimatePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 namespace {
 

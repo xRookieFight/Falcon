@@ -1,6 +1,6 @@
-#include "Protocol/Packets/TransferPacket.h"
+#include "protocol/packets/TransferPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 TransferPacket::TransferPacket() = default;
 

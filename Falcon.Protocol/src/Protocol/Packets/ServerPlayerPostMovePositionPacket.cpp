@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ServerPlayerPostMovePositionPacket.h"
+#include "protocol/packets/ServerPlayerPostMovePositionPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ServerPlayerPostMovePositionPacket::ServerPlayerPostMovePositionPacket() {}
 

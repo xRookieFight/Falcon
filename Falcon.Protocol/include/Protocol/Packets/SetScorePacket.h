@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/ScoreInfo.h"
+#include "protocol/Packet.h"
+#include "protocol/types/ScoreInfo.h"
 
 #include <vector>
 
@@ -21,5 +21,11 @@ public:
 
     void handle(const NetworkIdentifier &id, NetworkPacketHandler &handler) const override;
 
+    enum class Action : uint8_t {
+        Change = 0,
+        Remove = 1
+    };
+
+    Action mAction = Action::Change;
     std::vector<ScoreInfoEntry> mInfos;
 };

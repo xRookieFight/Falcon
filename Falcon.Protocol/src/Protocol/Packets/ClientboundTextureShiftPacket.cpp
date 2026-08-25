@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ClientboundTextureShiftPacket.h"
+#include "protocol/packets/ClientboundTextureShiftPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ClientboundTextureShiftPacket::ClientboundTextureShiftPacket() = default;
 

@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ClientboundDataDrivenUIShowScreenPacket.h"
+#include "protocol/packets/ClientboundDataDrivenUIShowScreenPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ClientboundDataDrivenUIShowScreenPacket::ClientboundDataDrivenUIShowScreenPacket() = default;
 

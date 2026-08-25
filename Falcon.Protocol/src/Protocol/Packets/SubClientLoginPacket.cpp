@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SubClientLoginPacket.h"
+#include "protocol/packets/SubClientLoginPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 SubClientLoginPacket::SubClientLoginPacket() = default;
 

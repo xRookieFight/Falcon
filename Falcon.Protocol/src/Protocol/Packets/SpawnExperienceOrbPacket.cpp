@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SpawnExperienceOrbPacket.h"
+#include "protocol/packets/SpawnExperienceOrbPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 SpawnExperienceOrbPacket::SpawnExperienceOrbPacket()
         : mAmount(0) {}

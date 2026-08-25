@@ -1,4 +1,4 @@
-#include "Network/RakNetRemotePeer.h"
+#include "network/RakNetRemotePeer.h"
 
 RakNetRemotePeer::RakNetRemotePeer(RakNet::RakPeerInterface *rakPeer, const NetworkIdentifier &id)
         : mRakPeer(rakPeer), mId(id) {}

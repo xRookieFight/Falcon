@@ -1,6 +1,6 @@
-#include "Protocol/Packets/FilterTextPacket.h"
+#include "protocol/packets/FilterTextPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 FilterTextPacket::FilterTextPacket() = default;
 

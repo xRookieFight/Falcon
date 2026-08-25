@@ -1,6 +1,6 @@
-#include "Protocol/Packets/RequestNetworkSettingsPacket.h"
+#include "protocol/packets/RequestNetworkSettingsPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 RequestNetworkSettingsPacket::RequestNetworkSettingsPacket()
         : mProtocolVersion(0) {

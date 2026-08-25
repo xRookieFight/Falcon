@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ChangeDimensionPacket.h"
+#include "protocol/packets/ChangeDimensionPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ChangeDimensionPacket::ChangeDimensionPacket()
         : mDimension(0), mRespawn(false), mHasLoadingScreenId(false), mLoadingScreenId(0) {}

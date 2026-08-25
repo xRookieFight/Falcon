@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SetHealthPacket.h"
+#include "protocol/packets/SetHealthPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 SetHealthPacket::SetHealthPacket()
         : mHealth(0) {}

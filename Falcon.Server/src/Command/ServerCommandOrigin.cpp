@@ -1,0 +1,20 @@
+#include "command/ServerCommandOrigin.h"
+
+#include "core/debug/BedrockLog.h"
+
+const std::string &ServerCommandOrigin::getSenderName() const {
+    static const std::string name = "Console";
+    return name;
+}
+
+void ServerCommandOrigin::sendMessage(const std::string &message) {
+    LOG_INFO(LogAreaID::Server, "%s", message.c_str());
+}
+
+void ServerCommandOrigin::sendTranslation(const std::string &key, const std::vector<std::string> &parameters) {
+    std::string message = key;
+    for (const std::string &parameter: parameters)
+        message += " " + parameter;
+
+    LOG_INFO(LogAreaID::Server, "%s", message.c_str());
+}

@@ -1,6 +1,6 @@
-#include "Protocol/Packets/BookEditPacket.h"
+#include "protocol/packets/BookEditPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 BookEditPacket::BookEditPacket() = default;
 

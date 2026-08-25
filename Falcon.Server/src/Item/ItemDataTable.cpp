@@ -1,6 +1,8 @@
-#include "Item/ItemData.h"
+#include "item/ItemData.h"
 
-#include "Item/ItemTypeIds.h"
+#include "item/ItemTypeIds.h"
+#include "item/ItemCooldowns.h"
+#include "item/items/EnchantedGoldenAppleItem.h"
 
 #include <unordered_map>
 
@@ -22,7 +24,7 @@ const ItemData gItemDataTable[] = {
         {ItemTypeIds::ARMOR_STAND, "minecraft:armor_stand", "Armor Stand", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::ARMS_UP_POTTERY_SHERD, "minecraft:arms_up_pottery_sherd", "Arms Up Pottery Sherd", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::ARROW, "minecraft:arrow", "Arrow", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
-        {ItemTypeIds::AXOLOTL_BUCKET, "minecraft:axolotl_bucket", "Axolotl Bucket", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
+        {ItemTypeIds::AXOLOTL_BUCKET, "minecraft:axolotl_bucket", "Axolotl Bucket", 1, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::AXOLOTL_SPAWN_EGG, "minecraft:axolotl_spawn_egg", "Axolotl Spawn Egg", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::BAKED_POTATO, "minecraft:baked_potato", "Baked Potato", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 5, 7.2f},
         {ItemTypeIds::BALLOON, "minecraft:balloon", "Balloon", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
@@ -102,14 +104,14 @@ const ItemData gItemDataTable[] = {
         {ItemTypeIds::CHEST_MINECART, "minecraft:chest_minecart", "Chest Minecart", 1, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::CHICKEN, "minecraft:chicken", "Chicken", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 2, 1.2f},
         {ItemTypeIds::CHICKEN_SPAWN_EGG, "minecraft:chicken_spawn_egg", "Chicken Spawn Egg", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
-        {ItemTypeIds::CHORUS_FRUIT, "minecraft:chorus_fruit", "Chorus Fruit", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
+        {ItemTypeIds::CHORUS_FRUIT, "minecraft:chorus_fruit", "Chorus Fruit", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 4, 2.4f},
         {ItemTypeIds::CLAY_BALL, "minecraft:clay_ball", "Clay Ball", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::CLOCK, "minecraft:clock", "Clock", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::COAL, "minecraft:coal", "Coal", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::COAST_ARMOR_TRIM_SMITHING_TEMPLATE, "minecraft:coast_armor_trim_smithing_template", "Coast Armor Trim Smithing Template", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::COCOA_BEANS, "minecraft:cocoa_beans", "Cocoa Beans", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::COD, "minecraft:cod", "Cod", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 2, 0.4f},
-        {ItemTypeIds::COD_BUCKET, "minecraft:cod_bucket", "Cod Bucket", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
+        {ItemTypeIds::COD_BUCKET, "minecraft:cod_bucket", "Cod Bucket", 1, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::COD_SPAWN_EGG, "minecraft:cod_spawn_egg", "Cod Spawn Egg", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::COLORED_TORCH_BP, "minecraft:colored_torch_bp", "Colored Torch Bp", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::COLORED_TORCH_RG, "minecraft:colored_torch_rg", "Colored Torch Rg", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
@@ -196,7 +198,7 @@ const ItemData gItemDataTable[] = {
         {ItemTypeIds::EMERALD, "minecraft:emerald", "Emerald", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::EMPTY_MAP, "minecraft:empty_map", "Empty Map", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::ENCHANTED_BOOK, "minecraft:enchanted_book", "Enchanted Book", 1, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
-        {ItemTypeIds::ENCHANTED_GOLDEN_APPLE, "minecraft:enchanted_golden_apple", "Enchanted Golden Apple", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 4, 2.4f},
+        {ItemTypeIds::ENCHANTED_GOLDEN_APPLE, "minecraft:enchanted_golden_apple", "Enchanted Golden Apple", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 4, 9.6f},
         {ItemTypeIds::END_CRYSTAL, "minecraft:end_crystal", "End Crystal", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::ENDER_DRAGON_SPAWN_EGG, "minecraft:ender_dragon_spawn_egg", "Ender Dragon Spawn Egg", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::ENDER_EYE, "minecraft:ender_eye", "Ender Eye", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
@@ -344,7 +346,7 @@ const ItemData gItemDataTable[] = {
         {ItemTypeIds::MEDICINE, "minecraft:medicine", "Medicine", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::MELON_SEEDS, "minecraft:melon_seeds", "Melon Seeds", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::MELON_SLICE, "minecraft:melon_slice", "Melon Slice", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 2, 1.2f},
-        {ItemTypeIds::MILK_BUCKET, "minecraft:milk_bucket", "Milk Bucket", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
+        {ItemTypeIds::MILK_BUCKET, "minecraft:milk_bucket", "Milk Bucket", 1, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::MINECART, "minecraft:minecart", "Minecart", 1, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::MINER_POTTERY_SHERD, "minecraft:miner_pottery_sherd", "Miner Pottery Sherd", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::MOJANG_BANNER_PATTERN, "minecraft:mojang_banner_pattern", "Mojang Banner Pattern", 1, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
@@ -444,12 +446,12 @@ const ItemData gItemDataTable[] = {
         {ItemTypeIds::PORKCHOP, "minecraft:porkchop", "Porkchop", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 3, 1.8f},
         {ItemTypeIds::POTATO, "minecraft:potato", "Potato", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 1, 0.6f},
         {ItemTypeIds::POTION, "minecraft:potion", "Potion", 1, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
-        {ItemTypeIds::POWDER_SNOW_BUCKET, "minecraft:powder_snow_bucket", "Powder Snow Bucket", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
+        {ItemTypeIds::POWDER_SNOW_BUCKET, "minecraft:powder_snow_bucket", "Powder Snow Bucket", 1, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::PRISMARINE_CRYSTALS, "minecraft:prismarine_crystals", "Prismarine Crystals", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::PRISMARINE_SHARD, "minecraft:prismarine_shard", "Prismarine Shard", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::PRIZE_POTTERY_SHERD, "minecraft:prize_pottery_sherd", "Prize Pottery Sherd", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::PUFFERFISH, "minecraft:pufferfish", "Pufferfish", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 1, 0.2f},
-        {ItemTypeIds::PUFFERFISH_BUCKET, "minecraft:pufferfish_bucket", "Pufferfish Bucket", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
+        {ItemTypeIds::PUFFERFISH_BUCKET, "minecraft:pufferfish_bucket", "Pufferfish Bucket", 1, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::PUFFERFISH_SPAWN_EGG, "minecraft:pufferfish_spawn_egg", "Pufferfish Spawn Egg", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::PUMPKIN_PIE, "minecraft:pumpkin_pie", "Pumpkin Pie", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 8, 4.8f},
         {ItemTypeIds::PUMPKIN_SEEDS, "minecraft:pumpkin_seeds", "Pumpkin Seeds", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
@@ -482,7 +484,7 @@ const ItemData gItemDataTable[] = {
         {ItemTypeIds::ROTTEN_FLESH, "minecraft:rotten_flesh", "Rotten Flesh", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 4, 0.8f},
         {ItemTypeIds::SADDLE, "minecraft:saddle", "Saddle", 1, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::SALMON, "minecraft:salmon", "Salmon", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 2, 0.4f},
-        {ItemTypeIds::SALMON_BUCKET, "minecraft:salmon_bucket", "Salmon Bucket", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
+        {ItemTypeIds::SALMON_BUCKET, "minecraft:salmon_bucket", "Salmon Bucket", 1, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::SALMON_SPAWN_EGG, "minecraft:salmon_spawn_egg", "Salmon Spawn Egg", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::SAPLING, "minecraft:sapling", "Sapling", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::SCRAPE_POTTERY_SHERD, "minecraft:scrape_pottery_sherd", "Scrape Pottery Sherd", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
@@ -542,11 +544,11 @@ const ItemData gItemDataTable[] = {
         {ItemTypeIds::STRING, "minecraft:string", "String", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::SUGAR, "minecraft:sugar", "Sugar", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::SUGAR_CANE, "minecraft:sugar_cane", "Sugar Cane", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
-        {ItemTypeIds::SULFUR_CUBE_BUCKET, "minecraft:sulfur_cube_bucket", "Sulfur Cube Bucket", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
+        {ItemTypeIds::SULFUR_CUBE_BUCKET, "minecraft:sulfur_cube_bucket", "Sulfur Cube Bucket", 1, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::SULFUR_CUBE_SPAWN_EGG, "minecraft:sulfur_cube_spawn_egg", "Sulfur Cube Spawn Egg", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::SUSPICIOUS_STEW, "minecraft:suspicious_stew", "Suspicious Stew", 1, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 6, 7.2f},
         {ItemTypeIds::SWEET_BERRIES, "minecraft:sweet_berries", "Sweet Berries", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 2, 0.4f},
-        {ItemTypeIds::TADPOLE_BUCKET, "minecraft:tadpole_bucket", "Tadpole Bucket", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
+        {ItemTypeIds::TADPOLE_BUCKET, "minecraft:tadpole_bucket", "Tadpole Bucket", 1, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::TADPOLE_SPAWN_EGG, "minecraft:tadpole_spawn_egg", "Tadpole Spawn Egg", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::TALLGRASS, "minecraft:tallgrass", "Tallgrass", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::TIDE_ARMOR_TRIM_SMITHING_TEMPLATE, "minecraft:tide_armor_trim_smithing_template", "Tide Armor Trim Smithing Template", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
@@ -557,7 +559,7 @@ const ItemData gItemDataTable[] = {
         {ItemTypeIds::TRIAL_KEY, "minecraft:trial_key", "Trial Key", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::TRIDENT, "minecraft:trident", "Trident", 1, 251, ToolType::None, 0, 0, 9, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::TROPICAL_FISH, "minecraft:tropical_fish", "Tropical Fish", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 1, 0.2f},
-        {ItemTypeIds::TROPICAL_FISH_BUCKET, "minecraft:tropical_fish_bucket", "Tropical Fish Bucket", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
+        {ItemTypeIds::TROPICAL_FISH_BUCKET, "minecraft:tropical_fish_bucket", "Tropical Fish Bucket", 1, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::TROPICAL_FISH_SPAWN_EGG, "minecraft:tropical_fish_spawn_egg", "Tropical Fish Spawn Egg", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::TURTLE_HELMET, "minecraft:turtle_helmet", "Turtle Shell", 1, 276, ToolType::None, 0, 0, 0, ArmorSlot::Head, 1000, 2, 0, 0, 0.0f},
         {ItemTypeIds::TURTLE_SCUTE, "minecraft:turtle_scute", "Turtle Scute", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
@@ -645,4 +647,85 @@ const ItemData *ItemDataTable::find(const std::string &identifier) {
         return nullptr;
 
     return it->second;
+}
+
+const ItemComponents &ItemDataTable::getComponents(const std::string &identifier) {
+    static const ItemComponents empty;
+    static std::unordered_map<std::string, ItemComponents> components;
+
+    const auto cached = components.find(identifier);
+    if (cached != components.end())
+        return cached->second;
+
+    const ItemData *data = find(identifier);
+    if (data == nullptr) {
+        if (identifier.find("netherite") != std::string::npos || identifier == "minecraft:ancient_debris") {
+            ItemComponents value;
+            value.emplace<FireResistantItemComponent>();
+            auto result = components.emplace(identifier, std::move(value));
+            return result.first->second;
+        }
+        return empty;
+    }
+
+    ItemComponents value;
+    auto &displayName = value.emplace<DisplayNameItemComponent>();
+    displayName.mValue = data->mName;
+
+    auto &maxStackSize = value.emplace<MaxStackSizeItemComponent>();
+    maxStackSize.mValue = data->mMaxStackSize;
+
+    auto &damage = value.emplace<DamageItemComponent>();
+    damage.mDamage = data->mAttackDamage;
+
+    if (data->mMaxDurability > 0) {
+        auto &durability = value.emplace<DurabilityItemComponent>();
+        durability.mMaxDurability = data->mMaxDurability;
+    }
+
+    if (data->mToolType != ToolType::None) {
+        auto &digger = value.emplace<DiggerItemComponent>();
+        digger.mToolType = data->mToolType;
+        digger.mTier = data->mToolTier;
+        digger.mHarvestLevel = data->mHarvestLevel;
+    }
+
+    if (data->mArmorSlot != ArmorSlot::None) {
+        auto &armor = value.emplace<ArmorItemComponent>();
+        armor.mSlot = data->mArmorSlot;
+        armor.mTier = data->mArmorTier;
+        armor.mPoints = data->mArmorPoints;
+        armor.mToughness = data->mArmorToughness;
+
+        auto &wearable = value.emplace<WearableItemComponent>();
+        wearable.mSlot = data->mArmorSlot;
+    }
+
+    if (data->mNutrition > 0) {
+        auto &food = value.emplace<FoodItemComponent>();
+        food.mNutrition = data->mNutrition;
+        food.mSaturation = data->mSaturation;
+        if (identifier == "minecraft:chorus_fruit") {
+            food.mCanAlwaysEat = true;
+        } else if (identifier == "minecraft:golden_apple") {
+            food.mCanAlwaysEat = true;
+            food.addEffect({22, 0, 2400, 1.0f});
+            food.addEffect({10, 1, 100, 1.0f});
+        } else if (EnchantedGoldenAppleItem::matches(identifier)) {
+            EnchantedGoldenAppleItem::applyFoodComponent(food);
+        }
+    }
+
+    const int cooldown = ItemCooldowns::getDuration(identifier);
+    if (cooldown > 0) {
+        auto &component = value.emplace<CooldownItemComponent>();
+        component.mCategory = ItemCooldowns::getCategory(identifier);
+        component.mDurationTicks = cooldown;
+    }
+
+    if (identifier.find("netherite") != std::string::npos || identifier == "minecraft:ancient_debris")
+        value.emplace<FireResistantItemComponent>();
+
+    auto result = components.emplace(identifier, std::move(value));
+    return result.first->second;
 }

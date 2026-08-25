@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Protocol/Types/StructureSettings.h"
+#include "protocol/types/StructureSettings.h"
 
 #include <string>
 

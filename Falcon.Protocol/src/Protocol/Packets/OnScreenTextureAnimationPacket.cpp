@@ -1,6 +1,6 @@
-#include "Protocol/Packets/OnScreenTextureAnimationPacket.h"
+#include "protocol/packets/OnScreenTextureAnimationPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 OnScreenTextureAnimationPacket::OnScreenTextureAnimationPacket()
         : mEffectId(0) {}

@@ -1,6 +1,6 @@
-#include "Inventory/ItemStackNbt.h"
+#include "inventory/ItemStackNbt.h"
 
-#include "Core/Debug/BedrockLog.h"
+#include "core/debug/BedrockLog.h"
 
 namespace {
     const char *TAG_SLOT = "Slot";

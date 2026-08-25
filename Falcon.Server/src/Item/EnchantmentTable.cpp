@@ -1,4 +1,4 @@
-#include "Item/EnchantmentData.h"
+#include "item/EnchantmentData.h"
 
 #include <algorithm>
 #include <cctype>

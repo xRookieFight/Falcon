@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SetDefaultGameTypePacket.h"
+#include "protocol/packets/SetDefaultGameTypePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 SetDefaultGameTypePacket::SetDefaultGameTypePacket()
         : mGamemode(0) {}

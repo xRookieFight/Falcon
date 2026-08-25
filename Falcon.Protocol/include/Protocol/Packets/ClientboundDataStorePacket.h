@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/DataStoreTypes.h"
+#include "protocol/Packet.h"
+#include "protocol/types/DataStoreTypes.h"
 
 #include <vector>
 

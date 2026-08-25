@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Core/Debug/LogDetails.h"
+#include "core/debug/LogDetails.h"
 
 class ILogEndPoint {
 public:

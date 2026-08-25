@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SetTitlePacket.h"
+#include "protocol/packets/SetTitlePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 SetTitlePacket::SetTitlePacket()
         : mType(Type::Clear), mFadeInTime(0), mStayTime(0), mFadeOutTime(0) {}

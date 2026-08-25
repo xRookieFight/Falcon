@@ -1,6 +1,6 @@
-#include "Protocol/Packets/CameraPacket.h"
+#include "protocol/packets/CameraPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 CameraPacket::CameraPacket() = default;
 

@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ClientboundAttributeLayerSyncPacket.h"
+#include "protocol/packets/ClientboundAttributeLayerSyncPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 #include <array>
 

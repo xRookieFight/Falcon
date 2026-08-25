@@ -1,6 +1,6 @@
-#include "Protocol/Packets/MovePlayerPacket.h"
+#include "protocol/packets/MovePlayerPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 MovePlayerPacket::MovePlayerPacket() = default;
 

@@ -1,6 +1,6 @@
-#include "Protocol/Packets/CreatePhotoPacket.h"
+#include "protocol/packets/CreatePhotoPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 CreatePhotoPacket::CreatePhotoPacket() = default;
 

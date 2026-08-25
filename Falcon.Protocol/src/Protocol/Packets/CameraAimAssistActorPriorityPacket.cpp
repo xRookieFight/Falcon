@@ -1,6 +1,6 @@
-#include "Protocol/Packets/CameraAimAssistActorPriorityPacket.h"
+#include "protocol/packets/CameraAimAssistActorPriorityPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 CameraAimAssistActorPriorityPacket::CameraAimAssistActorPriorityPacket() = default;
 

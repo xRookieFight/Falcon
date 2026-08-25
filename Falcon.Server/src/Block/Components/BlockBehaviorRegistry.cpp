@@ -1,7 +1,7 @@
-#include "Block/Components/BlockBehaviorRegistry.h"
+#include "block/components/BlockBehaviorRegistry.h"
 
-#include "Block/Components/BlockBehavior.h"
-#include "Block/Blocks/SlimeBlockBehavior.h"
+#include "block/components/BlockBehavior.h"
+#include "block/blocks/SlimeBlockBehavior.h"
 
 #include <unordered_map>
 

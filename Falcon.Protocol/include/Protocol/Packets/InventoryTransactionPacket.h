@@ -1,14 +1,14 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/InventoryActionData.h"
-#include "Protocol/Types/InventoryTransactionType.h"
-#include "Protocol/Types/ItemStack.h"
-#include "Protocol/Types/ItemUseTransaction.h"
-#include "Protocol/Types/LegacySetItemSlotData.h"
+#include "protocol/Packet.h"
+#include "protocol/types/InventoryActionData.h"
+#include "protocol/types/InventoryTransactionType.h"
+#include "protocol/types/ItemStack.h"
+#include "protocol/types/ItemUseTransaction.h"
+#include "protocol/types/LegacySetItemSlotData.h"
 
-#include "Core/Math/Vector3f.h"
-#include "Core/Math/Vector3i.h"
+#include "core/math/Vector3f.h"
+#include "core/math/Vector3i.h"
 
 #include <cstdint>
 #include <memory>

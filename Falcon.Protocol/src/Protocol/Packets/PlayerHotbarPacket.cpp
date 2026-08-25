@@ -1,6 +1,6 @@
-#include "Protocol/Packets/PlayerHotbarPacket.h"
+#include "protocol/packets/PlayerHotbarPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 PlayerHotbarPacket::PlayerHotbarPacket() = default;
 

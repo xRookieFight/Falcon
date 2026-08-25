@@ -1,4 +1,4 @@
-#include "Protocol/Types/InventorySource.h"
+#include "protocol/types/InventorySource.h"
 
 int32_t inventorySourceTypeToId(InventorySourceType type) {
     switch (type) {

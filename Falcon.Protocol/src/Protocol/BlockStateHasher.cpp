@@ -1,7 +1,7 @@
-#include "Protocol/BlockStateHasher.h"
+#include "protocol/BlockStateHasher.h"
 
-#include "Core/NBT/NbtIo.h"
-#include "Core/Utility/BinaryStream.h"
+#include "core/nbt/NbtIo.h"
+#include "core/utility/BinaryStream.h"
 
 #include <algorithm>
 #include <vector>

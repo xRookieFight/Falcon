@@ -1,6 +1,6 @@
-#include "Protocol/Packets/NpcDialoguePacket.h"
+#include "protocol/packets/NpcDialoguePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 NpcDialoguePacket::NpcDialoguePacket() = default;
 

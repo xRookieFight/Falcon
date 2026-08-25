@@ -1,13 +1,14 @@
 #pragma once
 
-#include "Core/Math/Vector3f.h"
-#include "Core/Math/Vector3i.h"
-#include "Level/Chunk.h"
+#include "core/math/Vector3f.h"
+#include "core/math/Vector3i.h"
+#include "level/LevelChunk.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <limits>
+#include <map>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -36,7 +37,7 @@ public:
 
     void moveStateFrom(LiquidPhysicsSystem &&other);
 
-    void onChunkLoaded(Chunk &chunk);
+    void onChunkLoaded(LevelChunk &chunk);
     void onBlockChanged(int32_t x, int32_t y, int32_t z);
 
     LiquidInfo getLiquidInfo(int32_t x, int32_t y, int32_t z);
@@ -44,6 +45,18 @@ public:
 
     void schedule(const Vector3i &position, int64_t delay = 1);
     void tick();
+
+    void activateColumn(int32_t chunkX, int32_t chunkZ);
+
+    void setTimeBudgetMs(double milliseconds) { mTimeBudgetMs = milliseconds; }
+
+    double getTimeBudgetMs() const { return mTimeBudgetMs; }
+
+    size_t getScheduledCount() const { return mSchedule.size(); }
+
+    size_t getLastProcessedCount() const { return mLastProcessed; }
+
+    size_t getLastDeferredCount() const { return mLastDeferred; }
     std::vector<LiquidChange> consumeChanges();
 
 private:
@@ -69,16 +82,34 @@ private:
     bool isFluidState(const BlockState &state) const;
     bool isSameFluid(const BlockState &left, const BlockState &right) const;
     bool isFlowable(const BlockState &state) const;
+    int64_t getTickRate(const BlockState &state) const;
+    const BlockState &_stateAt(int32_t x, int32_t y, int32_t z);
+
+    bool _isLoaded(int32_t x, int32_t z) const;
+
+    bool _isActive(int32_t x, int32_t z) const;
+
+    void _deferRemaining(const std::vector<Position> &positions, size_t from, int64_t bucketTick);
+
     void scheduleNeighbors(int32_t x, int32_t y, int32_t z);
-    void scheduleLoaded(Chunk &chunk);
+    void scheduleLoaded(LevelChunk &chunk);
     void process(const Vector3i &position);
     void processBubbleColumn(const Vector3i &position);
     void setFluidState(const Vector3i &position, const BlockState &state);
     void harden(const Vector3i &position);
+    bool resolveFluidCollision(const Vector3i &target, const BlockState &sourceState, bool downward);
     BlockState makeState(bool lava, int decay, bool falling) const;
 
+    static const size_t MAX_UPDATES_PER_TICK = 4096;
+    static const size_t BUDGET_CHECK_INTERVAL = 64;
+
     Level &mLevel;
+    std::map<int64_t, std::vector<Position>> mBuckets;
+    std::unordered_map<int64_t, std::vector<Position>> mParked;
     int64_t mTick = 0;
+    double mTimeBudgetMs = 10.0;
+    size_t mLastProcessed = 0;
+    size_t mLastDeferred = 0;
     std::unordered_map<Position, int64_t, PositionHash> mSchedule;
     std::vector<LiquidChange> mChanges;
 };

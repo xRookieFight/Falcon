@@ -1,20 +1,25 @@
 #pragma once
 
-#include "Actor/Actor.h"
-#include "Core/Math/Vector3i.h"
-#include "Core/NBT/Tag.h"
-#include "Inventory/InventoryManager.h"
-#include "Inventory/PlayerInventory.h"
-#include "Network/NetworkIdentifier.h"
-#include "Network/PacketSender.h"
-#include "Protocol/PacketCodecContext.h"
-#include "Protocol/Types/AdventureSettingData.h"
-#include "Protocol/Types/SerializedSkin.h"
-#include "Actor/MobEffect.h"
+#include "actor/Actor.h"
+#include "actor/DynamicPropertyValue.h"
+#include "core/math/Vector3i.h"
+#include "core/nbt/Tag.h"
+#include "inventory/InventoryManager.h"
+#include "inventory/PlayerInventory.h"
+#include "network/NetworkIdentifier.h"
+#include "network/PacketSender.h"
+#include "protocol/PacketCodecContext.h"
+#include "protocol/packets/MovePlayerPacket.h"
+#include "protocol/types/AdventureSettingData.h"
+#include "protocol/types/SerializedSkin.h"
+#include "actor/MobEffect.h"
 
 #include <string>
 #include <vector>
 #include <unordered_set>
+#include <unordered_map>
+
+class ServerNetworkHandler;
 
 class ServerPlayer : public Actor {
 public:
@@ -28,6 +33,11 @@ public:
     };
 
     ServerPlayer(const NetworkIdentifier &id, uint64_t runtimeId, PacketSender *sender = nullptr);
+
+    using Actor::teleport;
+
+    void teleport(ServerNetworkHandler &owner, const Vector3f &position,
+                  MovePlayerTeleportationCause cause = MovePlayerTeleportationCause::Behavior);
 
     const char *getIdentifier() const override { return "minecraft:player"; }
 
@@ -63,6 +73,8 @@ public:
 
     void setGameType(int32_t gameType) { mGameType = gameType; }
 
+    bool attackActor(ServerNetworkHandler &owner, uint64_t targetRuntimeId);
+
     bool isOp() const { return mIsOp; }
 
     void setOp(bool isOp) { mIsOp = isOp; }
@@ -88,6 +100,14 @@ public:
     PlayerInventory &getInventory() { return mInventory; }
 
     const PlayerInventory &getInventory() const { return mInventory; }
+
+    std::unordered_map<std::string, DynamicPropertyValue> &getDynamicProperties() { return mDynamicProperties; }
+
+    std::unordered_set<std::string> &getTags() { return mTags; }
+
+    int64_t getLastItemUseTick() const { return mLastItemUseTick; }
+
+    void setLastItemUseTick(int64_t tick) { mLastItemUseTick = tick; }
 
     InventoryManager &getInventoryManager() { return mInventoryManager; }
 
@@ -118,23 +138,57 @@ public:
 
     const Vector3f &getPendingMoveRotation() const { return mPendingMoveRotation; }
 
-    void queueMove(const Vector3f &position, const Vector3f &rotation, uint64_t clientTick, bool jumping) {
+    void queueMove(const Vector3f &position, const Vector3f &rotation) {
         mPendingMovePosition = position;
         mPendingMoveRotation = rotation;
-        mPendingMoveClientTick = clientTick;
-        mPendingMoveJumping = jumping;
         mHasPendingMove = true;
     }
-
-    uint64_t getPendingMoveClientTick() const { return mPendingMoveClientTick; }
-
-    bool isPendingMoveJumping() const { return mPendingMoveJumping; }
 
     void clearPendingMove() { mHasPendingMove = false; }
 
     int64_t getItemUseStartTick() const { return mItemUseStartTick; }
 
     void setItemUseStartTick(int64_t tick) { mItemUseStartTick = tick; }
+
+    bool isAwaitingConsumableRelease() const { return mAwaitingConsumableRelease; }
+
+    void setAwaitingConsumableRelease() { mAwaitingConsumableRelease = true; }
+
+    void clearAwaitingConsumableRelease() { mAwaitingConsumableRelease = false; }
+
+    int64_t getLastEarlyConsumableReleaseTick() const { return mLastEarlyConsumableReleaseTick; }
+
+    void setLastEarlyConsumableReleaseTick(int64_t tick) { mLastEarlyConsumableReleaseTick = tick; }
+
+    bool hasItemCooldown(const ItemStack &item, int64_t currentTick) const;
+
+    int getItemCooldownRemaining(const ItemStack &item, int64_t currentTick) const;
+
+    void startItemCooldown(const ItemStack &item, int64_t currentTick, int ticks = 0);
+
+    void tickItemCooldowns(int64_t currentTick);
+
+    bool hasLastRightClick() const { return mHasLastRightClick; }
+
+    const Vector3i &getLastRightClickBlockPosition() const { return mLastRightClickBlockPosition; }
+
+    int32_t getLastRightClickFace() const { return mLastRightClickFace; }
+
+    const Vector3f &getLastRightClickPlayerPosition() const { return mLastRightClickPlayerPosition; }
+
+    const Vector3f &getLastRightClickPosition() const { return mLastRightClickPosition; }
+
+    uint64_t getLastRightClickTimeMicros() const { return mLastRightClickTimeMicros; }
+
+    void recordRightClick(const Vector3i &blockPosition, int32_t face, const Vector3f &playerPosition,
+                          const Vector3f &clickPosition, uint64_t timeMicros) {
+        mHasLastRightClick = true;
+        mLastRightClickBlockPosition = blockPosition;
+        mLastRightClickFace = face;
+        mLastRightClickPlayerPosition = playerPosition;
+        mLastRightClickPosition = clickPosition;
+        mLastRightClickTimeMicros = timeMicros;
+    }
 
     int getAirSupply() const { return mAirSupply; }
 
@@ -147,6 +201,19 @@ public:
     const Vector3i &getBreakingBlockPosition() const { return mBreakingBlockPosition; }
 
     int32_t getBreakingFace() const { return mBreakingFace; }
+
+    void setBreakingFace(int32_t face) { mBreakingFace = face; }
+
+    bool hasLastBlockAttacked() const { return mHasLastBlockAttacked; }
+
+    const Vector3i &getLastBlockAttacked() const { return mLastBlockAttacked; }
+
+    void setLastBlockAttacked(const Vector3i &position) {
+        mHasLastBlockAttacked = true;
+        mLastBlockAttacked = position;
+    }
+
+    void clearLastBlockAttacked() { mHasLastBlockAttacked = false; }
 
     double getBreakProgress() const { return mBreakProgress; }
 
@@ -181,10 +248,6 @@ public:
 
     void markNonZeroClientTickSeen() { mSawNonZeroClientTick = true; }
 
-    bool hasForceMoveSync() const { return mForceMoveSync; }
-
-    void setForceMoveSync(bool forceMoveSync) { mForceMoveSync = forceMoveSync; }
-
     std::unordered_set<int64_t> &getSentChunks() { return mSentChunks; }
 
     size_t getSentChunkCount() const { return mSentChunkCount; }
@@ -212,16 +275,24 @@ private:
     LoginState mLoginState;
     std::string mName;
     std::string mUuid;
+    std::unordered_map<std::string, DynamicPropertyValue> mDynamicProperties;
+    std::unordered_set<std::string> mTags;
+    int64_t mLastItemUseTick = -1000;
     std::string mXuid;
     int mBuildPlatform = -1;
-    bool mForceMoveSync = false;
     int64_t mItemUseStartTick = 0;
+    bool mAwaitingConsumableRelease = false;
+    int64_t mLastEarlyConsumableReleaseTick = 0;
+    bool mHasLastRightClick = false;
+    Vector3i mLastRightClickBlockPosition;
+    int32_t mLastRightClickFace = 0;
+    Vector3f mLastRightClickPlayerPosition;
+    Vector3f mLastRightClickPosition;
+    uint64_t mLastRightClickTimeMicros = 0;
     int mAirSupply = 300;
     bool mHasPendingMove = false;
     Vector3f mPendingMovePosition;
     Vector3f mPendingMoveRotation;
-    uint64_t mPendingMoveClientTick = 0;
-    bool mPendingMoveJumping = false;
     bool mIsBreakingBlock = false;
     Vector3i mBreakingBlockPosition;
     int32_t mBreakingFace = 0;
@@ -229,6 +300,8 @@ private:
     double mBreakSpeed = 0.0;
     int64_t mBreakStartTick = 0;
     int mBreakingFxTicker = 0;
+    bool mHasLastBlockAttacked = false;
+    Vector3i mLastBlockAttacked;
     bool mSawNonZeroClientTick = false;
     std::unordered_set<int64_t> mSentChunks;
     size_t mSentChunkCount = 0;
@@ -245,4 +318,5 @@ private:
     InventoryManager mInventoryManager;
     PacketSender *mSender;
     bool mEffectsNetworkReady = false;
+    std::unordered_map<std::string, int64_t> mItemCooldowns;
 };

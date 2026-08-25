@@ -1,23 +1,29 @@
 #pragma once
 
-#include "Core/NBT/Tag.h"
-#include "Protocol/BlockStateHasher.h"
+#include "core/nbt/Tag.h"
+#include "protocol/BlockStateHasher.h"
 
 #include <cstdint>
 #include <string>
 
 class BlockState {
 public:
-    BlockState() : mName("minecraft:air"), mStates(Tag::ofCompound()), mHash(BlockStateHasher::hash("minecraft:air")) {}
+    BlockState() : mName("minecraft:air"), mStates(Tag::ofCompound()) {}
 
-    explicit BlockState(const std::string &name)
-            : mName(name), mStates(Tag::ofCompound()), mHash(BlockStateHasher::hash(name)) {}
+    explicit BlockState(const std::string &name) : mName(name), mStates(Tag::ofCompound()) {}
 
-    BlockState(const std::string &name, const Tag &states)
-            : mName(name), mStates(states), mHash(BlockStateHasher::hash(name, states)) {}
+    BlockState(const std::string &name, const Tag &states) : mName(name), mStates(states) {}
+
+    int32_t getHash() const {
+        if (!mHashValid) {
+            mHash = BlockStateHasher::hash(mName, mStates);
+            mHashValid = true;
+        }
+        return mHash;
+    }
 
     bool operator==(const BlockState &other) const {
-        return mHash == other.mHash && mName == other.mName;
+        return mName == other.mName && mStates == other.mStates;
     }
 
     Tag toNbt() const {
@@ -32,5 +38,8 @@ public:
 
     std::string mName;
     Tag mStates;
-    int32_t mHash;
+
+private:
+    mutable int32_t mHash = 0;
+    mutable bool mHashValid = false;
 };

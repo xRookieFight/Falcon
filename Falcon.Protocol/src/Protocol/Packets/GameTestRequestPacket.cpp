@@ -1,6 +1,6 @@
-#include "Protocol/Packets/GameTestRequestPacket.h"
+#include "protocol/packets/GameTestRequestPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 GameTestRequestPacket::GameTestRequestPacket() = default;
 

@@ -1,6 +1,6 @@
-#include "Protocol/Packets/EmoteListPacket.h"
+#include "protocol/packets/EmoteListPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 EmoteListPacket::EmoteListPacket()
         : mRuntimeActorId(0) {}

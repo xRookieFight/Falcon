@@ -1,7 +1,7 @@
-#include "Protocol/Packets/StartGamePacket.h"
+#include "protocol/packets/StartGamePacket.h"
 
-#include "Core/NBT/NbtIo.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "core/nbt/NbtIo.h"
+#include "protocol/NetworkPacketHandler.h"
 
 StartGamePacket::StartGamePacket()
         : mUniqueActorId(0), mRuntimeActorId(0), mPlayerGameType(GameType::Survival),

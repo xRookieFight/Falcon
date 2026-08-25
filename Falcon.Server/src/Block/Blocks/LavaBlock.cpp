@@ -1,1 +1,1 @@
-#include "Block/Blocks/LavaBlock.h"
+#include "block/blocks/LavaBlock.h"

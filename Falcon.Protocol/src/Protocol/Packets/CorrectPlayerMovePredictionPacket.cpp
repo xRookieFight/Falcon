@@ -1,6 +1,6 @@
-#include "Protocol/Packets/CorrectPlayerMovePredictionPacket.h"
+#include "protocol/packets/CorrectPlayerMovePredictionPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 CorrectPlayerMovePredictionPacket::CorrectPlayerMovePredictionPacket() = default;
 

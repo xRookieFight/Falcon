@@ -1,10 +1,10 @@
 #pragma once
 
-#include "Core/Math/Vector3f.h"
-#include "Protocol/Packet.h"
-#include "Protocol/Types/ItemUseTransaction.h"
-#include "Protocol/Types/ItemStackRequest.h"
-#include "Protocol/Types/PlayerBlockActionData.h"
+#include "core/math/Vector3f.h"
+#include "protocol/Packet.h"
+#include "protocol/types/ItemUseTransaction.h"
+#include "protocol/types/ItemStackRequest.h"
+#include "protocol/types/PlayerBlockActionData.h"
 
 #include <cstdint>
 #include <vector>

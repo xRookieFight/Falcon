@@ -1,6 +1,6 @@
-#include "Protocol/DataStoreCodec.h"
+#include "protocol/DataStoreCodec.h"
 
-#include "Core/Utility/BinaryDataException.h"
+#include "core/utility/BinaryDataException.h"
 
 void DataStoreCodec::writeScalar(BinaryStream &stream, const DataStoreScalar &value) {
     stream.putUnsignedVarInt((uint32_t) value.mType);

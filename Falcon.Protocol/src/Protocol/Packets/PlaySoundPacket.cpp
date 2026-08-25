@@ -1,6 +1,6 @@
-#include "Protocol/Packets/PlaySoundPacket.h"
+#include "protocol/packets/PlaySoundPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 PlaySoundPacket::PlaySoundPacket() = default;
 

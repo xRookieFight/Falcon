@@ -1,8 +1,8 @@
-#include "Protocol/Packets/InventorySlotPacket.h"
+#include "protocol/packets/InventorySlotPacket.h"
 
-#include "Protocol/InventoryCodec.h"
-#include "Protocol/ItemCodec.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/InventoryCodec.h"
+#include "protocol/ItemCodec.h"
+#include "protocol/NetworkPacketHandler.h"
 
 InventorySlotPacket::InventorySlotPacket() = default;
 

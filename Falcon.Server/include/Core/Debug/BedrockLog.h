@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Core/Debug/ILogEndPoint.h"
-#include "Core/Debug/LogAreaID.h"
-#include "Core/Debug/LogLevel.h"
+#include "core/debug/ILogEndPoint.h"
+#include "core/debug/LogAreaID.h"
+#include "core/debug/LogLevel.h"
 
 #include <cstdarg>
 #include <memory>

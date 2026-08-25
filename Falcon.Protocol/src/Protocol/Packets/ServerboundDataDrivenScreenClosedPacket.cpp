@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ServerboundDataDrivenScreenClosedPacket.h"
+#include "protocol/packets/ServerboundDataDrivenScreenClosedPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 #include <array>
 

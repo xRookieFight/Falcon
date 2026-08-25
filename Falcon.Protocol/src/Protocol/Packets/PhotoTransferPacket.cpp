@@ -1,6 +1,6 @@
-#include "Protocol/Packets/PhotoTransferPacket.h"
+#include "protocol/packets/PhotoTransferPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 PhotoTransferPacket::PhotoTransferPacket() = default;
 

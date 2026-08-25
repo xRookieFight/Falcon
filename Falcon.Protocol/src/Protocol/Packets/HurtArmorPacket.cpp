@@ -1,6 +1,6 @@
-#include "Protocol/Packets/HurtArmorPacket.h"
+#include "protocol/packets/HurtArmorPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 HurtArmorPacket::HurtArmorPacket()
         : mCause(0), mDamage(0), mArmorSlots(0) {}

@@ -1,6 +1,6 @@
-#include "Block/Systems/WaterMoveSystem.h"
+#include "block/systems/WaterMoveSystem.h"
 
-#include "Actor/ServerPlayer.h"
+#include "actor/ServerPlayer.h"
 
 #include <algorithm>
 
@@ -21,8 +21,10 @@ void WaterMoveSystem::tick(ServerPlayer &player, const LiquidContact &contact) {
         motion.y = contact.dragDown ? std::max(maximum, motion.y + acceleration)
                                     : std::min(maximum, motion.y + acceleration);
     }
+    motion.x = std::clamp(motion.x, -0.2f, 0.2f);
+    motion.z = std::clamp(motion.z, -0.2f, 0.2f);
     player.setMotion(motion);
 
     if (player.isOnFire())
-        player.setOnFire(false);
+        player.extinguish();
 }

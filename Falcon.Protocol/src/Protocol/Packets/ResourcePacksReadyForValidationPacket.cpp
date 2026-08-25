@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ResourcePacksReadyForValidationPacket.h"
+#include "protocol/packets/ResourcePacksReadyForValidationPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ResourcePacksReadyForValidationPacket::ResourcePacksReadyForValidationPacket() = default;
 

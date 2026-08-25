@@ -1,4 +1,4 @@
-#include "Actor/ActorFlags.h"
+#include "actor/ActorFlags.h"
 
 void ActorFlags::set(ActorFlag flag, bool value) {
     const int bit = (int) flag;

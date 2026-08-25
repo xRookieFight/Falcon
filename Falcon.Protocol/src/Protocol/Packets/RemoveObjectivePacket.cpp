@@ -1,6 +1,6 @@
-#include "Protocol/Packets/RemoveObjectivePacket.h"
+#include "protocol/packets/RemoveObjectivePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 RemoveObjectivePacket::RemoveObjectivePacket() {}
 

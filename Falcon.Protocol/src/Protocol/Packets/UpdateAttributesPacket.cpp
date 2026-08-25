@@ -1,7 +1,7 @@
-#include "Protocol/Packets/UpdateAttributesPacket.h"
+#include "protocol/packets/UpdateAttributesPacket.h"
 
-#include "Protocol/EntityCodec.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/EntityCodec.h"
+#include "protocol/NetworkPacketHandler.h"
 
 UpdateAttributesPacket::UpdateAttributesPacket() = default;
 

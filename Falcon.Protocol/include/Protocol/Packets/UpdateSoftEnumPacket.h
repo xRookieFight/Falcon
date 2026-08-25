@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/CommandEnumData.h"
+#include "protocol/Packet.h"
+#include "protocol/types/CommandEnumData.h"
 
 enum class SoftEnumUpdateType : unsigned char {
     Add = 0,

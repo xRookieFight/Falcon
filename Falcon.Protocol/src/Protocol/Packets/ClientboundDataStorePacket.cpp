@@ -1,7 +1,7 @@
-#include "Protocol/Packets/ClientboundDataStorePacket.h"
+#include "protocol/packets/ClientboundDataStorePacket.h"
 
-#include "Protocol/DataStoreCodec.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/DataStoreCodec.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ClientboundDataStorePacket::ClientboundDataStorePacket() = default;
 

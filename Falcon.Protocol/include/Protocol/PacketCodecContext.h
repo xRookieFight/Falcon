@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Types/BlockDefinitionRegistry.h"
-#include "Protocol/Types/ItemDefinitionRegistry.h"
+#include "protocol/types/BlockDefinitionRegistry.h"
+#include "protocol/types/ItemDefinitionRegistry.h"
 
 class PacketCodecContext {
 public:

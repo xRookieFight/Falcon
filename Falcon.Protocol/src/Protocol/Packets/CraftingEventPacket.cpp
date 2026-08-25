@@ -1,7 +1,7 @@
-#include "Protocol/Packets/CraftingEventPacket.h"
+#include "protocol/packets/CraftingEventPacket.h"
 
-#include "Protocol/ItemCodec.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/ItemCodec.h"
+#include "protocol/NetworkPacketHandler.h"
 
 CraftingEventPacket::CraftingEventPacket() = default;
 

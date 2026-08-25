@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Core/Utility/UUID.h"
-#include "Protocol/Packet.h"
-#include "Protocol/Types/DataStoreTypes.h"
+#include "core/utility/UUID.h"
+#include "protocol/Packet.h"
+#include "protocol/types/DataStoreTypes.h"
 
 #include <string>
 

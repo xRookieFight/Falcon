@@ -1,6 +1,6 @@
-#include "Protocol/Packets/LessonProgressPacket.h"
+#include "protocol/packets/LessonProgressPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 LessonProgressPacket::LessonProgressPacket() = default;
 

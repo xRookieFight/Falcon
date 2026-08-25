@@ -1,6 +1,6 @@
-#include "Protocol/Packets/AdventureSettingsPacket.h"
+#include "protocol/packets/AdventureSettingsPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 #include <algorithm>
 

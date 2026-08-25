@@ -1,6 +1,6 @@
-#include "Actor/MobEffect.h"
+#include "actor/MobEffect.h"
 
-#include "Actor/Actor.h"
+#include "actor/Actor.h"
 
 #include <algorithm>
 #include <cctype>

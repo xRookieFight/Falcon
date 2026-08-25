@@ -1,26 +1,26 @@
-#include "Item/Items/BucketItem.h"
+#include "item/items/BucketItem.h"
 
-#include "Actor/ItemActor.h"
-#include "Actor/ServerPlayer.h"
-#include "Block/BlockData.h"
-#include "Block/Blocks/CauldronBlock.h"
-#include "Block/Blocks/LavaBlock.h"
-#include "Block/Blocks/LiquidBlock.h"
-#include "Block/Blocks/WaterBlock.h"
-#include "Inventory/InventoryManager.h"
-#include "Inventory/PlayerInventory.h"
-#include "Level/Chunk.h"
-#include "Level/Level.h"
-#include "Network/BlockActionHandler.h"
-#include "Network/InventoryHandler.h"
-#include "Network/ServerNetworkHandler.h"
-#include "Protocol/BlockStateHasher.h"
-#include "Protocol/Packets/EntityEventPacket.h"
-#include "Protocol/Packets/LevelSoundEventPacket.h"
-#include "Protocol/Packets/UpdateBlockPacket.h"
-#include "Protocol/Types/ItemStack.h"
-#include "Protocol/Types/ItemUseTransaction.h"
-#include "Protocol/Types/StartGameTypes.h"
+#include "actor/ItemActor.h"
+#include "actor/ServerPlayer.h"
+#include "block/BlockData.h"
+#include "block/blocks/CauldronBlock.h"
+#include "block/blocks/LavaBlock.h"
+#include "block/blocks/LiquidBlock.h"
+#include "block/blocks/WaterBlock.h"
+#include "inventory/InventoryManager.h"
+#include "inventory/PlayerInventory.h"
+#include "level/LevelChunk.h"
+#include "level/Level.h"
+#include "network/handler/BlockActionHandler.h"
+#include "network/handler/InventoryHandler.h"
+#include "network/handler/ServerNetworkHandler.h"
+#include "protocol/BlockStateHasher.h"
+#include "protocol/packets/ActorEventPacket.h"
+#include "protocol/packets/LevelSoundEventPacket.h"
+#include "protocol/packets/UpdateBlockPacket.h"
+#include "protocol/types/ItemStack.h"
+#include "protocol/types/ItemUseTransaction.h"
+#include "protocol/types/StartGameTypes.h"
 
 #include <string>
 #include <vector>
@@ -42,6 +42,8 @@ BucketItem::Content BucketItem::getContent(const ItemStack &item) {
         return Content::Water;
     if (identifier == "minecraft:lava_bucket")
         return Content::Lava;
+    if (identifier == "minecraft:powder_snow_bucket")
+        return Content::PowderSnow;
     return Content::None;
 }
 
@@ -80,6 +82,8 @@ const char *BucketItem::getFilledIdentifier(Content content) {
             return "minecraft:water_bucket";
         case Content::Lava:
             return "minecraft:lava_bucket";
+        case Content::PowderSnow:
+            return "minecraft:powder_snow_bucket";
         default:
             return nullptr;
     }
@@ -98,15 +102,7 @@ bool BucketItem::applyResult(ServerNetworkHandler &owner, ServerPlayer &player, 
     result.mCount = 1;
 
     if (player.getGameType() == (int32_t) GameType::Creative) {
-        std::vector<int> touchedSlots;
-        const int remaining = inventory.addItemPartial(result, touchedSlots);
-        for (const int slot: touchedSlots)
-            player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, slot);
-        if (remaining > 0) {
-            ItemStack overflow = result;
-            overflow.mCount = remaining;
-            owner.dropItem(player.getPosition(), overflow, Vector3f(), ItemActor::DEFAULT_PICKUP_DELAY);
-        }
+        InventoryHandler::sendHeldItem(owner, player);
         return true;
     }
 
@@ -137,7 +133,7 @@ bool BucketItem::applyResult(ServerNetworkHandler &owner, ServerPlayer &player, 
 }
 
 void BucketItem::sendBlockState(ServerNetworkHandler &owner, const Vector3i &position) {
-    if (position.y < Chunk::MIN_Y || position.y > Chunk::MAX_Y)
+    if (position.y < LevelChunk::MIN_Y || position.y > LevelChunk::MAX_Y)
         return;
 
     sendBlockUpdate(owner, position, owner.getLevel().getBlockState(position.x, position.y, position.z));
@@ -169,7 +165,7 @@ void BucketItem::sendSound(ServerNetworkHandler &owner, const Vector3i &position
 }
 
 void BucketItem::sendArmSwing(ServerNetworkHandler &owner, ServerPlayer &player, const Vector3i &position) {
-    EntityEventPacket swing;
+    ActorEventPacket swing;
     swing.mRuntimeActorId = player.getRuntimeId();
     swing.mEventId = (uint8_t) EntityEventType::ArmSwing;
     swing.mEventData = 0;
@@ -216,6 +212,15 @@ bool BucketItem::use(ServerNetworkHandler &owner, ServerPlayer &player, const It
             return true;
         }
 
+        if (clickedState.mName == "minecraft:powder_snow") {
+            sendArmSwing(owner, player, clickedPosition);
+            level.setBlockState(clickedPosition.x, clickedPosition.y, clickedPosition.z, BlockState("minecraft:air"));
+            sendBlockState(owner, clickedPosition);
+            sendSound(owner, clickedPosition, "bucket_fill_powder_snow");
+            applyResult(owner, player, heldItem, "minecraft:powder_snow_bucket");
+            return true;
+        }
+
         if (!clickedLiquid.isSource() || (!clickedLiquid.isWater() && !clickedLiquid.isLava())) {
             sendBlockState(owner, clickedPosition);
             return false;
@@ -239,6 +244,10 @@ bool BucketItem::use(ServerNetworkHandler &owner, ServerPlayer &player, const It
     }
 
     if (clickedState.mName == "minecraft:cauldron") {
+        if (content == Content::PowderSnow) {
+            sendBlockState(owner, clickedPosition);
+            return false;
+        }
         const CauldronBlock cauldron(clickedState);
         const CauldronBlock::Liquid liquid = content == Content::Lava
                                             ? CauldronBlock::Liquid::Lava
@@ -261,7 +270,7 @@ bool BucketItem::use(ServerNetworkHandler &owner, ServerPlayer &player, const It
     }
 
     const Vector3i target = getPlacementPosition(transaction, clickedState);
-    if (target.y < Chunk::MIN_Y || target.y > Chunk::MAX_Y) {
+    if (target.y < LevelChunk::MIN_Y || target.y > LevelChunk::MAX_Y) {
         sendBlockState(owner, clickedPosition);
         return false;
     }
@@ -273,6 +282,10 @@ bool BucketItem::use(ServerNetworkHandler &owner, ServerPlayer &player, const It
     }
 
     const LiquidBlock targetLiquid(targetState);
+    if (content == Content::PowderSnow && targetLiquid.isLiquid()) {
+        sendBlockState(owner, target);
+        return false;
+    }
     if (targetLiquid.isLiquid()
         && targetLiquid.isWater() == (content == Content::Water)) {
         sendBlockState(owner, target);
@@ -290,15 +303,20 @@ bool BucketItem::use(ServerNetworkHandler &owner, ServerPlayer &player, const It
         level.setBlockState(target.x, target.y, target.z, hardenedState);
         sendBlockUpdate(owner, target, hardenedState);
     } else {
-        const BlockState liquidState = makeLiquidState(content);
-        level.setBlockState(target.x, target.y, target.z, liquidState);
-        level.scheduleFluidTick(target);
-        sendBlockUpdate(owner, target, liquidState);
+        const BlockState placedState = content == Content::PowderSnow
+                                       ? BlockState("minecraft:powder_snow")
+                                       : makeLiquidState(content);
+        level.setBlockState(target.x, target.y, target.z, placedState);
+        if (content != Content::PowderSnow)
+            level.scheduleFluidTick(target, LiquidBlock(placedState).getTickRate());
+        sendBlockUpdate(owner, target, placedState);
     }
 
-    const char *sound = content == Content::Water
-                       ? WaterBlock(makeLiquidState(content)).getBucketEmptySound()
-                       : LavaBlock(makeLiquidState(content)).getBucketEmptySound();
+    const char *sound = content == Content::PowderSnow
+                       ? "bucket_empty_powder_snow"
+                       : content == Content::Water
+                         ? WaterBlock(makeLiquidState(content)).getBucketEmptySound()
+                         : LavaBlock(makeLiquidState(content)).getBucketEmptySound();
     sendSound(owner, target, sound);
     applyResult(owner, player, heldItem, "minecraft:bucket");
     return true;

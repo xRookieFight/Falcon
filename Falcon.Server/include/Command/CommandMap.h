@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Command/Command.h"
+#include "command/Command.h"
 
 #include <memory>
 #include <string>
@@ -13,7 +13,7 @@ public:
 
     Command *getCommand(const std::string &name) const;
 
-    bool dispatch(CommandSender &sender, const std::string &commandLine);
+    bool dispatch(CommandOrigin &sender, const std::string &commandLine);
 
     std::vector<Command *> getCommands() const;
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Block/Block.h"
-#include "Block/BlockData.h"
+#include "block/Block.h"
+#include "block/BlockData.h"
 
 #include <string>
 #include <vector>

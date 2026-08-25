@@ -1,6 +1,6 @@
-#include "Protocol/Packets/CameraAimAssistPresetsPacket.h"
+#include "protocol/packets/CameraAimAssistPresetsPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 namespace {
 

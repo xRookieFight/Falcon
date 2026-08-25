@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Core/NBT/Tag.h"
-#include "Protocol/Packet.h"
+#include "core/nbt/Tag.h"
+#include "protocol/Packet.h"
 
 #include <string>
 

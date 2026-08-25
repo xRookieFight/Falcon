@@ -1,7 +1,7 @@
-#include "Protocol/EntityCodec.h"
+#include "protocol/EntityCodec.h"
 
-#include "Core/NBT/NbtIo.h"
-#include "Core/Utility/BinaryDataException.h"
+#include "core/nbt/NbtIo.h"
+#include "core/utility/BinaryDataException.h"
 
 void EntityCodec::writeAttribute(BinaryStream &stream, const AttributeData &attribute) {
     stream.putLFloat(attribute.mMinimum);

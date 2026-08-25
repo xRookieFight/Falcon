@@ -1,7 +1,9 @@
-#include "Level/FlatChunkGenerator.h"
+#include "level/FlatChunkGenerator.h"
 
-#include "Core/Utility/BinaryStream.h"
-#include "Protocol/BlockStateHasher.h"
+#include "block/blocks/VanillaBlocks.h"
+#include "core/utility/BinaryStream.h"
+#include "level/LevelChunk.h"
+#include "protocol/BlockStateHasher.h"
 
 #include <vector>
 
@@ -147,4 +149,23 @@ std::string FlatChunkGenerator::encodeChunk() const {
     data.push_back((char) 0);
 
     return data;
+}
+
+void FlatChunkGenerator::generate(LevelChunk &chunk) const {
+    const BlockState bedrock = VanillaBlocks::BEDROCK().toBlockState();
+    const BlockState stone = VanillaBlocks::STONE().toBlockState();
+    const BlockState grass = VanillaBlocks::GRASS().toBlockState();
+
+    for (int x = 0; x < 16; x++) {
+        for (int z = 0; z < 16; z++) {
+            chunk.setBlock(x, LevelChunk::MIN_Y, z, bedrock);
+
+            for (int32_t y = LevelChunk::MIN_Y + 1; y <= DIRT_TOP_Y; y++)
+                chunk.setBlock(x, y, z, stone);
+
+            chunk.setBlock(x, SURFACE_Y, z, grass);
+        }
+    }
+
+    chunk.clearDirty();
 }

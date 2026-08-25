@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Core/NBT/Tag.h"
-#include "Protocol/PacketCodecContext.h"
-#include "Protocol/Types/ItemStack.h"
+#include "core/nbt/Tag.h"
+#include "protocol/PacketCodecContext.h"
+#include "protocol/types/ItemStack.h"
 
 class ItemStackNbt {
 public:

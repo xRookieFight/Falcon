@@ -1,6 +1,6 @@
-#include "Protocol/Packets/PartyDestinationCookieResponsePacket.h"
+#include "protocol/packets/PartyDestinationCookieResponsePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 PartyDestinationCookieResponsePacket::PartyDestinationCookieResponsePacket() = default;
 

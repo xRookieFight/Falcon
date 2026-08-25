@@ -1,8 +1,8 @@
-#include "Protocol/Packets/AddPlayerPacket.h"
+#include "protocol/packets/AddPlayerPacket.h"
 
-#include "Protocol/EntityCodec.h"
-#include "Protocol/ItemCodec.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/EntityCodec.h"
+#include "protocol/ItemCodec.h"
+#include "protocol/NetworkPacketHandler.h"
 
 AddPlayerPacket::AddPlayerPacket() = default;
 

@@ -1,6 +1,6 @@
-#include "Protocol/Packets/GuiDataPickItemPacket.h"
+#include "protocol/packets/GuiDataPickItemPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 GuiDataPickItemPacket::GuiDataPickItemPacket() = default;
 

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Core/NBT/Tag.h"
-#include "Protocol/Types/BlockDefinition.h"
-#include "Protocol/Types/ItemDefinition.h"
+#include "core/nbt/Tag.h"
+#include "protocol/types/BlockDefinition.h"
+#include "protocol/types/ItemDefinition.h"
 
 #include <memory>
 #include <string>

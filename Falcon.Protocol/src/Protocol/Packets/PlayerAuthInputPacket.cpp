@@ -1,7 +1,7 @@
-#include "Protocol/Packets/PlayerAuthInputPacket.h"
+#include "protocol/packets/PlayerAuthInputPacket.h"
 
-#include "Protocol/InventoryCodec.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/InventoryCodec.h"
+#include "protocol/NetworkPacketHandler.h"
 
 PlayerAuthInputPacket::PlayerAuthInputPacket() = default;
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Actor/ActorAttributes.h"
+#include "actor/ActorAttributes.h"
 
 #include <cstdint>
 

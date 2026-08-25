@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/TrimMaterial.h"
-#include "Protocol/Types/TrimPattern.h"
+#include "protocol/Packet.h"
+#include "protocol/types/TrimMaterial.h"
+#include "protocol/types/TrimPattern.h"
 
 #include <vector>
 

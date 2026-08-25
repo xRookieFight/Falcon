@@ -1,10 +1,10 @@
-#include "Protocol/Packets/ItemStackRequestPacket.h"
+#include "protocol/packets/ItemStackRequestPacket.h"
 
-#include "Core/NBT/NbtIo.h"
-#include "Core/Utility/BinaryDataException.h"
-#include "Protocol/NetworkPacketHandler.h"
-#include "Protocol/Types/ContainerSlotType.h"
-#include "Protocol/Types/FullContainerName.h"
+#include "core/nbt/NbtIo.h"
+#include "core/utility/BinaryDataException.h"
+#include "protocol/NetworkPacketHandler.h"
+#include "protocol/types/ContainerSlotType.h"
+#include "protocol/types/FullContainerName.h"
 
 namespace {
     const std::string BLOCKING_ID = "minecraft:shield";

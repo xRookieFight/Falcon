@@ -1,6 +1,6 @@
-#include "Protocol/Packets/AwardAchievementPacket.h"
+#include "protocol/packets/AwardAchievementPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 AwardAchievementPacket::AwardAchievementPacket()
         : mAchievementId(0) {}

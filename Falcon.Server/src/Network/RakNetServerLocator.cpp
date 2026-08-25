@@ -1,4 +1,4 @@
-#include "Network/RakNetServerLocator.h"
+#include "network/RakNetServerLocator.h"
 
 RakNetServerLocator::RakNetServerLocator() : mRakPeer(nullptr) {}
 

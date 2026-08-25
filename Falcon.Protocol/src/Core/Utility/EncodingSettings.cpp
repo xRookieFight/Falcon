@@ -1,4 +1,4 @@
-#include "Core/Utility/EncodingSettings.h"
+#include "core/utility/EncodingSettings.h"
 
 const EncodingSettings &EncodingSettings::getDefault() {
     static const EncodingSettings settings;

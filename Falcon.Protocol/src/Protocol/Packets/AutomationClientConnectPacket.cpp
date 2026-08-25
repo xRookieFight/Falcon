@@ -1,6 +1,6 @@
-#include "Protocol/Packets/AutomationClientConnectPacket.h"
+#include "protocol/packets/AutomationClientConnectPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 AutomationClientConnectPacket::AutomationClientConnectPacket() = default;
 

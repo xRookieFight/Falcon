@@ -1,6 +1,6 @@
-#include "Protocol/Packets/UpdateSubChunkBlocksPacket.h"
+#include "protocol/packets/UpdateSubChunkBlocksPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 namespace {
 

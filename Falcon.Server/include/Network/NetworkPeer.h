@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Network/NetworkEnums.h"
+#include "network/NetworkEnums.h"
 
 #include <string>
 

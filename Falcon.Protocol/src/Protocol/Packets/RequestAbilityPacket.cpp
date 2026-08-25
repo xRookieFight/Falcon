@@ -1,6 +1,6 @@
-#include "Protocol/Packets/RequestAbilityPacket.h"
+#include "protocol/packets/RequestAbilityPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 RequestAbilityPacket::RequestAbilityPacket() = default;
 

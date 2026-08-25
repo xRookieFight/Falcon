@@ -1,6 +1,6 @@
-#include "Protocol/Packets/LevelSoundEventPacket.h"
+#include "protocol/packets/LevelSoundEventPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 LevelSoundEventPacket::LevelSoundEventPacket()
         : mExtraData(-1), mIsBabyMob(false), mDisableRelativeVolume(false), mActorUniqueId(-1),

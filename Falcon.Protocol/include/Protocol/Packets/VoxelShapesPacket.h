@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/SerializableVoxelShape.h"
+#include "protocol/Packet.h"
+#include "protocol/types/SerializableVoxelShape.h"
 
 #include <cstdint>
 #include <string>

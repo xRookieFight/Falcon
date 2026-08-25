@@ -1,6 +1,6 @@
-#include "Block/Blocks/VanillaBlocks.h"
+#include "block/blocks/VanillaBlocks.h"
 
-#include "Block/BlockTypeIds.h"
+#include "block/BlockTypeIds.h"
 
 namespace {
     Block buildFromTypeId(int32_t typeId) {

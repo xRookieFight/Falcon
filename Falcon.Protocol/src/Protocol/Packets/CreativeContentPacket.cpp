@@ -1,7 +1,7 @@
-#include "Protocol/Packets/CreativeContentPacket.h"
+#include "protocol/packets/CreativeContentPacket.h"
 
-#include "Protocol/ItemCodec.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/ItemCodec.h"
+#include "protocol/NetworkPacketHandler.h"
 
 CreativeContentPacket::CreativeContentPacket() = default;
 

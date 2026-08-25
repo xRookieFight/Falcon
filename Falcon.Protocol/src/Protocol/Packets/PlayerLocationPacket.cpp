@@ -1,6 +1,6 @@
-#include "Protocol/Packets/PlayerLocationPacket.h"
+#include "protocol/packets/PlayerLocationPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 PlayerLocationPacket::PlayerLocationPacket() = default;
 

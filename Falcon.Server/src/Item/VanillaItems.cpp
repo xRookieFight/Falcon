@@ -1,7 +1,7 @@
-#include "Item/VanillaItems.h"
+#include "item/VanillaItems.h"
 
-#include "Item/ItemData.h"
-#include "Item/ItemTypeIds.h"
+#include "item/ItemData.h"
+#include "item/ItemTypeIds.h"
 
 Item VanillaItems::AIR() {
     return Item(ItemTypeIds::AIR, "minecraft:air", "Air");

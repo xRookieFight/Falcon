@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SpawnParticleEffectPacket.h"
+#include "protocol/packets/SpawnParticleEffectPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 SpawnParticleEffectPacket::SpawnParticleEffectPacket()
         : mDimensionId(0), mUniqueActorId(-1), mHasMolangVariablesJson(false) {}

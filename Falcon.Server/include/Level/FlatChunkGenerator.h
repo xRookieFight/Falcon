@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <string>
 
+class LevelChunk;
+
 class FlatChunkGenerator {
 public:
     static const int SUB_CHUNK_COUNT = 24;
@@ -16,6 +18,8 @@ public:
     FlatChunkGenerator();
 
     std::string encodeChunk() const;
+
+    void generate(LevelChunk &chunk) const;
 
     int getSpawnY() const { return SURFACE_Y + 1; }
 

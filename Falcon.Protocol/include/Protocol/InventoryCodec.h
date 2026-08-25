@@ -1,15 +1,15 @@
 #pragma once
 
-#include "Core/Utility/BinaryStream.h"
-#include "Core/Utility/ReadOnlyBinaryStream.h"
-#include "Protocol/PacketCodecContext.h"
-#include "Protocol/Types/FullContainerName.h"
-#include "Protocol/Types/InventoryActionData.h"
-#include "Protocol/Types/InventorySource.h"
-#include "Protocol/Types/ItemStackRequest.h"
-#include "Protocol/Types/ItemStackRequestSlotData.h"
-#include "Protocol/Types/ItemUseTransaction.h"
-#include "Protocol/Types/PlayerBlockActionData.h"
+#include "core/utility/BinaryStream.h"
+#include "core/utility/ReadOnlyBinaryStream.h"
+#include "protocol/PacketCodecContext.h"
+#include "protocol/types/FullContainerName.h"
+#include "protocol/types/InventoryActionData.h"
+#include "protocol/types/InventorySource.h"
+#include "protocol/types/ItemStackRequest.h"
+#include "protocol/types/ItemStackRequestSlotData.h"
+#include "protocol/types/ItemUseTransaction.h"
+#include "protocol/types/PlayerBlockActionData.h"
 
 class InventoryCodec {
 public:

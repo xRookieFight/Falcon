@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ClientCacheBlobStatusPacket.h"
+#include "protocol/packets/ClientCacheBlobStatusPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 namespace {
 

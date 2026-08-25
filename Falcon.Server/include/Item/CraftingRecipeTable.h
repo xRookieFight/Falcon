@@ -26,10 +26,23 @@ struct CraftingRecipeData {
     int32_t mPriority;
 };
 
+struct FurnaceRecipeData {
+    const char *mRecipeId;
+    const char *mInputItemId;
+    int32_t mInputAuxValue;
+    int32_t mInputCount;
+    const char *mOutputItemId;
+    int32_t mOutputCount;
+    int32_t mPriority;
+};
+
 class CraftingRecipeTable {
 public:
     static const CraftingRecipeData *getRecipes();
     static size_t getRecipeCount();
     static const CraftingIngredientData *getIngredients();
     static const CraftingOutputData *getOutputs();
+
+    static const FurnaceRecipeData *getFurnaceRecipes();
+    static size_t getFurnaceRecipeCount();
 };

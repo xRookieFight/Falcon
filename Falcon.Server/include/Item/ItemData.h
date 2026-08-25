@@ -1,6 +1,7 @@
 #pragma once
 
-#include "Item/ItemTypes.h"
+#include "item/components/ItemComponents.h"
+#include "item/ItemTypes.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -33,4 +34,6 @@ public:
     static const ItemData &at(size_t index);
 
     static const ItemData *find(const std::string &identifier);
+
+    static const ItemComponents &getComponents(const std::string &identifier);
 };

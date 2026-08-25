@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ResourcePackClientResponsePacket.h"
+#include "protocol/packets/ResourcePackClientResponsePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 namespace {
 

@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ServerPresenceInfoPacket.h"
+#include "protocol/packets/ServerPresenceInfoPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ServerPresenceInfoPacket::ServerPresenceInfoPacket() = default;
 

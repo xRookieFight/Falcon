@@ -1,4 +1,4 @@
-#include "Core/Debug/LogAreaID.h"
+#include "core/debug/LogAreaID.h"
 
 const char *toString(LogAreaID area) {
     switch (area) {

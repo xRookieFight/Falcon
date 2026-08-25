@@ -1,6 +1,6 @@
-#include "Protocol/Packets/StructureBlockUpdatePacket.h"
+#include "protocol/packets/StructureBlockUpdatePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 namespace {
 

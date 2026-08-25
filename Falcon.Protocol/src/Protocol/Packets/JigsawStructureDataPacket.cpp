@@ -1,7 +1,7 @@
-#include "Protocol/Packets/JigsawStructureDataPacket.h"
+#include "protocol/packets/JigsawStructureDataPacket.h"
 
-#include "Core/NBT/NbtIo.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "core/nbt/NbtIo.h"
+#include "protocol/NetworkPacketHandler.h"
 
 JigsawStructureDataPacket::JigsawStructureDataPacket()
         : mJigsawStructureData(Tag::ofCompound()) {}

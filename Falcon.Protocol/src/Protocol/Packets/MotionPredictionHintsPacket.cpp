@@ -1,6 +1,6 @@
-#include "Protocol/Packets/MotionPredictionHintsPacket.h"
+#include "protocol/packets/MotionPredictionHintsPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 MotionPredictionHintsPacket::MotionPredictionHintsPacket() = default;
 

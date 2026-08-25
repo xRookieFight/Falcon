@@ -1,6 +1,6 @@
-#include "Protocol/Packets/MobEffectPacket.h"
+#include "protocol/packets/MobEffectPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 MobEffectPacket::MobEffectPacket()
         : mRuntimeActorId(0), mEvent(Event::None), mEffectId(0), mAmplifier(0), mParticles(false), mDuration(0), mTick(0), mAmbient(false) {}

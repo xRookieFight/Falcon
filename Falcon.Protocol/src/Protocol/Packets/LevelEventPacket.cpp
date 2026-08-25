@@ -1,6 +1,6 @@
-#include "Protocol/Packets/LevelEventPacket.h"
+#include "protocol/packets/LevelEventPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 LevelEventPacket::LevelEventPacket()
         : mEventId(0), mData(0) {}

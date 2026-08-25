@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Protocol/Types/CameraTypes.h"
+#include "protocol/types/CameraTypes.h"
 
 #include <cstdint>
 #include <string>

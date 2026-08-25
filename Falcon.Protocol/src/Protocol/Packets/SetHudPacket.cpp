@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SetHudPacket.h"
+#include "protocol/packets/SetHudPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 SetHudPacket::SetHudPacket() = default;
 

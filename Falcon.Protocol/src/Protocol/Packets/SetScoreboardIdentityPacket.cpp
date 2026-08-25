@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SetScoreboardIdentityPacket.h"
+#include "protocol/packets/SetScoreboardIdentityPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 SetScoreboardIdentityPacket::SetScoreboardIdentityPacket() = default;
 

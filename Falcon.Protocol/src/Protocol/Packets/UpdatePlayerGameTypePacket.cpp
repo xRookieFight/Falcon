@@ -1,6 +1,6 @@
-#include "Protocol/Packets/UpdatePlayerGameTypePacket.h"
+#include "protocol/packets/UpdatePlayerGameTypePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 UpdatePlayerGameTypePacket::UpdatePlayerGameTypePacket() = default;
 

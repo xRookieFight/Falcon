@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ContainerSetDataPacket.h"
+#include "protocol/packets/ContainerSetDataPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ContainerSetDataPacket::ContainerSetDataPacket() = default;
 

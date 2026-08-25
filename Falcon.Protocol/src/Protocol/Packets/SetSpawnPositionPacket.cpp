@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SetSpawnPositionPacket.h"
+#include "protocol/packets/SetSpawnPositionPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 SetSpawnPositionPacket::SetSpawnPositionPacket()
         : mSpawnType(Type::PlayerSpawn), mDimensionId(0), mSpawnPosition(Vector3i(-2147483647 - 1, -2147483647 - 1, -2147483647 - 1)) {}

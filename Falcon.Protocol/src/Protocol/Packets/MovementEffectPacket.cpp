@@ -1,6 +1,6 @@
-#include "Protocol/Packets/MovementEffectPacket.h"
+#include "protocol/packets/MovementEffectPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 MovementEffectPacket::MovementEffectPacket() = default;
 

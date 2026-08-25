@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ContainerOpenPacket.h"
+#include "protocol/packets/ContainerOpenPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ContainerOpenPacket::ContainerOpenPacket() = default;
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Core/Utility/UUID.h"
-#include "Protocol/Packet.h"
+#include "core/utility/UUID.h"
+#include "protocol/Packet.h"
 
 #include <string>
 #include <vector>

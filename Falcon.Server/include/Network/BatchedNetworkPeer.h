@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Network/NetworkPeer.h"
+#include "network/NetworkPeer.h"
 
 #include <deque>
 #include <memory>

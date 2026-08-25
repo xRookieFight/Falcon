@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Types/InventorySource.h"
-#include "Protocol/Types/ItemStack.h"
+#include "protocol/types/InventorySource.h"
+#include "protocol/types/ItemStack.h"
 
 #include <cstdint>
 

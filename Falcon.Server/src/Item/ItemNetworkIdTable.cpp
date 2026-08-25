@@ -1,4 +1,4 @@
-#include "Item/ItemNetworkIdTable.h"
+#include "item/ItemNetworkIdTable.h"
 
 #include <unordered_map>
 

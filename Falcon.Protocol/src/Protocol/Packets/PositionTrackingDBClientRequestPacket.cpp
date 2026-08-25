@@ -1,6 +1,6 @@
-#include "Protocol/Packets/PositionTrackingDBClientRequestPacket.h"
+#include "protocol/packets/PositionTrackingDBClientRequestPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 PositionTrackingDBClientRequestPacket::PositionTrackingDBClientRequestPacket() = default;
 

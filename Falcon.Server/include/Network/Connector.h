@@ -1,9 +1,9 @@
 #pragma once
 
-#include "Network/ConnectionDefinition.h"
-#include "Network/NetworkEnums.h"
-#include "Network/NetworkIdentifier.h"
-#include "Network/NetworkPeer.h"
+#include "network/ConnectionDefinition.h"
+#include "network/NetworkEnums.h"
+#include "network/NetworkIdentifier.h"
+#include "network/NetworkPeer.h"
 
 #include <memory>
 #include <string>

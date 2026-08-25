@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Command/CommandSender.h"
-#include "Protocol/Types/AdventureSettingData.h"
-#include "Protocol/Types/CommandData.h"
+#include "command/CommandOrigin.h"
+#include "protocol/types/AdventureSettingData.h"
+#include "protocol/types/CommandData.h"
 
 #include <string>
 #include <vector>
@@ -16,7 +16,7 @@ public:
 
     virtual ~Command() = default;
 
-    virtual bool execute(CommandSender &sender, const std::vector<std::string> &arguments) = 0;
+    virtual bool execute(CommandOrigin &sender, const std::vector<std::string> &arguments) = 0;
 
     virtual CommandPermission getRequiredPermission() const { return CommandPermission::GameDirectors; }
 

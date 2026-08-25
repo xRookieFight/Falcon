@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ResourcePackChunkDataPacket.h"
+#include "protocol/packets/ResourcePackChunkDataPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 namespace {
 

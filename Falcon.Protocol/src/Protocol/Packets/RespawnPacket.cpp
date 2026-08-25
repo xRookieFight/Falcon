@@ -1,6 +1,6 @@
-#include "Protocol/Packets/RespawnPacket.h"
+#include "protocol/packets/RespawnPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 RespawnPacket::RespawnPacket()
         : mState(State::ServerSearching), mRuntimeActorId(0) {}

@@ -1,6 +1,6 @@
-#include "Protocol/Packets/CodeBuilderPacket.h"
+#include "protocol/packets/CodeBuilderPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 CodeBuilderPacket::CodeBuilderPacket()
         : mOpening(false) {}

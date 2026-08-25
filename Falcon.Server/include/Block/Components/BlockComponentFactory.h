@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Block/Components/BlockBehavior.h"
+#include "block/components/BlockBehavior.h"
 
 #include <string>
 

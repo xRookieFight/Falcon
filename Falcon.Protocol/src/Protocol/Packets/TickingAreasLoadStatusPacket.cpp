@@ -1,6 +1,6 @@
-#include "Protocol/Packets/TickingAreasLoadStatusPacket.h"
+#include "protocol/packets/TickingAreasLoadStatusPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 TickingAreasLoadStatusPacket::TickingAreasLoadStatusPacket()
         : mWaitingForPreload(false) {}

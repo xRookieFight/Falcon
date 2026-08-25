@@ -1,9 +1,9 @@
 #pragma once
 
-#include "Core/Utility/BinaryStream.h"
-#include "Core/Utility/ReadOnlyBinaryStream.h"
-#include "Protocol/MinecraftPacketIds.h"
-#include "Protocol/PacketCodecContext.h"
+#include "core/utility/BinaryStream.h"
+#include "core/utility/ReadOnlyBinaryStream.h"
+#include "protocol/MinecraftPacketIds.h"
+#include "protocol/PacketCodecContext.h"
 
 class NetworkIdentifier;
 

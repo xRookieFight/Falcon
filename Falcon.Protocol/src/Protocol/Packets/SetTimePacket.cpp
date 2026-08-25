@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SetTimePacket.h"
+#include "protocol/packets/SetTimePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 SetTimePacket::SetTimePacket()
         : mTime(0) {}

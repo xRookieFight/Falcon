@@ -1,7 +1,7 @@
-#include "Protocol/Packets/PlayerSkinPacket.h"
+#include "protocol/packets/PlayerSkinPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
-#include "Protocol/SkinCodec.h"
+#include "protocol/NetworkPacketHandler.h"
+#include "protocol/SkinCodec.h"
 
 PlayerSkinPacket::PlayerSkinPacket() = default;
 

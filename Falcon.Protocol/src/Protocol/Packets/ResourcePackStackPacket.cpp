@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ResourcePackStackPacket.h"
+#include "protocol/packets/ResourcePackStackPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ResourcePackStackPacket::ResourcePackStackPacket()
         : mForcedToAccept(false), mExperimentsPreviouslyToggled(false), mHasEditorPacks(false) {}

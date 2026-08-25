@@ -1,4 +1,4 @@
-#include "Actor/ActorAttributes.h"
+#include "actor/ActorAttributes.h"
 
 #include <algorithm>
 #include <limits>

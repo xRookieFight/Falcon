@@ -1,10 +1,10 @@
-#include "Protocol/Packets/InventoryTransactionPacket.h"
+#include "protocol/packets/InventoryTransactionPacket.h"
 
-#include "Core/Utility/BinaryDataException.h"
-#include "Protocol/ItemCodec.h"
-#include "Protocol/NetworkPacketHandler.h"
-#include "Protocol/Types/BlockDefinition.h"
-#include "Protocol/Types/InventorySource.h"
+#include "core/utility/BinaryDataException.h"
+#include "protocol/ItemCodec.h"
+#include "protocol/NetworkPacketHandler.h"
+#include "protocol/types/BlockDefinition.h"
+#include "protocol/types/InventorySource.h"
 
 namespace {
     void writeInventorySource(BinaryStream &stream, const InventorySource &source) {

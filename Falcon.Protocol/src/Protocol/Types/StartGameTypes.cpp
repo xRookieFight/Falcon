@@ -1,4 +1,4 @@
-#include "Protocol/Types/StartGameTypes.h"
+#include "protocol/types/StartGameTypes.h"
 
 void ServerConfigurationJoinInfo::write(BinaryStream &stream) const {
     stream.putOptionalPresent(false); // gatherings configuration

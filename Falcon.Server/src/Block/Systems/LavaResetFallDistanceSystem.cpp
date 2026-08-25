@@ -1,6 +1,6 @@
-#include "Block/Systems/LavaResetFallDistanceSystem.h"
+#include "block/systems/LavaResetFallDistanceSystem.h"
 
-#include "Actor/ServerPlayer.h"
+#include "actor/ServerPlayer.h"
 
 void LavaResetFallDistanceSystem::tick(ServerPlayer &player, const LiquidContact &contact) {
     if (contact.lava)

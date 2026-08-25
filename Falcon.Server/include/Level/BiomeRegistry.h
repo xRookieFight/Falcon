@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Protocol/Types/BiomeDefinitionData.h"
+#include "protocol/types/BiomeDefinitionData.h"
 
 #include <vector>
 

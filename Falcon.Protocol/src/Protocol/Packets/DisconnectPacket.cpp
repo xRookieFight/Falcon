@@ -1,6 +1,6 @@
-#include "Protocol/Packets/DisconnectPacket.h"
+#include "protocol/packets/DisconnectPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 DisconnectPacket::DisconnectPacket()
         : mReason(0), mMessageSkipped(false) {}

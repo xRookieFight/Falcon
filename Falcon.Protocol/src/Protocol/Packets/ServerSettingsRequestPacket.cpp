@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ServerSettingsRequestPacket.h"
+#include "protocol/packets/ServerSettingsRequestPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ServerSettingsRequestPacket::ServerSettingsRequestPacket() {}
 

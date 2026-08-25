@@ -1,6 +1,6 @@
-#include "Block/Systems/LiquidBlocksFetch.h"
+#include "block/systems/LiquidBlocksFetch.h"
 
-#include "Level/Level.h"
+#include "level/Level.h"
 
 #include <cmath>
 

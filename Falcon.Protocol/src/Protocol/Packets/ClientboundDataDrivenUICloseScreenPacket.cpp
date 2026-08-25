@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ClientboundDataDrivenUICloseScreenPacket.h"
+#include "protocol/packets/ClientboundDataDrivenUICloseScreenPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ClientboundDataDrivenUICloseScreenPacket::ClientboundDataDrivenUICloseScreenPacket() = default;
 

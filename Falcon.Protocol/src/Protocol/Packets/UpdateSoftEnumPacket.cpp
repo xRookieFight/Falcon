@@ -1,6 +1,6 @@
-#include "Protocol/Packets/UpdateSoftEnumPacket.h"
+#include "protocol/packets/UpdateSoftEnumPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 UpdateSoftEnumPacket::UpdateSoftEnumPacket() = default;
 

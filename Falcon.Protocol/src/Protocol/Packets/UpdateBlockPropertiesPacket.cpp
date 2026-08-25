@@ -1,7 +1,7 @@
-#include "Protocol/Packets/UpdateBlockPropertiesPacket.h"
+#include "protocol/packets/UpdateBlockPropertiesPacket.h"
 
-#include "Core/NBT/NbtIo.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "core/nbt/NbtIo.h"
+#include "protocol/NetworkPacketHandler.h"
 
 UpdateBlockPropertiesPacket::UpdateBlockPropertiesPacket()
         : mProperties(Tag::ofCompound()) {}

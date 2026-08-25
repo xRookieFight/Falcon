@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Block/Blocks/LiquidBlock.h"
+#include "block/blocks/LiquidBlock.h"
 
 class BubbleColumnBlock : public LiquidBlock {
 public:

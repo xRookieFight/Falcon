@@ -1,6 +1,6 @@
-#include "Protocol/Packets/EducationSettingsPacket.h"
+#include "protocol/packets/EducationSettingsPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 EducationSettingsPacket::EducationSettingsPacket() = default;
 

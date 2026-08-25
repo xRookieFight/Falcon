@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/BiomeDefinitionData.h"
+#include "protocol/Packet.h"
+#include "protocol/types/BiomeDefinitionData.h"
 
 #include <vector>
 

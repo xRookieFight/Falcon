@@ -1,6 +1,6 @@
-#include "Protocol/Packets/AnimateEntityPacket.h"
+#include "protocol/packets/AnimateEntityPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 AnimateEntityPacket::AnimateEntityPacket() = default;
 

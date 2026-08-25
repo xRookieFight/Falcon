@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Protocol/Types/AttributeData.h"
+#include "protocol/types/AttributeData.h"
 
 #include <vector>
 

@@ -1,10 +1,10 @@
 #pragma once
 
-#include "Core/Math/Vector3f.h"
-#include "Core/Math/Vector3i.h"
-#include "Core/Utility/BinaryDataException.h"
-#include "Core/Utility/EncodingSettings.h"
-#include "Core/Utility/UUID.h"
+#include "core/math/Vector3f.h"
+#include "core/math/Vector3i.h"
+#include "core/utility/BinaryDataException.h"
+#include "core/utility/EncodingSettings.h"
+#include "core/utility/UUID.h"
 
 #include <cstdint>
 #include <string>

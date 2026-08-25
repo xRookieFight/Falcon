@@ -1,4 +1,4 @@
-#include "Core/Debug/LogLevel.h"
+#include "core/debug/LogLevel.h"
 
 const char *toString(LogLevel level) {
     switch (level) {

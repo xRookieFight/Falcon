@@ -1,6 +1,6 @@
-#include "Protocol/Packets/TextPacket.h"
+#include "protocol/packets/TextPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 namespace {
 

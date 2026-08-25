@@ -1,6 +1,6 @@
-#include "Protocol/Packets/AgentAnimationPacket.h"
+#include "protocol/packets/AgentAnimationPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 AgentAnimationPacket::AgentAnimationPacket() = default;
 

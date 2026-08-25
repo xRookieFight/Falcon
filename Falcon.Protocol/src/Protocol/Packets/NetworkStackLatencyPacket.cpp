@@ -1,6 +1,6 @@
-#include "Protocol/Packets/NetworkStackLatencyPacket.h"
+#include "protocol/packets/NetworkStackLatencyPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 NetworkStackLatencyPacket::NetworkStackLatencyPacket()
         : mTimestamp(0), mFromServer(false) {}

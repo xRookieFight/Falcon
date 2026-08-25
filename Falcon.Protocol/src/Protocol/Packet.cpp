@@ -1,6 +1,6 @@
-#include "Protocol/Packet.h"
+#include "protocol/Packet.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 Packet::Packet()
         : mCompressible(Compressibility::Compressible), mReliability(Reliability::ReliableOrdered),

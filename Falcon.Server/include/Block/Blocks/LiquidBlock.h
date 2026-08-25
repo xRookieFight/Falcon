@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Block/Block.h"
+#include "block/Block.h"
 
 class LiquidBlock : public Block {
 public:

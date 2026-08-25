@@ -1,6 +1,6 @@
-#include "Protocol/Packets/DeathInfoPacket.h"
+#include "protocol/packets/DeathInfoPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 DeathInfoPacket::DeathInfoPacket() = default;
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Protocol/Types/SerializedSkin.h"
+#include "protocol/types/SerializedSkin.h"
 
 #include <string>
 

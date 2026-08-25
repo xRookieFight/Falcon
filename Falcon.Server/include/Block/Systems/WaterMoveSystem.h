@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Block/Systems/LiquidBlocksFetch.h"
+#include "block/systems/LiquidBlocksFetch.h"
 
 class ServerPlayer;
 

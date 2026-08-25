@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ModalFormRequestPacket.h"
+#include "protocol/packets/ModalFormRequestPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ModalFormRequestPacket::ModalFormRequestPacket()
         : mFormId(0) {}

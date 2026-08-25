@@ -1,6 +1,6 @@
-#include "Protocol/Packets/BiomeDefinitionListPacket.h"
+#include "protocol/packets/BiomeDefinitionListPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 namespace {
 

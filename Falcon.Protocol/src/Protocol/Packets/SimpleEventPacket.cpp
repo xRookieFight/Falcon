@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SimpleEventPacket.h"
+#include "protocol/packets/SimpleEventPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 SimpleEventPacket::SimpleEventPacket()
         : mEvent(0) {}

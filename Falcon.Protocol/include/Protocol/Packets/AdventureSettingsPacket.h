@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/AdventureSettingData.h"
+#include "protocol/Packet.h"
+#include "protocol/types/AdventureSettingData.h"
 
 #include <cstdint>
 #include <vector>

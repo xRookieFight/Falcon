@@ -1,7 +1,7 @@
-#include "Protocol/Packets/PlayerListPacket.h"
+#include "protocol/packets/PlayerListPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
-#include "Protocol/SkinCodec.h"
+#include "protocol/NetworkPacketHandler.h"
+#include "protocol/SkinCodec.h"
 
 namespace {
 

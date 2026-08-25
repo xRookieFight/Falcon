@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ClientToServerHandshakePacket.h"
+#include "protocol/packets/ClientToServerHandshakePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ClientToServerHandshakePacket::ClientToServerHandshakePacket() {}
 

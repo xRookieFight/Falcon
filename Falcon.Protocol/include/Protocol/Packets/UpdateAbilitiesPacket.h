@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Packet.h"
-#include "Protocol/Types/PlayerAbilityData.h"
+#include "protocol/Packet.h"
+#include "protocol/types/PlayerAbilityData.h"
 
 #include <cstdint>
 

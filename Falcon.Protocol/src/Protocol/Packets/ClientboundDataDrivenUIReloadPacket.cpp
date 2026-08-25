@@ -1,6 +1,6 @@
-#include "Protocol/Packets/ClientboundDataDrivenUIReloadPacket.h"
+#include "protocol/packets/ClientboundDataDrivenUIReloadPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ClientboundDataDrivenUIReloadPacket::ClientboundDataDrivenUIReloadPacket() = default;
 

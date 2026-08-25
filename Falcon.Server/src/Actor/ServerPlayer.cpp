@@ -1,12 +1,27 @@
-#include "Actor/ServerPlayer.h"
+#include "actor/ServerPlayer.h"
 
-#include "Inventory/ItemStackNbt.h"
-#include "Protocol/Packets/SetTitlePacket.h"
-#include "Protocol/Packets/TextPacket.h"
-#include "Protocol/Packets/MobEffectPacket.h"
+#include "actor/DynamicPropertyStore.h"
+#include "inventory/ItemStackNbt.h"
+#include "inventory/InventoryManager.h"
+#include "item/ItemData.h"
+#include "item/ItemEnchantments.h"
+#include "network/handler/InventoryHandler.h"
+#include "network/handler/ServerNetworkHandler.h"
+#include "protocol/packets/AnimatePacket.h"
+#include "protocol/packets/ActorEventPacket.h"
+#include "protocol/packets/PlayerStartItemCooldownPacket.h"
+#include "protocol/packets/SetActorMotionPacket.h"
+#include "protocol/packets/SetTitlePacket.h"
+#include "protocol/packets/TextPacket.h"
+#include "protocol/packets/MobEffectPacket.h"
+#include "protocol/packets/MovePlayerPacket.h"
+#include "protocol/types/StartGameTypes.h"
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <cstdlib>
+#include <limits>
 #include <utility>
 
 namespace {
@@ -14,6 +29,7 @@ namespace {
     const char *TAG_MOTION = "Motion";
     const char *TAG_ROTATION = "Rotation";
     const char *TAG_HEALTH = "Health";
+    const char *TAG_FIRE = "Fire";
     const char *TAG_AIR = "Air";
     const char *TAG_LEVEL = "Level";
     const char *TAG_GAME_MODE = "playerGameType";
@@ -53,6 +69,132 @@ namespace {
 
         return values[index].asFloat();
     }
+
+    constexpr float MAX_REACH = 8.0f;
+    constexpr int ATTACK_COOLDOWN_TICKS = 10;
+
+    int protectionFactor(int level) {
+        if (level <= 0)
+            return 0;
+        return (int) std::floor((6.0f + (float) (level * level)) * 0.75f / 3.0f);
+    }
+
+    void broadcastEvent(ServerNetworkHandler &owner, const Actor &actor, EntityEventType eventType) {
+        ActorEventPacket packet;
+        packet.mRuntimeActorId = actor.getRuntimeId();
+        packet.mEventId = (uint8_t) eventType;
+        packet.mEventData = 0;
+        packet.mHasFirePosition = false;
+
+        for (const auto &entry: owner.getPlayers()) {
+            if (entry.second.isSpawned())
+                owner.getNetworkHandler().send(entry.second.getNetworkIdentifier(), packet, owner.getCodecContext());
+        }
+    }
+
+    void broadcastAnimation(ServerNetworkHandler &owner, const Actor &actor, AnimatePacket::Action action) {
+        AnimatePacket packet;
+        packet.mAction = action;
+        packet.mRuntimeActorId = actor.getRuntimeId();
+        packet.mData = 0.0f;
+        packet.mSwingSource.clear();
+
+        for (const auto &entry: owner.getPlayers()) {
+            if (entry.second.isSpawned())
+                owner.getNetworkHandler().send(entry.second.getNetworkIdentifier(), packet, owner.getCodecContext());
+        }
+    }
+
+    void sendMotion(ServerNetworkHandler &owner, const ServerPlayer &player) {
+        SetActorMotionPacket packet;
+        packet.mRuntimeActorId = player.getRuntimeId();
+        packet.mMotion = player.getMotion();
+        packet.mTick = (uint64_t) owner.getCurrentTick();
+
+        for (const auto &entry: owner.getPlayers()) {
+            if (entry.second.isSpawned())
+                owner.getNetworkHandler().send(entry.second.getNetworkIdentifier(), packet, owner.getCodecContext());
+        }
+    }
+
+    bool shouldDamageDurability(const ItemStack &item) {
+        const int unbreaking = ItemEnchantments::getLevel(item, EnchantmentIds::UNBREAKING);
+        return unbreaking <= 0 || std::rand() % (unbreaking + 1) == 0;
+    }
+
+    bool damageItem(ItemStack &item, int amount) {
+        if (item.isAir() || item.mDefinition == nullptr || amount <= 0)
+            return false;
+
+        const ItemData *data = ItemDataTable::find(item.mDefinition->getIdentifier());
+        if (data == nullptr || data->mMaxDurability <= 0)
+            return false;
+
+        int applied = 0;
+        for (int index = 0; index < amount; ++index) {
+            if (shouldDamageDurability(item))
+                ++applied;
+        }
+        item.mDamage += applied;
+        if (item.mDamage >= data->mMaxDurability)
+            item = ItemStack::air();
+        return applied > 0;
+    }
+
+    void damageArmor(ServerNetworkHandler &owner, ServerPlayer &victim, float baseDamage) {
+        const int durability = std::max(1, (int) std::floor(baseDamage / 4.0f));
+        bool changed = false;
+        PlayerInventory &inventory = victim.getInventory();
+        for (int slot = 0; slot < PlayerInventory::ARMOR_SIZE; ++slot) {
+            ItemStack armor = inventory.getArmor(slot);
+            if (armor.isAir() || !damageItem(armor, durability))
+                continue;
+            inventory.setArmor(slot, std::move(armor));
+            changed = true;
+        }
+
+        if (changed) {
+            victim.getInventoryManager().syncContents(InventoryManager::InventoryId::Armor);
+            InventoryHandler::sendArmorContent(owner, victim);
+        }
+    }
+
+    float armorReducedDamage(const ServerPlayer &victim, float amount) {
+        int armorPoints = 0;
+        int epf = 0;
+        for (int slot = 0; slot < PlayerInventory::ARMOR_SIZE; ++slot) {
+            const ItemStack &armor = victim.getInventory().getArmor(slot);
+            if (armor.isAir() || armor.mDefinition == nullptr)
+                continue;
+
+            const ItemData *data = ItemDataTable::find(armor.mDefinition->getIdentifier());
+            if (data != nullptr)
+                armorPoints += data->mArmorPoints;
+            epf += protectionFactor(ItemEnchantments::getLevel(armor, EnchantmentIds::PROTECTION));
+        }
+
+        amount *= std::max(0.0f, 1.0f - std::min(1.0f, (float) armorPoints * 0.04f));
+        if (epf > 0) {
+            const int scaled = std::min((int) std::ceil(std::min(epf, 25) *
+                                                        (50.0f + (float) (std::rand() % 51)) / 100.0f), 20);
+            amount *= std::max(0.0f, 1.0f - (float) scaled * 0.04f);
+        }
+        return amount;
+    }
+
+    void damageHeldItem(ServerPlayer &attacker) {
+        if (attacker.getGameType() == (int32_t) GameType::Creative)
+            return;
+
+        PlayerInventory &inventory = attacker.getInventory();
+        const int slot = inventory.getSelectedSlot();
+        ItemStack held = inventory.getItemInHand();
+        if (!damageItem(held, 1))
+            return;
+
+        inventory.setItem(slot, std::move(held));
+        attacker.getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, slot);
+    }
 }
 
 ServerPlayer::ServerPlayer(const NetworkIdentifier &id, uint64_t runtimeId, PacketSender *sender)
@@ -76,6 +218,138 @@ ServerPlayer::ServerPlayer(const NetworkIdentifier &id, uint64_t runtimeId, Pack
     });
 }
 
+bool ServerPlayer::attackActor(ServerNetworkHandler &owner, uint64_t targetRuntimeId) {
+    broadcastEvent(owner, *this, EntityEventType::ArmSwing);
+
+    if (!isSpawned() || isDead() || getGameType() == (int32_t) GameType::Spectator)
+        return false;
+
+    ServerPlayer *victim = nullptr;
+    for (auto &entry: owner.getPlayers()) {
+        if (entry.second.getRuntimeId() == targetRuntimeId) {
+            victim = &entry.second;
+            break;
+        }
+    }
+
+    if (victim == nullptr || victim == this || !victim->isSpawned() || victim->isDead() ||
+        victim->getGameType() == (int32_t) GameType::Spectator ||
+        victim->getGameType() == (int32_t) GameType::Creative)
+        return false;
+
+    const Vector3f delta(victim->getPosition().x - getPosition().x,
+                         victim->getPosition().y - getPosition().y,
+                         victim->getPosition().z - getPosition().z);
+    if (delta.x * delta.x + delta.y * delta.y + delta.z * delta.z > MAX_REACH * MAX_REACH)
+        return false;
+
+    const ItemStack &held = getInventory().getItemInHand();
+    const ItemData *data = held.isAir() || held.mDefinition == nullptr
+                           ? nullptr : ItemDataTable::find(held.mDefinition->getIdentifier());
+    const float baseDamage = data == nullptr || data->mAttackDamage <= 0 ? 1.0f : (float) data->mAttackDamage;
+    float damage = baseDamage;
+
+    const int sharpness = ItemEnchantments::getLevel(held, EnchantmentIds::SHARPNESS);
+    damage += sharpness > 0 ? 0.5f * (float) (sharpness + 1) : 0.0f;
+    if (const MobEffectInstance *strength = getEffect(MobEffectId::Strength))
+        damage += baseDamage * 0.3f * (float) strength->level();
+    if (const MobEffectInstance *weakness = getEffect(MobEffectId::Weakness))
+        damage -= baseDamage * 0.2f * (float) weakness->level();
+    damage = std::max(0.0f, damage);
+
+    const bool critical = !getFlags().get(ActorFlag::Sprinting) && !isFlying() && getFallDistance() > 0.0f &&
+                          !hasEffect(MobEffectId::Blindness) && !getFlags().get(ActorFlag::Swimming);
+    if (critical)
+        damage += damage * 0.5f;
+    if (damage <= 0.0f)
+        return false;
+
+    const bool coldTarget = victim->getAttackTime() <= 0;
+    const float rawDamage = damage;
+    if (victim->getNoDamageTicks() > 0) {
+        if (victim->getLastDamageAmount() >= damage)
+            return false;
+        damage -= victim->getLastDamageAmount();
+    }
+
+    const float finalDamage = armorReducedDamage(*victim, damage);
+    if (finalDamage <= 0.0f)
+        return false;
+
+    owner.applyDamage(*victim, finalDamage, "death.attack.player", {victim->getName(), getName()}, false, false);
+    if (victim->isDead())
+        return true;
+
+    victim->setNoDamageTicks(10);
+    victim->setLastDamageAmount(rawDamage);
+    if (coldTarget)
+        victim->setAttackTime(ATTACK_COOLDOWN_TICKS);
+
+    if (coldTarget) {
+        victim->knockBack(delta.x, delta.z, 0.4f);
+        const int knockback = ItemEnchantments::getLevel(held, EnchantmentIds::KNOCKBACK);
+        if (knockback > 0)
+            victim->knockBack(delta.x, delta.z, 0.5f * (float) knockback);
+        sendMotion(owner, *victim);
+    }
+
+    const int fireAspect = ItemEnchantments::getLevel(held, EnchantmentIds::FIRE_ASPECT);
+    const bool wasOnFire = victim->isOnFire();
+    if (fireAspect > 0 && !victim->hasEffect(MobEffectId::FireResistance))
+        victim->setFireTicks(std::max(victim->getFireTicks(), fireAspect * 4 * 20));
+    if (wasOnFire != victim->isOnFire())
+        owner._sendEntityData(*victim);
+
+    damageArmor(owner, *victim, damage);
+
+    int thornsDamage = 0;
+    for (int slot = 0; slot < PlayerInventory::ARMOR_SIZE; ++slot) {
+        ItemStack armor = victim->getInventory().getArmor(slot);
+        const int thorns = ItemEnchantments::getLevel(armor, EnchantmentIds::THORNS);
+        if (thorns <= 0)
+            continue;
+
+        int itemDamage = 1;
+        if ((std::rand() % 100) < std::min(100, thorns * 15)) {
+            itemDamage = 3;
+            thornsDamage += thorns > 10 ? thorns - 10 : 1 + std::rand() % 4;
+        }
+        if (damageItem(armor, itemDamage))
+            victim->getInventory().setArmor(slot, std::move(armor));
+    }
+    if (thornsDamage > 0)
+        owner.applyDamage(*this, (float) thornsDamage, "death.attack.thorns", {getName(), victim->getName()}, false,
+                          false);
+    victim->getInventoryManager().syncContents(InventoryManager::InventoryId::Armor);
+    InventoryHandler::sendArmorContent(owner, *victim);
+
+    damageHeldItem(*this);
+    exhaust(0.1f);
+    owner._sendAttributes(*this);
+
+    if (critical)
+        broadcastAnimation(owner, *victim, AnimatePacket::Action::CriticalHit);
+    if (sharpness > 0)
+        broadcastAnimation(owner, *victim, AnimatePacket::Action::MagicCriticalHit);
+    return true;
+}
+
+void ServerPlayer::teleport(ServerNetworkHandler &owner, const Vector3f &position,
+                             MovePlayerTeleportationCause cause) {
+    Actor::teleport(position);
+
+    MovePlayerPacket packet;
+    packet.mRuntimeActorId = getUniqueId();
+    packet.mPosition = Vector3f(getPosition().x, getPosition().y + 1.62f, getPosition().z);
+    packet.mRotation = getRotation();
+    packet.mMode = MovePlayerMode::Teleport;
+    packet.mOnGround = isOnGround();
+    packet.mTeleportationCause = cause;
+    packet.mActorType = 0;
+    packet.mTick = owner.getCurrentTick();
+    owner.getNetworkHandler().send(getNetworkIdentifier(), packet, owner.getCodecContext());
+}
+
 void ServerPlayer::syncEffects() {
     if (mSender == nullptr)
         return;
@@ -90,6 +364,60 @@ void ServerPlayer::syncEffects() {
         packet.mDuration = effect.mDuration;
         packet.mAmbient = effect.mAmbient;
         mSender->sendPacketTo(mId, packet);
+    }
+}
+
+bool ServerPlayer::hasItemCooldown(const ItemStack &item, int64_t currentTick) const {
+    return getItemCooldownRemaining(item, currentTick) > 0;
+}
+
+int ServerPlayer::getItemCooldownRemaining(const ItemStack &item, int64_t currentTick) const {
+    if (item.isAir() || item.mDefinition == nullptr)
+        return 0;
+
+    const CooldownItemComponent *cooldown = ItemDataTable::getComponents(item.mDefinition->getIdentifier())
+                                                    .get<CooldownItemComponent>();
+    if (cooldown == nullptr || cooldown->getCategory().empty())
+        return 0;
+
+    const auto it = mItemCooldowns.find(cooldown->getCategory());
+    if (it == mItemCooldowns.end() || it->second <= currentTick)
+        return 0;
+
+    const int64_t remaining = it->second - currentTick;
+    return remaining > std::numeric_limits<int>::max() ? std::numeric_limits<int>::max() : (int) remaining;
+}
+
+void ServerPlayer::startItemCooldown(const ItemStack &item, int64_t currentTick, int ticks) {
+    if (item.isAir() || item.mDefinition == nullptr)
+        return;
+
+    const CooldownItemComponent *cooldown = ItemDataTable::getComponents(item.mDefinition->getIdentifier())
+                                                    .get<CooldownItemComponent>();
+    if (cooldown == nullptr || cooldown->getCategory().empty())
+        return;
+
+    const std::string &category = cooldown->getCategory();
+    const int duration = ticks > 0 ? ticks : cooldown->getDurationTicks();
+    if (duration <= 0)
+        return;
+
+    mItemCooldowns[category] = currentTick + duration;
+    if (mSender == nullptr)
+        return;
+
+    PlayerStartItemCooldownPacket packet;
+    packet.mItemCategory = category;
+    packet.mCooldownDuration = duration;
+    mSender->sendPacketTo(mId, packet);
+}
+
+void ServerPlayer::tickItemCooldowns(int64_t currentTick) {
+    for (auto it = mItemCooldowns.begin(); it != mItemCooldowns.end();) {
+        if (it->second <= currentTick)
+            it = mItemCooldowns.erase(it);
+        else
+            ++it;
     }
 }
 
@@ -180,6 +508,7 @@ Tag ServerPlayer::saveNbt(const std::string &levelName) const {
     data.putFloat(TAG_FOOD_EXHAUSTION_LEVEL, getExhaustion());
     data.putFloat(TAG_FOOD_SATURATION_LEVEL, getSaturation());
     data.putInt(TAG_FOOD_TICK_TIMER, mFoodTickTimer);
+    data.putShort(TAG_FIRE, (int16_t) getFireTicks());
 
     data.putInt(TAG_XP_LEVEL, mExperience.getXpLevel());
     data.putFloat(TAG_XP_PROGRESS, mExperience.getXpProgress());
@@ -216,10 +545,16 @@ Tag ServerPlayer::saveNbt(const std::string &levelName) const {
     }
     data.put(TAG_ACTIVE_EFFECTS, activeEffects);
 
+    data.put("DynamicProperties", serializeDynamicProperties(mDynamicProperties));
+
     return data;
 }
 
 void ServerPlayer::loadNbt(const Tag &data, const PacketCodecContext &context) {
+    const Tag *dynamicProperties = data.get("DynamicProperties");
+    if (dynamicProperties != nullptr)
+        deserializeDynamicProperties(*dynamicProperties, mDynamicProperties);
+
     if (data.getType() != Tag::Type::Compound)
         return;
 
@@ -240,6 +575,7 @@ void ServerPlayer::loadNbt(const Tag &data, const PacketCodecContext &context) {
     mAirSupply = std::clamp(data.getInt(TAG_AIR, 300), 0, 300);
     mGameType = data.getInt(TAG_GAME_MODE, mGameType);
     mFirstPlayed = data.getLong(TAG_FIRST_PLAYED, 0);
+    setFireTicks(std::clamp((int) data.getShort(TAG_FIRE, 0), 0, 32767));
 
     setFood((float) data.getInt(TAG_FOOD_LEVEL, (int32_t) getFood()));
     setExhaustion(data.getFloat(TAG_FOOD_EXHAUSTION_LEVEL, getExhaustion()));

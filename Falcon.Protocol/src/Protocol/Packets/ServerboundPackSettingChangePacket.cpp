@@ -1,7 +1,7 @@
-#include "Protocol/Packets/ServerboundPackSettingChangePacket.h"
+#include "protocol/packets/ServerboundPackSettingChangePacket.h"
 
-#include "Protocol/DataStoreCodec.h"
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/DataStoreCodec.h"
+#include "protocol/NetworkPacketHandler.h"
 
 ServerboundPackSettingChangePacket::ServerboundPackSettingChangePacket() = default;
 

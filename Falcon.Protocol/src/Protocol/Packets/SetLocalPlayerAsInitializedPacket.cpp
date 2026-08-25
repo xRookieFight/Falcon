@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SetLocalPlayerAsInitializedPacket.h"
+#include "protocol/packets/SetLocalPlayerAsInitializedPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 SetLocalPlayerAsInitializedPacket::SetLocalPlayerAsInitializedPacket()
         : mRuntimeActorId(0) {}

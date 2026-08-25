@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Protocol/Types/FullContainerName.h"
-#include "Protocol/Types/ItemStackResponseSlot.h"
+#include "protocol/types/FullContainerName.h"
+#include "protocol/types/ItemStackResponseSlot.h"
 
 #include <vector>
 

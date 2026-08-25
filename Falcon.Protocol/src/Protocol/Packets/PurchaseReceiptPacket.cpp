@@ -1,6 +1,6 @@
-#include "Protocol/Packets/PurchaseReceiptPacket.h"
+#include "protocol/packets/PurchaseReceiptPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 PurchaseReceiptPacket::PurchaseReceiptPacket() = default;
 

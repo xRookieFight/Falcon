@@ -1,4 +1,4 @@
-#include "Protocol/Types/CommandOriginData.h"
+#include "protocol/types/CommandOriginData.h"
 
 void CommandOriginData::write(BinaryStream &stream) const {
     stream.putString("player");

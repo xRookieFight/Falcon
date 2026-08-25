@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Actor/Actor.h"
-#include "Protocol/Types/ItemStack.h"
+#include "actor/Actor.h"
+#include "protocol/types/ItemStack.h"
 
 class ItemActor : public Actor {
 public:

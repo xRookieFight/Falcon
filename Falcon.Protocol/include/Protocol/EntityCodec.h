@@ -1,12 +1,12 @@
 #pragma once
 
-#include "Core/Utility/BinaryStream.h"
-#include "Core/Utility/ReadOnlyBinaryStream.h"
-#include "Protocol/Types/AttributeData.h"
-#include "Protocol/Types/EntityDataMap.h"
-#include "Protocol/Types/EntityLinkData.h"
-#include "Protocol/Types/EntityProperties.h"
-#include "Protocol/Types/PlayerAbilityData.h"
+#include "core/utility/BinaryStream.h"
+#include "core/utility/ReadOnlyBinaryStream.h"
+#include "protocol/types/AttributeData.h"
+#include "protocol/types/EntityDataMap.h"
+#include "protocol/types/EntityLinkData.h"
+#include "protocol/types/EntityProperties.h"
+#include "protocol/types/PlayerAbilityData.h"
 
 class EntityCodec {
 public:

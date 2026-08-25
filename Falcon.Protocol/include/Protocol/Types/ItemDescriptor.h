@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Protocol/Types/ItemDefinition.h"
+#include "protocol/types/ItemDefinition.h"
 
 #include <cstdint>
 #include <memory>

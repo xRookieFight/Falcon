@@ -1,6 +1,6 @@
-#include "Protocol/Packets/CraftingDataPacket.h"
+#include "protocol/packets/CraftingDataPacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 CraftingDataPacket::CraftingDataPacket() = default;
 

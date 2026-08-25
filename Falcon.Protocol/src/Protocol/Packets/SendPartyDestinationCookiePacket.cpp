@@ -1,6 +1,6 @@
-#include "Protocol/Packets/SendPartyDestinationCookiePacket.h"
+#include "protocol/packets/SendPartyDestinationCookiePacket.h"
 
-#include "Protocol/NetworkPacketHandler.h"
+#include "protocol/NetworkPacketHandler.h"
 
 namespace {
 
