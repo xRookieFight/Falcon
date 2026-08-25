@@ -1,13 +1,14 @@
 #pragma once
 
 #include "Core/Math/Vector3i.h"
-#include "Protocol/Types/ItemStack.h"
+#include "Inventory/Container.h"
 
+#include <utility>
 #include <vector>
 
 class PlayerInventory;
 
-class CraftingTableInventory {
+class CraftingTableInventory : public Container {
 public:
     static const int SIZE = 9;
     static const int NETWORK_SLOT_FIRST = 32;
@@ -22,6 +23,12 @@ public:
     const std::vector<ItemStack> &getContents() const;
 
     const Vector3i &getHolder() const { return mHolder; }
+
+    int getContainerSize() const override { return SIZE; }
+
+    const ItemStack &getContainerItem(int slot) const override { return getItem(slot); }
+
+    void setContainerItem(int slot, ItemStack item) override { setItem(slot, std::move(item)); }
 
 private:
     PlayerInventory &mOwner;

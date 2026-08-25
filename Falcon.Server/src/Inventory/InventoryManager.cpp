@@ -1,6 +1,9 @@
 #include "Inventory/InventoryManager.h"
 #include "Actor/ItemActor.h"
+#include "Block/Actor/ChestBlockActor.h"
 #include "Block/Actor/FurnaceBlockActor.h"
+#include "Block/BlockActorStore.h"
+#include "Block/Systems/RedstoneSystem.h"
 #include "Inventory/InventoryManager.h"
 #include "Actor/ServerPlayer.h"
 #include "Block/Block.h"
@@ -14,6 +17,9 @@
 #include "Network/Handler/BlockActionHandler.h"
 #include "Protocol/BlockStateHasher.h"
 #include "Protocol/Packets/ContainerClosePacket.h"
+#include "Network/Handler/BlockActionHandler.h"
+#include "Protocol/Packets/BlockEventPacket.h"
+#include "Protocol/Packets/LevelSoundEventPacket.h"
 #include "Protocol/Packets/ContainerOpenPacket.h"
 #include "Protocol/Packets/ContainerSetDataPacket.h"
 #include "Protocol/Packets/UpdateBlockPacket.h"
@@ -49,9 +55,8 @@ namespace {
         }
     };
 
-    using FurnaceStoredState = FurnaceBlockActor;
+    const int32_t CHEST_ANIMATION_EVENT_TYPE = 1;
 
-    std::unordered_map<FurnaceKey, FurnaceStoredState, FurnaceKeyHash> furnaceStates;
     std::unordered_map<FurnaceKey, int64_t, FurnaceKeyHash> furnaceLastTick;
 
     const ItemStack &itemAt(const PlayerInventory &inventory, InventoryManager::InventoryId id, int slot) {
@@ -74,6 +79,26 @@ namespace {
         return PlayerInventory::getEmptyItem();
     }
 
+    class PlayerInventoryView final : public Container {
+    public:
+        PlayerInventoryView(const PlayerInventory &inventory, InventoryManager::InventoryId id, int size)
+                : mInventory(inventory), mId(id), mSize(size) {}
+
+        int getContainerSize() const override { return mSize; }
+
+        const ItemStack &getContainerItem(int slot) const override { return itemAt(mInventory, mId, slot); }
+
+        void setContainerItem(int slot, ItemStack item) override {
+            (void) slot;
+            (void) item;
+        }
+
+    private:
+        const PlayerInventory &mInventory;
+        InventoryManager::InventoryId mId;
+        int mSize;
+    };
+
     bool furnaceItemsEqual(const ItemStack &left, const ItemStack &right) {
         return left.mDefinition == right.mDefinition && left.mBlockDefinition == right.mBlockDefinition
                && left.mCount == right.mCount && left.mDamage == right.mDamage && left.mTag == right.mTag;
@@ -90,9 +115,10 @@ InventoryManager::InventoryManager()
           mClientSelectedHotbarSlot(-1), mHasPendingCloseWindow(false), mPendingCloseWindowId(CONTAINER_ID_NONE),
           mHasPendingOpenMainInventory(false) {}
 
-void InventoryManager::attach(ServerPlayer *player, PacketSender *sender) {
+void InventoryManager::attach(ServerPlayer *player, ServerNetworkHandler *owner) {
     mPlayer = player;
-    mSender = sender;
+    mOwner = owner;
+    mSender = owner;
     mLastInventoryNetworkId = CONTAINER_ID_FIRST;
     mCurrentWindowType = ContainerType::Container;
     mMainInventoryWindowId = CONTAINER_ID_NONE;
@@ -162,19 +188,23 @@ int InventoryManager::_getSize(InventoryId inventory) const {
     return 0;
 }
 
-void InventoryManager::_sendContentPackets(int containerId, InventoryId inventory) {
-    const PlayerInventory &contents = mPlayer->getInventory();
-    const int size = _getSize(inventory);
+void InventoryManager::_sendContentPackets(int containerId, const Container &container) {
+    const int size = container.getContainerSize();
 
     InventoryContentPacket content;
     content.mContainerId = containerId;
     content.mContents.reserve((size_t) size);
     for (int slot = 0; slot < size; slot++) {
-        content.mContents.push_back(itemAt(contents, inventory, slot));
+        content.mContents.push_back(container.getContainerItem(slot));
     }
     content.mContainerNameData.mContainer = ContainerSlotType::AnvilInput;
     content.mStorageItem = ItemStack::air();
     mSender->sendPacketTo(mPlayer->getNetworkIdentifier(), content);
+}
+
+void InventoryManager::_sendContentPackets(int containerId, InventoryId inventory) {
+    _sendContentPackets(containerId, PlayerInventoryView(mPlayer->getInventory(), inventory,
+                                                         _getSize(inventory)));
 }
 
 void InventoryManager::_sendSlotPackets(int containerId, int netSlot, InventoryId inventory, int slot) {
@@ -286,12 +316,13 @@ void InventoryManager::_storeFurnaceState(bool clearLocal) {
     }
 
     const FurnaceKey key{mFurnacePosition.x, mFurnacePosition.y, mFurnacePosition.z};
-    FurnaceStoredState &state = furnaceStates[key];
+    FurnaceBlockActor &state = BlockActorStore::getInstance()
+            .getOrCreate<FurnaceBlockActor>(Vector3i(key.x, key.y, key.z));
     state.mKind = mFurnaceKind;
     for (int slot = 0; slot < FurnaceInventory::SIZE; ++slot) {
         const ItemStack &local = mPlayer->getInventory().getFurnaceItem(slot);
         if (!furnaceItemsEqual(local, mFurnaceObservedItems[(size_t) slot]))
-            state.mItems[(size_t) slot] = local;
+            state.mInventory.mItems[(size_t) slot] = local;
         mFurnaceObservedItems[(size_t) slot] = local;
         if (clearLocal) {
             mPlayer->getInventory().setFurnaceItem(slot, ItemStack::air());
@@ -413,7 +444,7 @@ namespace {
         return furnaceItemsEqual(left, right);
     }
 
-    bool tickFurnaceState(ServerNetworkHandler &owner, const Vector3i &position, FurnaceStoredState &state) {
+    bool tickFurnaceState(ServerNetworkHandler &owner, const Vector3i &position, FurnaceBlockActor &state) {
         if (!FurnaceBlock::matches(owner.getLevel().getBlockState(position.x, position.y, position.z))) {
             state.mBurnTime = 0;
             state.mCookTime = 0;
@@ -421,7 +452,7 @@ namespace {
             return false;
         }
 
-        const FurnaceRecipeData *recipe = findFurnaceRecipe(state.mItems[FurnaceInventory::SLOT_INPUT]);
+        const FurnaceRecipeData *recipe = findFurnaceRecipe(state.mInventory.mItems[FurnaceInventory::SLOT_INPUT]);
         ItemStack result = ItemStack::air();
         if (recipe != nullptr) {
             result.mDefinition = owner.getItemDefinitions().getDefinition(recipe->mOutputItemId);
@@ -430,8 +461,8 @@ namespace {
             result.mCount = recipe->mOutputCount;
         }
 
-        const ItemStack &input = state.mItems[FurnaceInventory::SLOT_INPUT];
-        const ItemStack &currentOutput = state.mItems[FurnaceInventory::SLOT_OUTPUT];
+        const ItemStack &input = state.mInventory.mItems[FurnaceInventory::SLOT_INPUT];
+        const ItemStack &currentOutput = state.mInventory.mItems[FurnaceInventory::SLOT_OUTPUT];
         const bool canSmelt = recipe != nullptr && !result.isAir() && (currentOutput.isAir()
                              || (stackMatches(currentOutput, result)
                                  && currentOutput.mCount + result.mCount
@@ -439,10 +470,10 @@ namespace {
         const int previousBurn = state.mBurnTime;
         const int previousCook = state.mCookTime;
         const int previousMaxBurn = state.mMaxBurnTime;
-        const std::array<ItemStack, FurnaceInventory::SIZE> previousItems = state.mItems;
+        const std::array<ItemStack, FurnaceInventory::SIZE> previousItems = state.mInventory.mItems;
 
         if (state.mBurnTime <= 0 && canSmelt) {
-            ItemStack fuel = state.mItems[FurnaceInventory::SLOT_FUEL];
+            ItemStack fuel = state.mInventory.mItems[FurnaceInventory::SLOT_FUEL];
             const int duration = fuelTime(fuel);
             if (duration > 0 && fuel.mCount > 0) {
                 state.mBurnTime = duration;
@@ -459,7 +490,7 @@ namespace {
                         fuel = ItemStack::air();
                     }
                 }
-                state.mItems[FurnaceInventory::SLOT_FUEL] = std::move(fuel);
+                state.mInventory.mItems[FurnaceInventory::SLOT_FUEL] = std::move(fuel);
             }
         }
 
@@ -472,13 +503,13 @@ namespace {
                     ItemStack produced = result;
                     if (!currentOutput.isAir())
                         produced.mCount += currentOutput.mCount;
-                    state.mItems[FurnaceInventory::SLOT_OUTPUT] = std::move(produced);
+                    state.mInventory.mItems[FurnaceInventory::SLOT_OUTPUT] = std::move(produced);
 
                     ItemStack consumed = input;
                     consumed.mCount -= recipe->mInputCount;
                     if (consumed.mCount <= 0)
                         consumed = ItemStack::air();
-                    state.mItems[FurnaceInventory::SLOT_INPUT] = std::move(consumed);
+                    state.mInventory.mItems[FurnaceInventory::SLOT_INPUT] = std::move(consumed);
                     state.mCookTime -= duration;
                 }
             } else if (state.mBurnTime <= 0) {
@@ -507,7 +538,7 @@ namespace {
         if (previousBurn == state.mBurnTime && previousCook == state.mCookTime
             && previousMaxBurn == state.mMaxBurnTime) {
             for (int slot = 0; slot < FurnaceInventory::SIZE; ++slot) {
-                if (!sameFurnaceItem(previousItems[(size_t) slot], state.mItems[(size_t) slot]))
+                if (!sameFurnaceItem(previousItems[(size_t) slot], state.mInventory.mItems[(size_t) slot]))
                     return true;
             }
             return false;
@@ -530,7 +561,8 @@ void InventoryManager::tickFurnace(ServerNetworkHandler &owner) {
 
     _storeFurnaceState(false);
     const FurnaceKey key{mFurnacePosition.x, mFurnacePosition.y, mFurnacePosition.z};
-    FurnaceStoredState &state = furnaceStates[key];
+    FurnaceBlockActor &state = BlockActorStore::getInstance()
+            .getOrCreate<FurnaceBlockActor>(Vector3i(key.x, key.y, key.z));
     PlayerInventory &inventory = mPlayer->getInventory();
     const int previousBurn = mFurnaceBurnTime;
     const int previousMaxBurn = mFurnaceMaxBurnTime;
@@ -550,8 +582,8 @@ void InventoryManager::tickFurnace(ServerNetworkHandler &owner) {
     mFurnaceMaxBurnTime = state.mMaxBurnTime;
     mFurnaceCookTime = state.mCookTime;
     for (int slot = 0; slot < FurnaceInventory::SIZE; ++slot) {
-        if (!sameFurnaceItem(previousItems[(size_t) slot], state.mItems[(size_t) slot]))
-            inventory.setFurnaceItem(slot, state.mItems[(size_t) slot]);
+        if (!sameFurnaceItem(previousItems[(size_t) slot], state.mInventory.mItems[(size_t) slot]))
+            inventory.setFurnaceItem(slot, state.mInventory.mItems[(size_t) slot]);
         mFurnaceObservedItems[(size_t) slot] = inventory.getFurnaceItem(slot);
     }
     if (!sameFurnaceItem(previousItems[FurnaceInventory::SLOT_INPUT],
@@ -601,11 +633,12 @@ void InventoryManager::tickStoredFurnaces(ServerNetworkHandler &owner) {
         openPositions[FurnaceKey{position.x, position.y, position.z}] = true;
     }
 
-    for (auto &entry: furnaceStates) {
-        if (openPositions.find(entry.first) != openPositions.end())
+    for (FurnaceBlockActor *furnace: BlockActorStore::getInstance().findAll<FurnaceBlockActor>()) {
+        const Vector3i &position = furnace->getPosition();
+        if (openPositions.find(FurnaceKey{position.x, position.y, position.z}) != openPositions.end())
             continue;
-        const FurnaceKey &key = entry.first;
-        tickFurnaceState(owner, Vector3i(key.x, key.y, key.z), entry.second);
+
+        tickFurnaceState(owner, position, *furnace);
     }
 }
 
@@ -617,17 +650,17 @@ void InventoryManager::onFurnaceBroken(ServerNetworkHandler &owner, const Vector
     }
 
     const FurnaceKey key{position.x, position.y, position.z};
-    const auto it = furnaceStates.find(key);
-    if (it == furnaceStates.end())
+    FurnaceBlockActor *furnace = BlockActorStore::getInstance().find<FurnaceBlockActor>(position);
+    if (furnace == nullptr)
         return;
 
     const Vector3f dropPosition((float) position.x + 0.5f, (float) position.y + 0.5f,
                                 (float) position.z + 0.5f);
-    for (const ItemStack &item: it->second.mItems) {
+    for (const ItemStack &item: furnace->mInventory.mItems) {
         if (!item.isAir() && item.mCount > 0)
             owner.dropItem(dropPosition, item, Vector3f(0.0f, 0.2f, 0.0f), ItemActor::DEFAULT_PICKUP_DELAY);
     }
-    furnaceStates.erase(it);
+    BlockActorStore::getInstance().remove(position);
     furnaceLastTick.erase(key);
 }
 
@@ -768,6 +801,86 @@ bool InventoryManager::openContainer(ContainerType type, const Vector3i &positio
     return true;
 }
 
+Container *InventoryManager::getContainer() {
+    if (!isContainerOpen())
+        return nullptr;
+
+    BlockActor *blockActor = BlockActorStore::getInstance().find(mContainerPosition);
+    return blockActor == nullptr ? nullptr : blockActor->getContainer();
+}
+
+bool InventoryManager::onClientOpenChest(const Vector3i &position) {
+    if (mPlayer == nullptr || mSender == nullptr)
+        return false;
+
+    if (mContainerWindowId != CONTAINER_ID_NONE)
+        return mContainerPosition == position;
+
+    if (mMainInventoryWindowId != CONTAINER_ID_NONE || mCraftingTableWindowId != CONTAINER_ID_NONE
+        || mFurnaceWindowId != CONTAINER_ID_NONE || mHasPendingCloseWindow)
+        return false;
+
+    ChestBlockActor *chest = BlockActorStore::getInstance().find<ChestBlockActor>(position);
+    if (chest == nullptr)
+        return false;
+
+    const int windowId = _getNewWindowId();
+    mContainerWindowId = windowId;
+    mContainerPosition = position;
+    mCurrentWindowType = ContainerType::Container;
+
+    ContainerOpenPacket open;
+    open.mWindowId = (int8_t) windowId;
+    open.mType = ContainerType::Container;
+    open.mBlockPosition = chest->getPrimary()->getPosition();
+    open.mUniqueActorId = -1;
+    mSender->sendPacketTo(mPlayer->getNetworkIdentifier(), open);
+
+    Container *container = getContainer();
+    if (container != nullptr)
+        _sendContentPackets(windowId, *container);
+
+    chest->addViewer();
+    RedstoneSystem::queueRedstoneNotification(position);
+
+    if (chest->getViewerCount() == 1)
+        _animateChest(*chest, true);
+
+    return true;
+}
+
+void InventoryManager::_animateChest(ChestBlockActor &chest, bool open) {
+    if (mOwner == nullptr)
+        return;
+
+    const Vector3i &position = chest.getPosition();
+    const Vector3f center((float) position.x + 0.5f, (float) position.y + 0.5f, (float) position.z + 0.5f);
+
+    BlockEventPacket event;
+    event.mBlockPosition = position;
+    event.mEventType = CHEST_ANIMATION_EVENT_TYPE;
+    event.mEventData = open ? 1 : 0;
+    BlockActionHandler::broadcastToViewers(*mOwner, center, event);
+
+    mOwner->playLevelSound(open ? LevelSoundEvent::CHEST_OPEN : LevelSoundEvent::CHEST_CLOSED, center);
+
+    ChestBlockActor *pair = chest.getPair();
+    if (pair == nullptr)
+        return;
+
+    const Vector3i &pairPosition = pair->getPosition();
+
+    BlockEventPacket pairEvent;
+    pairEvent.mBlockPosition = pairPosition;
+    pairEvent.mEventType = CHEST_ANIMATION_EVENT_TYPE;
+    pairEvent.mEventData = open ? 1 : 0;
+    BlockActionHandler::broadcastToViewers(*mOwner,
+                                           Vector3f((float) pairPosition.x + 0.5f,
+                                                    (float) pairPosition.y + 0.5f,
+                                                    (float) pairPosition.z + 0.5f),
+                                           pairEvent);
+}
+
 bool InventoryManager::onClientOpenFurnace(const Vector3i &position, FurnaceKind kind, ContainerType type) {
     if (mPlayer == nullptr || mSender == nullptr) {
         return false;
@@ -789,14 +902,15 @@ bool InventoryManager::onClientOpenFurnace(const Vector3i &position, FurnaceKind
     mFurnaceMaxBurnTime = 0;
     mFurnaceCookTime = 0;
     const FurnaceKey key{position.x, position.y, position.z};
-    FurnaceStoredState &state = furnaceStates[key];
+    FurnaceBlockActor &state = BlockActorStore::getInstance()
+            .getOrCreate<FurnaceBlockActor>(Vector3i(key.x, key.y, key.z));
     state.mKind = kind;
     mFurnaceBurnTime = state.mBurnTime;
     mFurnaceMaxBurnTime = state.mMaxBurnTime;
     mFurnaceCookTime = state.mCookTime;
     for (int slot = 0; slot < FurnaceInventory::SIZE; ++slot) {
-        mPlayer->getInventory().setFurnaceItem(slot, state.mItems[(size_t) slot]);
-        mFurnaceObservedItems[(size_t) slot] = state.mItems[(size_t) slot];
+        mPlayer->getInventory().setFurnaceItem(slot, state.mInventory.mItems[(size_t) slot]);
+        mFurnaceObservedItems[(size_t) slot] = state.mInventory.mItems[(size_t) slot];
     }
     mCurrentWindowType = type;
 
@@ -857,6 +971,19 @@ void InventoryManager::onClientRemoveWindow(int windowId) {
 
     if (windowId == mCraftingTableWindowId) {
         mCraftingTableWindowId = CONTAINER_ID_NONE;
+    }
+
+    if (windowId == mContainerWindowId) {
+        ChestBlockActor *chest = BlockActorStore::getInstance().find<ChestBlockActor>(mContainerPosition);
+        if (chest != nullptr) {
+            const bool wasLastViewer = chest->getViewerCount() == 1;
+            chest->removeViewer();
+            RedstoneSystem::queueRedstoneNotification(mContainerPosition);
+
+            if (wasLastViewer)
+                _animateChest(*chest, false);
+        }
+        mContainerWindowId = CONTAINER_ID_NONE;
     }
     if (windowId == mFurnaceWindowId) {
         _storeFurnaceState(true);

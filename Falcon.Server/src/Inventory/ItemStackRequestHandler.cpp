@@ -22,6 +22,8 @@ namespace {
         std::vector<ItemStack> *mDroppedItems = nullptr;
         bool mCraftingTableOpen = false;
         bool mFurnaceOpen = false;
+        Container *mOpenContainer = nullptr;
+        std::vector<ItemStack> mContainerSlots;
         CraftingRecipeMatch mCraftingMatch;
         std::vector<int32_t> mCraftingRequired;
         std::vector<int32_t> mCraftingConsumed;
@@ -35,6 +37,13 @@ namespace {
                            int slot) {
         if (container == ContainerSlotType::CreatedOutput) {
             return (slot == 0 || slot == 50) ? &context.mCreatedOutput : nullptr;
+        }
+        if (container == ContainerSlotType::LevelEntity) {
+            if (context.mOpenContainer == nullptr || slot < 0
+                || (size_t) slot >= context.mContainerSlots.size()) {
+                return nullptr;
+            }
+            return &context.mContainerSlots[(size_t) slot];
         }
         if (container == ContainerSlotType::CraftingInput
             && slot >= PlayerInventory::CRAFTING_TABLE_NETWORK_SLOT_FIRST
@@ -368,6 +377,7 @@ ItemStackResponseEntry ItemStackRequestHandler::execute(PlayerInventory &invento
                                                        const std::vector<uint32_t> &recipeSourceIndices,
                                                        bool craftingTableOpen,
                                                        bool furnaceOpen,
+                                                       Container *openContainer,
                                                        std::vector<ItemStack> *outDroppedItems) {
     ItemStackResponseEntry entry;
     entry.mRequestId = request.mRequestId;
@@ -385,6 +395,14 @@ ItemStackResponseEntry ItemStackRequestHandler::execute(PlayerInventory &invento
     context.mDroppedItems = &localDroppedItems;
     context.mCraftingTableOpen = craftingTableOpen;
     context.mFurnaceOpen = furnaceOpen;
+    context.mOpenContainer = openContainer;
+
+    if (openContainer != nullptr) {
+        const int containerSize = openContainer->getContainerSize();
+        context.mContainerSlots.reserve((size_t) containerSize);
+        for (int slot = 0; slot < containerSize; ++slot)
+            context.mContainerSlots.push_back(openContainer->getContainerItem(slot));
+    }
 
     for (const ItemStackRequestAction &action: request.mActions) {
         if (!applyAction(working, context, action, touched)) {
@@ -414,6 +432,11 @@ ItemStackResponseEntry ItemStackRequestHandler::execute(PlayerInventory &invento
         return entry;
     }
 
+    if (openContainer != nullptr) {
+        for (size_t slot = 0; slot < context.mContainerSlots.size(); ++slot)
+            openContainer->setContainerItem((int) slot, context.mContainerSlots[slot]);
+    }
+
     inventory = std::move(working);
     if (outDroppedItems != nullptr) {
         outDroppedItems->insert(outDroppedItems->end(), localDroppedItems.begin(), localDroppedItems.end());
@@ -421,6 +444,17 @@ ItemStackResponseEntry ItemStackRequestHandler::execute(PlayerInventory &invento
 
     for (const TouchedSlot &slot: touched) {
         if (slot.mContainer == ContainerSlotType::CreatedOutput) {
+            continue;
+        }
+
+        if (slot.mContainer == ContainerSlotType::LevelEntity) {
+            if (openContainer == nullptr || slot.mSlot < 0
+                || (size_t) slot.mSlot >= context.mContainerSlots.size()) {
+                continue;
+            }
+
+            appendResponseSlot(entry.mContainers, slot.mContainer, slot.mSlot,
+                               context.mContainerSlots[(size_t) slot.mSlot]);
             continue;
         }
 

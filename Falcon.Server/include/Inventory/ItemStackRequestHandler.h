@@ -20,5 +20,6 @@ public:
                                           const std::vector<uint32_t> &recipeSourceIndices,
                                           bool craftingTableOpen,
                                           bool furnaceOpen,
+                                          Container *openContainer = nullptr,
                                           std::vector<ItemStack> *outDroppedItems = nullptr);
 };

@@ -1,12 +1,13 @@
 #pragma once
 
+#include "Inventory/Container.h"
 #include "Protocol/Types/ContainerSlotType.h"
-#include "Protocol/Types/ItemStack.h"
 
 #include <cstdint>
+#include <utility>
 #include <vector>
 
-class PlayerInventory {
+class PlayerInventory : public Container {
 public:
     static const int HOTBAR_SIZE = 9;
     static const int CONTAINER_SIZE = 36;
@@ -45,6 +46,12 @@ public:
     const ItemStack &getItem(int slot) const;
 
     void setItem(int slot, ItemStack item);
+
+    int getContainerSize() const override { return CONTAINER_SIZE; }
+
+    const ItemStack &getContainerItem(int slot) const override { return getItem(slot); }
+
+    void setContainerItem(int slot, ItemStack item) override { setItem(slot, std::move(item)); }
 
     const ItemStack &getArmor(int slot) const;
 

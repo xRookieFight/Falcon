@@ -3,6 +3,7 @@
 #include "Core/Debug/BedrockLog.h"
 #include "Actor/ServerPlayer.h"
 #include "Inventory/InventoryManager.h"
+#include "Item/VanillaItems.h"
 #include "Inventory/CraftingManager.h"
 #include "Block/Inventory/CraftingTableInventory.h"
 #include "Block/Inventory/FurnaceInventory.h"
@@ -160,6 +161,7 @@ void InventoryHandler::handleItemStackRequest(ServerNetworkHandler &owner, const
                                                                        owner.getRecipeSourceIndices(),
                                                                        player.getInventoryManager().isCraftingTableOpen(),
                                                                        player.getInventoryManager().isFurnaceOpen(),
+                                                                       player.getInventoryManager().getContainer(),
                                                                        &droppedItems);
         if (entry.mResult != ItemStackRequestHandler::RESULT_OK)
             needsResync = true;
@@ -223,6 +225,17 @@ void InventoryHandler::handleTransaction(ServerNetworkHandler &owner, ServerPlay
 
     if (packet.mTransactionType == InventoryTransactionType::ItemRelease) {
         const bool wasUsing = player.getFlags().get(ActorFlag::UsingItem);
+
+        const ItemStack &releasedItem = player.getInventory().getItemInHand();
+        if (wasUsing && !releasedItem.isAir() && releasedItem.mDefinition != nullptr) {
+            const Item *itemType = VanillaItems::fromIdentifier(releasedItem.mDefinition->getIdentifier());
+            const int32_t elapsedTicks = (int32_t) (owner.getCurrentTick() - player.getItemUseStartTick());
+            if (itemType != nullptr && itemType->onStopUsing(owner, player, releasedItem, elapsedTicks)) {
+                player.getFlags().set(ActorFlag::UsingItem, false);
+                owner._sendEntityData(player);
+                return;
+            }
+        }
 
         owner._consumeHeldItem(player);
 

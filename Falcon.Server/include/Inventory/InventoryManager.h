@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Math/Vector3i.h"
+#include "Inventory/Container.h"
 #include "Protocol/Types/ContainerType.h"
 #include "Protocol/Types/ItemStack.h"
 
@@ -12,6 +13,7 @@ class NetworkIdentifier;
 class PacketSender;
 class ServerPlayer;
 class ServerNetworkHandler;
+class ChestBlockActor;
 enum class FurnaceKind : uint8_t;
 
 class InventoryManager {
@@ -38,7 +40,7 @@ public:
 
     InventoryManager();
 
-    void attach(ServerPlayer *player, PacketSender *sender);
+    void attach(ServerPlayer *player, ServerNetworkHandler *owner);
 
     void syncAll();
 
@@ -78,6 +80,16 @@ public:
 
     static void onFurnaceBroken(ServerNetworkHandler &owner, const Vector3i &position);
 
+    bool onClientOpenChest(const Vector3i &position);
+
+    bool isContainerOpen() const { return mContainerWindowId != CONTAINER_ID_NONE; }
+
+    int getContainerWindowId() const { return mContainerWindowId; }
+
+    const Vector3i &getContainerPosition() const { return mContainerPosition; }
+
+    Container *getContainer();
+
     void syncCraftingTableState(const std::vector<ItemStack> &recipeOutputs,
                                 const std::vector<uint32_t> &recipeSourceIndices);
 
@@ -103,6 +115,10 @@ private:
 
     int _getSize(InventoryId inventory) const;
 
+    void _animateChest(ChestBlockActor &chest, bool open);
+
+    void _sendContentPackets(int containerId, const Container &container);
+
     void _sendContentPackets(int containerId, InventoryId inventory);
 
     void _sendSlotPackets(int containerId, int netSlot, InventoryId inventory, int slot);
@@ -113,11 +129,14 @@ private:
 
     ServerPlayer *mPlayer;
     PacketSender *mSender;
+    ServerNetworkHandler *mOwner = nullptr;
     int mLastInventoryNetworkId;
     ContainerType mCurrentWindowType;
     int mMainInventoryWindowId;
     int mCraftingTableWindowId;
     Vector3i mCraftingTablePosition;
+    int mContainerWindowId = CONTAINER_ID_NONE;
+    Vector3i mContainerPosition;
     int mFurnaceWindowId;
     Vector3i mFurnacePosition;
     FurnaceKind mFurnaceKind;

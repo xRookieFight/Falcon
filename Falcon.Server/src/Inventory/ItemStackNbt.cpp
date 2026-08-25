@@ -119,6 +119,8 @@ ItemStack ItemStackNbt::read(const Tag &data, const PacketCodecContext &context)
 
         if (item.mBlockDefinition == nullptr)
             LOG_ERROR(LogAreaID::Server, "Unknown block %s on saved item %s", blockName.c_str(), name.c_str());
+    } else {
+        item.mBlockDefinition = context.getBlockDefinitions().getDefinition(name);
     }
 
     readStringList(data, TAG_CAN_PLACE, item.mCanPlace);

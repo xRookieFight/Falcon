@@ -1,4 +1,4 @@
-#include "Block/Inventory/FurnaceInventory.h"
+#include "Block/Inventory/ChestInventory.h"
 
 #include "Inventory/ItemStackNbt.h"
 
@@ -14,30 +14,34 @@ namespace {
     }
 }
 
-int FurnaceInventory::cookDuration(FurnaceKind kind) {
-    return kind == FurnaceKind::Furnace ? 200 : 100;
-}
-
-const ItemStack &FurnaceInventory::getContainerItem(int slot) const {
+const ItemStack &ChestInventory::getContainerItem(int slot) const {
     if (slot < 0 || slot >= SIZE)
         return emptyItem();
 
     return mItems[(size_t) slot];
 }
 
-void FurnaceInventory::setContainerItem(int slot, ItemStack item) {
+void ChestInventory::setContainerItem(int slot, ItemStack item) {
     if (slot < 0 || slot >= SIZE)
         return;
 
     mItems[(size_t) slot] = std::move(item);
 }
 
-void FurnaceInventory::clear() {
+bool ChestInventory::isEmpty() const {
+    for (const ItemStack &item: mItems) {
+        if (!item.isAir())
+            return false;
+    }
+    return true;
+}
+
+void ChestInventory::clear() {
     for (ItemStack &item: mItems)
         item = ItemStack::air();
 }
 
-Tag FurnaceInventory::saveNbt() const {
+Tag ChestInventory::saveNbt() const {
     std::vector<Tag> items;
     for (int slot = 0; slot < SIZE; ++slot) {
         const ItemStack &item = mItems[(size_t) slot];
@@ -50,7 +54,7 @@ Tag FurnaceInventory::saveNbt() const {
     return data;
 }
 
-void FurnaceInventory::loadNbt(const Tag &data, const PacketCodecContext &context) {
+void ChestInventory::loadNbt(const Tag &data, const PacketCodecContext &context) {
     clear();
 
     const Tag *items = data.get(TAG_ITEMS);
@@ -64,4 +68,20 @@ void FurnaceInventory::loadNbt(const Tag &data, const PacketCodecContext &contex
 
         mItems[(size_t) slot] = ItemStackNbt::read(entry, context);
     }
+}
+
+const ItemStack &DoubleChestInventory::getContainerItem(int slot) const {
+    if (slot < ChestInventory::SIZE)
+        return mLeft.getContainerItem(slot);
+
+    return mRight.getContainerItem(slot - ChestInventory::SIZE);
+}
+
+void DoubleChestInventory::setContainerItem(int slot, ItemStack item) {
+    if (slot < ChestInventory::SIZE) {
+        mLeft.setContainerItem(slot, std::move(item));
+        return;
+    }
+
+    mRight.setContainerItem(slot - ChestInventory::SIZE, std::move(item));
 }
