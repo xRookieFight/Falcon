@@ -26,7 +26,7 @@ public:
 
     void writePersistent(BinaryStream &stream) const;
 
-    bool readPersistent(ReadOnlyBinaryStream &stream);
+    bool readPersistent(ReadOnlyBinaryStream &stream, bool *replacedUnknown = nullptr);
 
 private:
     static int _index(int x, int y, int z) { return (x << 8) | (z << 4) | y; }

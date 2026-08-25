@@ -73,6 +73,20 @@ void Level::saveAll() {
         LOG_INFO(LogAreaID::Server, "Saved %zu chunk(s) for level %s", saved, mName.c_str());
 }
 
+void Level::saveEntities(int32_t chunkX, int32_t chunkZ, const std::vector<Tag> &entities) {
+    if (!mStorage.isOpen())
+        return;
+
+    mStorage.saveEntities(chunkX, chunkZ, entities);
+}
+
+std::vector<Tag> Level::loadEntities(int32_t chunkX, int32_t chunkZ) {
+    if (!mStorage.isOpen())
+        return std::vector<Tag>();
+
+    return mStorage.loadEntities(chunkX, chunkZ);
+}
+
 void Level::closeStorage() {
     saveAll();
 

@@ -6,6 +6,7 @@
 #include "Block/Blocks/FurnaceBlock.h"
 #include "Actor/ServerPlayer.h"
 #include "Item/ItemData.h"
+#include "Scripting/Content/CustomContentRegistry.h"
 #include "Item/ItemEnchantments.h"
 #include "Item/Items/BucketItem.h"
 #include "Item/StringToItemParser.h"
@@ -78,9 +79,22 @@ namespace {
                                   ? nullptr
                                   : ItemDataTable::find(heldItem.mDefinition->getIdentifier());
 
-        const bool matchesTool = itemData != nullptr && blockData->mToolType != BlockToolType::None &&
+        bool customTool = false;
+        int32_t customSpeed = 0;
+        bool customUseEfficiency = false;
+        if (itemData == nullptr && !heldItem.isAir() && heldItem.mDefinition != nullptr) {
+            const bool standardTool = blockData->mToolType == BlockToolType::Pickaxe ||
+                                      blockData->mToolType == BlockToolType::Shovel ||
+                                      blockData->mToolType == BlockToolType::Axe ||
+                                      blockData->mToolType == BlockToolType::Hoe;
+            customSpeed = CustomContentRegistry::getInstance().getDiggerSpeed(
+                    heldItem.mDefinition->getIdentifier(), blockData->mName, standardTool, customUseEfficiency);
+            customTool = customSpeed > 0;
+        }
+
+        const bool matchesTool = customTool || (itemData != nullptr && blockData->mToolType != BlockToolType::None &&
                                 (int32_t) itemData->mToolType == (int32_t) blockData->mToolType &&
-                                itemData->mToolTier >= (int32_t) blockData->mToolTier;
+                                itemData->mToolTier >= (int32_t) blockData->mToolTier);
 
         const bool canHarvest = blockData->mToolType == BlockToolType::None || blockData->mHandHarvest ||
                                 matchesTool;
@@ -91,10 +105,12 @@ namespace {
         const bool correctTool = matchesTool;
 
         if (correctTool)
-            speedMultiplier = toolSpeedMultiplier((BlockToolTier) (itemData == nullptr ? 0 : itemData->mToolTier));
+            speedMultiplier = customTool ? (float) customSpeed
+                                         : toolSpeedMultiplier((BlockToolTier) (itemData == nullptr ? 0
+                                                                                                    : itemData->mToolTier));
 
         const int32_t efficiencyLevel = ItemEnchantments::getLevel(heldItem, EnchantmentIds::EFFICIENCY);
-        if (correctTool && canHarvest && efficiencyLevel > 0)
+        if (correctTool && canHarvest && efficiencyLevel > 0 && (!customTool || customUseEfficiency))
             speedMultiplier += (float) (efficiencyLevel * efficiencyLevel + 1);
 
         const MobEffectInstance *haste = player.getEffect(MobEffectId::Haste);
@@ -323,6 +339,9 @@ void BlockActionHandler::breakBlock(ServerNetworkHandler &owner, ServerPlayer &p
 
     PlayerBreakBlockAfterEvent brokenEvent(player, position, brokenIdentifier);
     owner.getEventBus().after().mPlayerBreakBlock.emit(brokenEvent);
+
+    if (brokenData != nullptr && brokenData->mHardness > 0.0f)
+        owner.damagePlayerHeldItem(player, 1);
 
     if (brokenData != nullptr && player.getGameType() != (int32_t) GameType::Creative) {
         const ItemStack &heldItem = player.getInventory().getItemInHand();
@@ -598,6 +617,9 @@ void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &p
         inventory.setSelectedSlot(transaction.mHotbarSlot);
         selectedSlotChanged = true;
     }
+
+    owner.getScriptEngine().onItemUseOnBlock(player, transaction.mBlockPosition.x,
+                                             transaction.mBlockPosition.y, transaction.mBlockPosition.z);
 
     Level &level = owner.getLevel();
     const BlockState clickedState = level.getBlockState(transaction.mBlockPosition.x,

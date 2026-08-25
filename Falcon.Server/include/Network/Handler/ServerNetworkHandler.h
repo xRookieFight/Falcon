@@ -34,6 +34,7 @@
 #include <vector>
 #include <queue>
 #include <unordered_map>
+#include <unordered_set>
 #include <memory>
 #include <string>
 #include <functional>
@@ -142,7 +143,10 @@ public:
 
     void playPlayerAnimation(ServerPlayer &player, const std::string &animation);
 
-    void setPlayerEquipment(ServerPlayer &player, const std::string &slot, const std::string &typeId, int32_t amount);
+    void setPlayerEquipment(ServerPlayer &player, const std::string &slot, const std::string &typeId, int32_t amount,
+                            int32_t damage = 0, const Tag &dynamicProperties = Tag());
+
+    void damagePlayerHeldItem(ServerPlayer &player, int32_t amount);
 
     void setContainerSlot(ServerPlayer &player, int32_t slot, const std::string &typeId, int32_t amount,
                           const Tag &dynamicProperties);
@@ -165,6 +169,14 @@ public:
     void syncPlayerAttributes(ServerPlayer &player);
 
     void tickActors();
+
+    void loadActorsForChunk(int32_t chunkX, int32_t chunkZ);
+
+    void saveActorsForChunk(int32_t chunkX, int32_t chunkZ, bool cull);
+
+    void saveAllActors();
+
+    void syncActorPersistence(const std::vector<int64_t> &activeColumns);
 
     void emitItemUse(ServerPlayer &player);
 
@@ -429,6 +441,7 @@ private:
 
     std::unordered_map<NetworkIdentifier, ServerPlayer, NetworkIdentifier::Hasher> mPlayers;
     std::unordered_map<int64_t, std::unique_ptr<ServerActor>> mActors;
+    std::unordered_set<int64_t> mActorLoadedChunks;
     std::unordered_map<std::string, DynamicPropertyValue> mWorldDynamicProperties;
     std::unordered_map<std::string, int64_t> mScoreboardIds;
     int64_t mNextScoreboardId = 1;

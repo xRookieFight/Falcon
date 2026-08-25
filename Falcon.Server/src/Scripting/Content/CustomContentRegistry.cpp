@@ -116,6 +116,29 @@ int32_t CustomContentRegistry::getItemMaxStackSize(const std::string &identifier
     return 0;
 }
 
+int32_t CustomContentRegistry::getDiggerSpeed(const std::string &itemId, const std::string &blockName,
+                                              bool blockNeedsStandardTool, bool &useEfficiency) const {
+    for (const CustomItemDefinition &item: mItems) {
+        if (item.mIdentifier != itemId)
+            continue;
+
+        if (!item.mHasDigger)
+            return 0;
+
+        useEfficiency = item.mDiggerUseEfficiency;
+
+        const auto it = item.mDiggerBlockSpeeds.find(blockName);
+        if (it != item.mDiggerBlockSpeeds.end())
+            return it->second;
+
+        if (blockNeedsStandardTool)
+            return item.mDiggerToolSpeed;
+
+        return 0;
+    }
+    return 0;
+}
+
 const CustomActorDefinition *CustomContentRegistry::getActorDefinition(const std::string &identifier) const {
     for (const CustomActorDefinition &actor: mActors) {
         if (actor.mIdentifier == identifier)
@@ -493,6 +516,49 @@ void CustomContentRegistry::_loadPackItems(const std::string &packPath, ItemDefi
                 if (food->get("can_always_eat") != nullptr)
                     definition.mCanAlwaysEat = food->get("can_always_eat")->boolean(false);
             }
+
+            const json::Value *durability = components->get("minecraft:durability");
+            if (durability != nullptr && durability->isObject() && durability->get("max_durability") != nullptr)
+                definition.mMaxDurability = durability->get("max_durability")->integer(0);
+
+            const json::Value *customComponents = components->get("minecraft:custom_components");
+            if (customComponents != nullptr && customComponents->isArray()) {
+                for (const std::unique_ptr<json::Value> &entry: customComponents->mArray) {
+                    if (entry->isString())
+                        definition.mCustomComponents.push_back(entry->string());
+                }
+            }
+
+            const json::Value *digger = components->get("minecraft:digger");
+            if (digger != nullptr && digger->isObject()) {
+                definition.mHasDigger = true;
+                if (digger->get("use_efficiency") != nullptr)
+                    definition.mDiggerUseEfficiency = digger->get("use_efficiency")->boolean(false);
+
+                const json::Value *destroySpeeds = digger->get("destroy_speeds");
+                if (destroySpeeds != nullptr && destroySpeeds->isArray()) {
+                    for (const std::unique_ptr<json::Value> &entry: destroySpeeds->mArray) {
+                        if (!entry->isObject())
+                            continue;
+
+                        const json::Value *speedValue = entry->get("speed");
+                        const int32_t speed = speedValue != nullptr ? speedValue->integer(0) : 0;
+                        if (speed <= 0)
+                            continue;
+
+                        const json::Value *block = entry->get("block");
+                        if (block == nullptr)
+                            continue;
+
+                        if (block->isString()) {
+                            definition.mDiggerBlockSpeeds[qualify(block->string())] = speed;
+                        } else if (block->isObject()) {
+                            if (speed > definition.mDiggerToolSpeed)
+                                definition.mDiggerToolSpeed = speed;
+                        }
+                    }
+                }
+            }
         }
 
         if (definition.mIcon.empty())
@@ -566,6 +632,9 @@ Tag CustomContentRegistry::_buildItemComponentData(const CustomItemDefinition &i
     itemProperties.putInt("use_duration", 0);
     itemProperties.put("minecraft:icon", icon);
 
+    if (item.mMaxDurability > 0)
+        itemProperties.putInt("max_damage", item.mMaxDurability);
+
     Tag components = Tag::ofCompound();
     components.put("item_properties", itemProperties);
 
@@ -583,6 +652,18 @@ Tag CustomContentRegistry::_buildItemComponentData(const CustomItemDefinition &i
         food.putFloat("saturation_modifier", item.mSaturationModifier);
         food.putBool("can_always_eat", item.mCanAlwaysEat);
         components.put("minecraft:food", food);
+    }
+
+    if (item.mMaxDurability > 0) {
+        Tag durability = Tag::ofCompound();
+        durability.putInt("max_durability", item.mMaxDurability);
+
+        Tag damageChance = Tag::ofCompound();
+        damageChance.putInt("min", 100);
+        damageChance.putInt("max", 100);
+        durability.put("damage_chance", damageChance);
+
+        components.put("minecraft:durability", durability);
     }
 
     Tag definition = Tag::ofCompound();

@@ -1,9 +1,11 @@
 #pragma once
 
 #include "Level/LevelChunk.h"
+#include "Core/NBT/Tag.h"
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace leveldb {
     class DB;
@@ -43,6 +45,10 @@ public:
     bool saveChunk(const LevelChunk &chunk);
 
     bool loadChunk(LevelChunk &chunk);
+
+    bool saveEntities(int32_t chunkX, int32_t chunkZ, const std::vector<Tag> &entities);
+
+    std::vector<Tag> loadEntities(int32_t chunkX, int32_t chunkZ);
 
     void writeLevelDat(const std::string &levelName, int32_t spawnX, int32_t spawnY, int32_t spawnZ,
                        int32_t gameType, int32_t difficulty, int64_t seed) const;

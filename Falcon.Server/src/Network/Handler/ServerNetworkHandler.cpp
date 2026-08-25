@@ -590,6 +590,8 @@ void ServerNetworkHandler::_loadScripts() {
 
     if (loaded != 0)
         LOG_INFO(LogAreaID::Server, "Loaded %zu behavior pack script(s)", loaded);
+
+    mScriptEngine.onWorldInitialize();
 }
 
 void ServerNetworkHandler::stopServerListening() {
@@ -613,6 +615,8 @@ void ServerNetworkHandler::stopServerListening() {
     }
 
     saveWorldDynamicProperties();
+
+    saveAllActors();
 
     LOG_INFO(LogAreaID::Server, "Saving level %s", mLevel.getName().c_str());
     mLevel.closeStorage();
@@ -703,7 +707,8 @@ void ServerNetworkHandler::tick() {
             }
         }
 
-        mLevel.setActiveColumns(std::move(activeColumns));
+        mLevel.setActiveColumns(activeColumns);
+        syncActorPersistence(activeColumns);
     }
 
     mProfiler.beginSection(ProfilerSection::Fluids);
@@ -982,6 +987,107 @@ void ServerNetworkHandler::_loadPlayerData(ServerPlayer &player) {
         player.resetFallDistance();
     }
 
+}
+
+void ServerNetworkHandler::loadActorsForChunk(int32_t chunkX, int32_t chunkZ) {
+    const std::vector<Tag> entities = mLevel.loadEntities(chunkX, chunkZ);
+
+    for (const Tag &tag: entities) {
+        const std::string identifier = tag.getString("identifier", std::string());
+        if (identifier.empty())
+            continue;
+
+        const uint64_t runtimeId = allocateRuntimeId();
+        const int64_t uniqueId = (int64_t) runtimeId;
+
+        std::unique_ptr<ServerActor> actor(new ServerActor(runtimeId, identifier));
+
+        const CustomActorDefinition *definition = CustomContentRegistry::getInstance().getActorDefinition(identifier);
+        if (definition != nullptr) {
+            actor->setDefinition(definition);
+            actor->setProjectile(definition->mIsProjectile);
+        }
+
+        actor->loadNbt(tag);
+
+        ServerActor *result = actor.get();
+        mActors[uniqueId] = std::move(actor);
+
+        broadcastActorSpawn(*result);
+    }
+}
+
+void ServerNetworkHandler::saveActorsForChunk(int32_t chunkX, int32_t chunkZ, bool cull) {
+    std::vector<Tag> entities;
+    std::vector<int64_t> culled;
+
+    for (auto &entry: mActors) {
+        ServerActor &actor = *entry.second;
+        if (!actor.shouldSave())
+            continue;
+
+        const Vector3f position = actor.getPosition();
+        const int32_t actorChunkX = (int32_t) std::floor(position.x) >> 4;
+        const int32_t actorChunkZ = (int32_t) std::floor(position.z) >> 4;
+        if (actorChunkX != chunkX || actorChunkZ != chunkZ)
+            continue;
+
+        entities.push_back(actor.saveNbt());
+        if (cull)
+            culled.push_back(entry.first);
+    }
+
+    mLevel.saveEntities(chunkX, chunkZ, entities);
+
+    for (const int64_t uniqueId: culled) {
+        auto it = mActors.find(uniqueId);
+        if (it == mActors.end())
+            continue;
+
+        broadcastActorRemove(*it->second);
+        mActors.erase(it);
+    }
+}
+
+void ServerNetworkHandler::saveAllActors() {
+    for (const int64_t column: mActorLoadedChunks) {
+        const int32_t chunkX = (int32_t) (column >> 32);
+        const int32_t chunkZ = (int32_t) (column & 0xffffffff);
+        saveActorsForChunk(chunkX, chunkZ, false);
+    }
+}
+
+void ServerNetworkHandler::syncActorPersistence(const std::vector<int64_t> &activeColumns) {
+    if (!mLevel.isStorageOpen())
+        return;
+
+    const std::unordered_set<int64_t> active(activeColumns.begin(), activeColumns.end());
+
+    for (const int64_t column: active) {
+        if (mActorLoadedChunks.count(column) != 0)
+            continue;
+
+        const int32_t chunkX = (int32_t) (column >> 32);
+        const int32_t chunkZ = (int32_t) (column & 0xffffffff);
+        if (!mLevel.isChunkResident(chunkX, chunkZ))
+            continue;
+
+        loadActorsForChunk(chunkX, chunkZ);
+        mActorLoadedChunks.insert(column);
+    }
+
+    std::vector<int64_t> unloaded;
+    for (const int64_t column: mActorLoadedChunks) {
+        if (active.count(column) == 0)
+            unloaded.push_back(column);
+    }
+
+    for (const int64_t column: unloaded) {
+        const int32_t chunkX = (int32_t) (column >> 32);
+        const int32_t chunkZ = (int32_t) (column & 0xffffffff);
+        saveActorsForChunk(chunkX, chunkZ, true);
+        mActorLoadedChunks.erase(column);
+    }
 }
 
 void ServerNetworkHandler::onDataReceived(const NetworkIdentifier &id, const std::string &data) {

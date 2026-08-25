@@ -4,6 +4,7 @@
 #include "Protocol/Types/StartGameTypes.h"
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 class BehaviorPackManager;
@@ -23,6 +24,12 @@ struct CustomItemDefinition {
     int32_t mNutrition = 0;
     float mSaturationModifier = 0.6f;
     bool mCanAlwaysEat = false;
+    int32_t mMaxDurability = 0;
+    std::vector<std::string> mCustomComponents;
+    bool mHasDigger = false;
+    bool mDiggerUseEfficiency = false;
+    int32_t mDiggerToolSpeed = 0;
+    std::unordered_map<std::string, int32_t> mDiggerBlockSpeeds;
     int32_t mNetworkId = 0;
 };
 
@@ -123,6 +130,9 @@ public:
     const CustomActorDefinition *getActorDefinition(const std::string &identifier) const;
 
     int32_t getItemMaxStackSize(const std::string &identifier) const;
+
+    int32_t getDiggerSpeed(const std::string &itemId, const std::string &blockName, bool blockNeedsStandardTool,
+                           bool &useEfficiency) const;
 
     bool isCustomBlock(const std::string &identifier) const;
 

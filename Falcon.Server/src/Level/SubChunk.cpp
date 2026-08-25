@@ -119,7 +119,7 @@ void SubChunk::writePersistent(BinaryStream &stream) const {
     _writeEmptyStorage(stream, true);
 }
 
-bool SubChunk::readPersistent(ReadOnlyBinaryStream &stream) {
+bool SubChunk::readPersistent(ReadOnlyBinaryStream &stream, bool *replacedUnknown) {
     const unsigned char version = stream.getByte();
     const unsigned char layers = stream.getByte();
 
@@ -163,8 +163,10 @@ bool SubChunk::readPersistent(ReadOnlyBinaryStream &stream) {
 
         if (VanillaBlocks::fromIdentifier(name) == nullptr &&
             !CustomContentRegistry::getInstance().isCustomBlock(name)) {
-            LOG_ERROR(LogAreaID::Level, "Skipping unknown block %s while loading chunk data", name.c_str());
+            LOG_WARN(LogAreaID::Level, "Replaced unknown block %s with air while loading chunk data", name.c_str());
             mPalette.push_back(BlockState("minecraft:air"));
+            if (replacedUnknown != nullptr)
+                *replacedUnknown = true;
             continue;
         }
 

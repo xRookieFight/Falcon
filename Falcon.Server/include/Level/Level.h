@@ -49,6 +49,12 @@ public:
 
     void closeStorage();
 
+    bool isStorageOpen() const { return mStorage.isOpen(); }
+
+    void saveEntities(int32_t chunkX, int32_t chunkZ, const std::vector<Tag> &entities);
+
+    std::vector<Tag> loadEntities(int32_t chunkX, int32_t chunkZ);
+
     Vector3i getSpawnPosition() const;
 
     Vector3f getSpawnPositionForPlayer() const;

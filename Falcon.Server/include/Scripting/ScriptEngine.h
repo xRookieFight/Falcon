@@ -9,6 +9,7 @@ struct JSContext;
 class ScriptApi;
 class ServerNetworkHandler;
 class ServerActor;
+class ServerPlayer;
 
 class ScriptEngine {
 public:
@@ -33,6 +34,10 @@ public:
     void tick(int64_t currentTick);
 
     void onProjectileHitBlock(ServerActor &projectile, int32_t x, int32_t y, int32_t z);
+
+    void onItemUseOnBlock(ServerPlayer &player, int32_t x, int32_t y, int32_t z);
+
+    void onWorldInitialize();
 
     void setWatchdogMs(int64_t milliseconds) { mWatchdogMs = milliseconds; }
 

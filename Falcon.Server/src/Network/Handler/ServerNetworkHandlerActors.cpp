@@ -20,7 +20,12 @@
 #include "Protocol/Packets/SetTitlePacket.h"
 #include "Protocol/Packets/TextPacket.h"
 #include "Item/Item.h"
+#include "Item/ItemData.h"
+#include "Item/ItemEnchantments.h"
+#include "Item/EnchantmentData.h"
 #include "Item/StringToItemParser.h"
+
+#include <random>
 #include "Network/Handler/ItemActorHandler.h"
 #include "Scripting/Content/CustomContentRegistry.h"
 
@@ -385,7 +390,8 @@ void ServerNetworkHandler::playPlayerAnimation(ServerPlayer &player, const std::
 }
 
 void ServerNetworkHandler::setPlayerEquipment(ServerPlayer &player, const std::string &slot,
-                                              const std::string &typeId, int32_t amount) {
+                                              const std::string &typeId, int32_t amount, int32_t damage,
+                                              const Tag &dynamicProperties) {
     ItemStack stack;
     if (!typeId.empty()) {
         Item item;
@@ -393,6 +399,13 @@ void ServerNetworkHandler::setPlayerEquipment(ServerPlayer &player, const std::s
             stack.mDefinition = mItemDefinitions.getDefinition(item.getIdentifier());
             stack.mBlockDefinition = mBlockDefinitions.getDefinition(item.getIdentifier());
             stack.mCount = amount < 1 ? 1 : amount;
+            stack.mDamage = damage < 0 ? 0 : damage;
+
+            if (!dynamicProperties.isEmpty()) {
+                if (!stack.mTag.isCompound())
+                    stack.mTag = Tag::ofCompound();
+                stack.mTag.put("DynamicProperties", dynamicProperties);
+            }
         }
     }
 
@@ -416,6 +429,42 @@ void ServerNetworkHandler::setPlayerEquipment(ServerPlayer &player, const std::s
         inventory.setItemInHand(stack);
         player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, inventory.getSelectedSlot());
     }
+}
+
+void ServerNetworkHandler::damagePlayerHeldItem(ServerPlayer &player, int32_t amount) {
+    if (amount <= 0 || player.getGameType() == (int32_t) GameType::Creative)
+        return;
+
+    PlayerInventory &inventory = player.getInventory();
+    ItemStack held = inventory.getItemInHand();
+    if (held.isAir() || held.mDefinition == nullptr)
+        return;
+
+    const ItemData *itemData = ItemDataTable::find(held.mDefinition->getIdentifier());
+    if (itemData == nullptr || itemData->mMaxDurability <= 0)
+        return;
+
+    static std::mt19937 durabilityRng(0x9E3779B9u);
+    const int32_t unbreaking = ItemEnchantments::getLevel(held, EnchantmentIds::UNBREAKING);
+
+    int32_t applied = 0;
+    for (int32_t i = 0; i < amount; i++) {
+        if (unbreaking <= 0 || (durabilityRng() % (uint32_t) (unbreaking + 1)) == 0)
+            applied++;
+    }
+
+    if (applied == 0)
+        return;
+
+    held.mDamage += applied;
+    if (held.mDamage >= itemData->mMaxDurability) {
+        inventory.setItemInHand(ItemStack::air());
+        playLevelSound("random.break", player.getPosition(), 1.0f, 1.0f);
+    } else {
+        inventory.setItemInHand(std::move(held));
+    }
+
+    player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, inventory.getSelectedSlot());
 }
 
 void ServerNetworkHandler::loadWorldDynamicProperties() {

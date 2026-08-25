@@ -277,6 +277,10 @@ bool ServerPlayer::attackActor(ServerNetworkHandler &owner, uint64_t targetRunti
         return false;
 
     owner.applyDamage(*victim, finalDamage, "death.attack.player", {victim->getName(), getName()}, false, false);
+
+    const int32_t weaponWear = (data != nullptr && data->mToolType == ToolType::Sword) ? 1 : 2;
+    owner.damagePlayerHeldItem(*this, weaponWear);
+
     if (victim->isDead())
         return true;
 

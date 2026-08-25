@@ -3,6 +3,7 @@
 #include "Actor/Actor.h"
 #include "Actor/DynamicPropertyValue.h"
 #include "Core/Math/Vector3f.h"
+#include "Core/NBT/Tag.h"
 
 #include <cstdint>
 #include <string>
@@ -83,6 +84,12 @@ public:
     const std::string &getNameTag() const { return mNameTag; }
 
     void setNameTag(const std::string &nameTag) { mNameTag = nameTag; }
+
+    bool shouldSave() const { return mAlive && !mIsProjectile && !hasOwnerPlayer(); }
+
+    Tag saveNbt() const;
+
+    void loadNbt(const Tag &data);
 
 private:
     std::string mIdentifier;

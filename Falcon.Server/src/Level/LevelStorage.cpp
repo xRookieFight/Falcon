@@ -172,6 +172,7 @@ bool LevelStorage::loadChunk(LevelChunk &chunk) {
         return false;
 
     bool loadedAny = false;
+    bool replacedUnknown = false;
 
     for (int i = 0; i < LevelChunk::SUB_CHUNK_COUNT; i++) {
         const int8_t subY = (int8_t) (LevelChunk::LOWEST_SUB_CHUNK_Y + i);
@@ -183,7 +184,7 @@ bool LevelStorage::loadChunk(LevelChunk &chunk) {
         ReadOnlyBinaryStream stream(data);
 
         try {
-            if (chunk.getSubChunk(i).readPersistent(stream))
+            if (chunk.getSubChunk(i).readPersistent(stream, &replacedUnknown))
                 loadedAny = true;
         } catch (const BinaryDataException &exception) {
             LOG_WARN(LogAreaID::Server, "Malformed sub chunk %d %d %d: %s", chunk.getX(), chunk.getZ(),
@@ -192,7 +193,60 @@ bool LevelStorage::loadChunk(LevelChunk &chunk) {
     }
 
     chunk.clearDirty();
+    if (replacedUnknown)
+        chunk.markDirty();
     return loadedAny;
+}
+
+bool LevelStorage::saveEntities(int32_t chunkX, int32_t chunkZ, const std::vector<Tag> &entities) {
+    if (mDb == nullptr)
+        return false;
+
+    const std::string key = _makeKey(chunkX, chunkZ, LevelDbTag::Entities);
+
+    if (entities.empty()) {
+        const leveldb::Status status = mDb->Delete(leveldb::WriteOptions(), key);
+        return status.ok() || status.IsNotFound();
+    }
+
+    BinaryStream stream;
+    for (const Tag &entity: entities)
+        NbtIo::writeTag(stream, entity, NbtVariant::LittleEndian);
+
+    const leveldb::Status status = mDb->Put(leveldb::WriteOptions(), key, stream.getBuffer());
+    if (!status.ok()) {
+        LOG_WARN(LogAreaID::Server, "Could not save entities for chunk %d %d: %s", chunkX, chunkZ,
+                 status.ToString().c_str());
+        return false;
+    }
+
+    return true;
+}
+
+std::vector<Tag> LevelStorage::loadEntities(int32_t chunkX, int32_t chunkZ) {
+    std::vector<Tag> entities;
+
+    if (mDb == nullptr)
+        return entities;
+
+    std::string data;
+    const leveldb::Status status = mDb->Get(leveldb::ReadOptions(),
+                                            _makeKey(chunkX, chunkZ, LevelDbTag::Entities), &data);
+
+    if (!status.ok())
+        return entities;
+
+    ReadOnlyBinaryStream stream(data);
+
+    try {
+        while (!stream.feof())
+            entities.push_back(NbtIo::readTag(stream, NbtVariant::LittleEndian));
+    } catch (const std::exception &exception) {
+        LOG_WARN(LogAreaID::Server, "Malformed entities for chunk %d %d: %s", chunkX, chunkZ,
+                 exception.what());
+    }
+
+    return entities;
 }
 
 void LevelStorage::writeLevelDat(const std::string &levelName, int32_t spawnX, int32_t spawnY, int32_t spawnZ,

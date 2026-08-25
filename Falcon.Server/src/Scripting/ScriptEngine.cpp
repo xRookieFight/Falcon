@@ -272,6 +272,24 @@ void ScriptEngine::onProjectileHitBlock(ServerActor &projectile, int32_t x, int3
     _pumpJobs();
 }
 
+void ScriptEngine::onItemUseOnBlock(ServerPlayer &player, int32_t x, int32_t y, int32_t z) {
+    if (mApi == nullptr)
+        return;
+
+    mExecutionDeadlineMs = nowMs() + mWatchdogMs;
+    mApi->emitItemUseOnBlock(player, x, y, z);
+    _pumpJobs();
+}
+
+void ScriptEngine::onWorldInitialize() {
+    if (mApi == nullptr)
+        return;
+
+    mExecutionDeadlineMs = nowMs() + mWatchdogMs;
+    mApi->emitWorldInitialize();
+    _pumpJobs();
+}
+
 void ScriptEngine::tick(int64_t currentTick) {
     if (mContext == nullptr)
         return;

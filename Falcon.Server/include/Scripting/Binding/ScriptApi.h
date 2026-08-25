@@ -97,9 +97,17 @@ public:
 
     void emitProjectileHitBlock(ServerActor &projectile, int32_t x, int32_t y, int32_t z);
 
+    void emitItemUseOnBlock(ServerPlayer &player, int32_t x, int32_t y, int32_t z);
+
+    void emitWorldInitialize();
+
+    void fireHeldItemComponents(ServerPlayer &player, const char *hook, JSValue event);
+
     JSValue moduleWorld() const { return mWorld; }
 
     JSValue moduleSystem() const { return mSystem; }
+
+    JSValue playerPrototype() const { return mPlayerPrototype; }
 
     JSClassID playerClassId() const { return mPlayerClassId; }
 

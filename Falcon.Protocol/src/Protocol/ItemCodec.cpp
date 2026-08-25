@@ -4,6 +4,20 @@
 
 namespace {
     const std::string BLOCKING_ID = "minecraft:shield";
+
+    Tag networkItemTag(const ItemStack &item) {
+        if (item.mDamage <= 0)
+            return item.mTag;
+
+        Tag tag = item.mTag.isCompound() ? item.mTag : Tag::ofCompound();
+        tag.putInt("Damage", item.mDamage);
+        return tag;
+    }
+
+    void applyNetworkDamage(ItemStack &item) {
+        if (item.mTag.isCompound() && item.mTag.get("Damage") != nullptr)
+            item.mDamage = item.mTag.getInt("Damage", item.mDamage);
+    }
 }
 
 void ItemCodec::writeItemInstance(BinaryStream &stream, const PacketCodecContext &context, const ItemStack &item) {
@@ -18,14 +32,16 @@ void ItemCodec::writeItemInstance(BinaryStream &stream, const PacketCodecContext
 
     stream.putVarInt(item.mDefinition->getRuntimeId());
     stream.putLShort((uint16_t) item.mCount);
-    stream.putUnsignedVarInt((uint32_t) item.mDamage);
+    stream.putUnsignedVarInt(0);
     stream.putVarInt(item.mBlockDefinition == nullptr ? 0 : item.mBlockDefinition->getRuntimeId());
 
+    const Tag networkTag = networkItemTag(item);
+
     BinaryStream userData;
-    if (item.mTag.getType() != Tag::Type::End) {
+    if (networkTag.getType() != Tag::Type::End) {
         userData.putLShort(0xffff);
         userData.putByte(1);
-        NbtIo::writeTag(userData, item.mTag, NbtVariant::LittleEndian);
+        NbtIo::writeTag(userData, networkTag, NbtVariant::LittleEndian);
     } else {
         userData.putLShort(0);
     }
@@ -102,6 +118,7 @@ ItemStack ItemCodec::readItemInstance(ReadOnlyBinaryStream &stream, const Packet
         item.mBlockingTicks = userData.getLLong();
     }
 
+    applyNetworkDamage(item);
     return item;
 }
 
@@ -118,7 +135,7 @@ void ItemCodec::writeNetworkItemStackDescriptor(BinaryStream &stream, const Pack
 
     stream.putLShort((uint16_t) item.mDefinition->getRuntimeId());
     stream.putLShort((uint16_t) item.mCount);
-    stream.putUnsignedVarInt((uint32_t) item.mDamage);
+    stream.putUnsignedVarInt(0);
 
     stream.putBool(item.mUsingNetId);
     if (item.mUsingNetId) {
@@ -127,11 +144,13 @@ void ItemCodec::writeNetworkItemStackDescriptor(BinaryStream &stream, const Pack
 
     stream.putUnsignedVarInt(item.mBlockDefinition == nullptr ? 0 : (uint32_t) item.mBlockDefinition->getRuntimeId());
 
+    const Tag networkTag = networkItemTag(item);
+
     BinaryStream userData;
-    if (item.mTag.getType() != Tag::Type::End) {
+    if (networkTag.getType() != Tag::Type::End) {
         userData.putLShort(0xffff);
         userData.putByte(1);
-        NbtIo::writeTag(userData, item.mTag, NbtVariant::LittleEndian);
+        NbtIo::writeTag(userData, networkTag, NbtVariant::LittleEndian);
     } else {
         userData.putLShort(0);
     }
@@ -214,5 +233,6 @@ ItemStack ItemCodec::readNetworkItemStackDescriptor(ReadOnlyBinaryStream &stream
         item.mBlockingTicks = userData.getLLong();
     }
 
+    applyNetworkDamage(item);
     return item;
 }
