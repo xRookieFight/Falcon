@@ -2,6 +2,8 @@
 
 #include "Actor/DynamicPropertyStore.h"
 #include "Actor/MobLootTable.h"
+#include "Block/Systems/LiquidBlocksFetch.h"
+#include "Server/Profiler.h"
 #include "Actor/ServerPlayer.h"
 #include "Level/Level.h"
 #include "Network/Handler/ServerNetworkHandler.h"
@@ -18,6 +20,23 @@ namespace {
     const float MOTION_EPSILON = 0.003f;
     const int32_t INVULNERABILITY_TICKS = 10;
     const float ATTACK_KNOCKBACK = 0.4f;
+    const float FIRE_TICK_DAMAGE = 1.0f;
+    const int32_t SUNLIGHT_BURN_TICKS = 8 * 20;
+    const int32_t DAYLIGHT_SUBTRACTED_THRESHOLD = 4;
+
+    bool burnsInSunlight(const std::string &identifier) {
+        static const std::unordered_set<std::string> burning = {
+                "minecraft:zombie",
+                "minecraft:zombie_villager",
+                "minecraft:zombie_villager_v2",
+                "minecraft:skeleton",
+                "minecraft:stray",
+                "minecraft:phantom",
+                "minecraft:drowned"
+        };
+
+        return burning.count(identifier) != 0;
+    }
 
     bool isFlyingActor(const std::string &identifier) {
         return identifier == "minecraft:allay" || identifier == "minecraft:bat" ||
@@ -55,6 +74,17 @@ ServerActor::ServerActor(uint64_t runtimeId, const std::string &identifier)
         : Actor(runtimeId), mIdentifier(identifier) {}
 
 void ServerActor::tick(ServerNetworkHandler &owner) {
+    owner.getProfiler().beginSection(ProfilerSection::ActorEnvironment);
+    tickFire(owner);
+    tickSunlightBurn(owner);
+    owner.getProfiler().endSection(ProfilerSection::ActorEnvironment);
+
+    owner.getProfiler().beginSection(ProfilerSection::ActorPhysics);
+    _tickPhysics(owner);
+    owner.getProfiler().endSection(ProfilerSection::ActorPhysics);
+}
+
+void ServerActor::_tickPhysics(ServerNetworkHandler &owner) {
     Vector3f motion = getMotion();
     if (std::fabs(motion.x) < MOTION_EPSILON && std::fabs(motion.y) < MOTION_EPSILON &&
         std::fabs(motion.z) < MOTION_EPSILON)
@@ -119,6 +149,52 @@ void ServerActor::tick(ServerNetworkHandler &owner) {
 
     if (pendingFallDamage > 0.0f)
         hurt(owner, pendingFallDamage, nullptr);
+}
+
+void ServerActor::tickSunlightBurn(ServerNetworkHandler &owner) {
+    if (!burnsInSunlight(mIdentifier) || isOnFire() || hasEffect(MobEffectId::FireResistance))
+        return;
+
+    Level &level = owner.getLevel();
+    if (level.isRaining() || level.getSkyLightSubtracted() >= DAYLIGHT_SUBTRACTED_THRESHOLD)
+        return;
+
+    const Vector3f position = getPosition();
+    const int32_t headY = (int32_t) std::floor(position.y) + 1;
+    const int32_t blockX = (int32_t) std::floor(position.x);
+    const int32_t blockZ = (int32_t) std::floor(position.z);
+
+    if (level.getHeightAt(blockX, blockZ) > headY)
+        return;
+
+    if (LiquidBlocksFetch::at(level, position).water)
+        return;
+
+    setFireTicks(SUNLIGHT_BURN_TICKS);
+    setOnFire(true);
+    owner.syncActorFlags(*this);
+}
+
+void ServerActor::tickFire(ServerNetworkHandler &owner) {
+    if (getFireTicks() <= 0)
+        return;
+
+    if (hasEffect(MobEffectId::FireResistance)) {
+        setFireTicks(0);
+        setOnFire(false);
+        owner.syncActorFlags(*this);
+        return;
+    }
+
+    if (getFireTicks() % 20 == 0)
+        hurt(owner, FIRE_TICK_DAMAGE, nullptr);
+
+    setFireTicks(getFireTicks() - 1);
+
+    if (getFireTicks() <= 0) {
+        setOnFire(false);
+        owner.syncActorFlags(*this);
+    }
 }
 
 bool ServerActor::hurt(ServerNetworkHandler &owner, float amount, ServerPlayer *source) {

@@ -4,6 +4,7 @@
 #include "Actor/DynamicPropertyValue.h"
 #include "Core/Math/Vector3f.h"
 #include "Core/NBT/Tag.h"
+#include "Protocol/Types/ItemStack.h"
 
 #include <cstdint>
 #include <string>
@@ -15,6 +16,26 @@ struct CustomActorDefinition;
 class ServerNetworkHandler;
 class ServerPlayer;
 
+struct ProjectileData {
+    float mBaseDamage = 0.0f;
+    bool mCritical = false;
+    int32_t mPunchLevel = 0;
+    int32_t mFlameTicks = 0;
+    int32_t mLoyaltyLevel = 0;
+    int32_t mImpalingLevel = 0;
+    int32_t mPiercingLevel = 0;
+    bool mChanneling = false;
+    bool mReturning = false;
+    bool mHadCollision = false;
+    bool mPickupCreativeOnly = false;
+    ItemStack mPickupItem;
+    int32_t mFavoredSlot = -1;
+    Tag mFireworkData;
+    int32_t mFireworkLifetime = 0;
+    int32_t mFireworkAge = 0;
+    bool mFireworkAttached = false;
+};
+
 class ServerActor : public Actor {
 public:
     ServerActor(uint64_t runtimeId, const std::string &identifier);
@@ -22,6 +43,12 @@ public:
     void tick(ServerNetworkHandler &owner);
 
     bool hurt(ServerNetworkHandler &owner, float amount, ServerPlayer *source);
+
+    void tickFire(ServerNetworkHandler &owner);
+
+    void tickSunlightBurn(ServerNetworkHandler &owner);
+
+    void _tickPhysics(ServerNetworkHandler &owner);
 
     const char *getIdentifier() const override { return mIdentifier.c_str(); }
 
@@ -71,6 +98,10 @@ public:
 
     void setProjectile(bool value) { mIsProjectile = value; }
 
+    ProjectileData &getProjectileData() { return mProjectileData; }
+
+    const ProjectileData &getProjectileData() const { return mProjectileData; }
+
     int32_t getLifetimeTicks() const { return mLifetimeTicks; }
 
     void addLifetimeTick() { mLifetimeTicks++; }
@@ -97,6 +128,7 @@ private:
     uint32_t mOwnerPlayerHandle = 0xFFFFFFFF;
     int32_t mLifetimeTicks = 0;
     int32_t mDeathTicks = 0;
+    ProjectileData mProjectileData;
     std::string mNameTag;
 
     std::unordered_set<std::string> mTags;
