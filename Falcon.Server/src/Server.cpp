@@ -1,12 +1,12 @@
 #include "Server.h"
 
 #include "BuildInfo.h"
-#include "core/utility/UUID.h"
-#include "core/debug/BedrockLog.h"
-#include "core/debug/ContentLogEndPoint.h"
-#include "core/debug/FileLogEndPoint.h"
-#include "network/handler/ServerNetworkHandler.h"
-#include "server/PropertiesSettings.h"
+#include "Core/Utility/UUID.h"
+#include "Core/Debug/BedrockLog.h"
+#include "Core/Debug/ContentLogEndPoint.h"
+#include "Core/Debug/FileLogEndPoint.h"
+#include "Network/Handler/ServerNetworkHandler.h"
+#include "Server/PropertiesSettings.h"
 
 #include <atomic>
 #include <chrono>

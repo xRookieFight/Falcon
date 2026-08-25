@@ -1,0 +1,285 @@
+#include "Network/Handler/MovementHandler.h"
+
+#include "Actor/ActorFlags.h"
+#include "Actor/ServerPlayer.h"
+#include "Block/Block.h"
+#include "Block/Systems/LavaResetFallDistanceSystem.h"
+#include "Block/Systems/FireBlocksFetch.h"
+#include "Block/Systems/LiquidBlocksFetch.h"
+#include "Block/Systems/WaterMoveSystem.h"
+#include "Level/Level.h"
+#include "Item/EnchantmentData.h"
+#include "Item/ItemEnchantments.h"
+#include "Network/Handler/BadPacketHandler.h"
+#include "Network/Handler/BlockActionHandler.h"
+#include "Network/Handler/NetworkHandler.h"
+#include "Network/Handler/ServerNetworkHandler.h"
+#include "Protocol/Packets/PlayerAuthInputPacket.h"
+#include "Protocol/Packets/SetActorMotionPacket.h"
+#include "Protocol/Types/StartGameTypes.h"
+
+#include <algorithm>
+#include <cmath>
+
+namespace {
+    const float PLAYER_BASE_OFFSET = 1.62f;
+    const float PLAYER_HALF_WIDTH = 0.3f;
+    const float PLAYER_HEIGHT = 1.8f;
+    const float GROUND_PROBE_DEPTH = 0.5f;
+    const float AABB_EPSILON = 0.001f;
+
+    void ignitePlayer(ServerPlayer &player) {
+        int fireProtectionLevel = 0;
+        const PlayerInventory &inventory = player.getInventory();
+        for (int slot = 0; slot < PlayerInventory::ARMOR_SIZE; ++slot)
+            fireProtectionLevel = std::max(fireProtectionLevel,
+                                           ItemEnchantments::getLevel(inventory.getArmor(slot),
+                                                                      EnchantmentIds::FIRE_PROTECTION));
+
+        const int reducedSeconds = (int) (8.0f * (float) fireProtectionLevel * 0.15f);
+        const int fireTicks = std::max(1, 8 - std::min(8, reducedSeconds)) * 20;
+        player.setFireTicks(std::max(player.getFireTicks(), fireTicks));
+    }
+
+    bool findSupportBlock(ServerNetworkHandler &owner, const Vector3f &feetPosition, BlockState &support) {
+        Level &level = owner.getLevel();
+        const int32_t lowestY = (int32_t) std::floor(feetPosition.y - GROUND_PROBE_DEPTH);
+        const int32_t highestY = (int32_t) std::floor(feetPosition.y);
+        const int32_t minX = (int32_t) std::floor(feetPosition.x - PLAYER_HALF_WIDTH + AABB_EPSILON);
+        const int32_t maxX = (int32_t) std::floor(feetPosition.x + PLAYER_HALF_WIDTH - AABB_EPSILON);
+        const int32_t minZ = (int32_t) std::floor(feetPosition.z - PLAYER_HALF_WIDTH + AABB_EPSILON);
+        const int32_t maxZ = (int32_t) std::floor(feetPosition.z + PLAYER_HALF_WIDTH - AABB_EPSILON);
+
+        for (int32_t y = highestY; y >= lowestY; --y) {
+            BlockState firstSolid;
+            bool foundSolid = false;
+
+            for (int32_t x = minX; x <= maxX; ++x) {
+                for (int32_t z = minZ; z <= maxZ; ++z) {
+                    if (!level.isSolidAt(x, y, z))
+                        continue;
+
+                    const BlockState state = level.getBlockState(x, y, z);
+                    if (!foundSolid)
+                        firstSolid = state;
+                    foundSolid = true;
+                }
+            }
+
+            if (foundSolid) {
+                support = firstSolid;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool applyLandingBehavior(ServerNetworkHandler &owner, ServerPlayer &player, const Block &support,
+                              float downwardVelocity) {
+        if (!support.onEntityLand(player, downwardVelocity))
+            return false;
+
+        SetActorMotionPacket motion;
+        motion.mRuntimeActorId = player.getRuntimeId();
+        motion.mMotion = player.getMotion();
+        motion.mTick = (uint64_t) owner.getCurrentTick();
+        owner.getNetworkHandler().send(player.getNetworkIdentifier(), motion, owner.getCodecContext());
+        return true;
+    }
+}
+
+bool MovementHandler::checkGroundState(ServerNetworkHandler &owner, const Vector3f &feetPosition) {
+    const float shrink = 0.01f;
+    const float minX = feetPosition.x - PLAYER_HALF_WIDTH + shrink;
+    const float maxX = feetPosition.x + PLAYER_HALF_WIDTH - shrink;
+    const float minZ = feetPosition.z - PLAYER_HALF_WIDTH + shrink;
+    const float maxZ = feetPosition.z + PLAYER_HALF_WIDTH - shrink;
+
+    Level &level = owner.getLevel();
+    const int32_t lowestY = (int32_t) std::floor(feetPosition.y - GROUND_PROBE_DEPTH);
+    const int32_t highestY = (int32_t) std::floor(feetPosition.y);
+
+    for (int32_t y = lowestY; y <= highestY; y++) {
+        for (int32_t x = (int32_t) std::floor(minX); x <= (int32_t) std::floor(maxX); x++) {
+            for (int32_t z = (int32_t) std::floor(minZ); z <= (int32_t) std::floor(maxZ); z++) {
+                if (level.isSolidAt(x, y, z))
+                    return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+void MovementHandler::handleMovement(ServerNetworkHandler &owner, ServerPlayer &player, const Vector3f &feetPosition,
+                                     const Vector3f &rotation) {
+    const Vector3f previous = player.getPosition();
+    player.setRotation(rotation);
+    const float requestedY = feetPosition.y - previous.y;
+    if (player.getFlags().get(ActorFlag::Sprinting)) {
+        const float requestedX = feetPosition.x - previous.x;
+        const float requestedZ = feetPosition.z - previous.z;
+        const float horizontalDistance = std::sqrt(requestedX * requestedX + requestedZ * requestedZ);
+        if (horizontalDistance > 0.0f)
+            player.exhaust(0.01f * horizontalDistance);
+    }
+
+    player.setPosition(feetPosition);
+
+    const bool wasOnGround = player.isOnGround();
+    const bool onGround = checkGroundState(owner, feetPosition);
+    player.setOnGround(onGround);
+
+    if (onGround) {
+        BlockState support;
+        const bool hasSupport = findSupportBlock(owner, feetPosition, support);
+        const Block supportBlock = hasSupport ? Block(support) : Block();
+
+        if (!wasOnGround) {
+            const bool landedOnSpecialBlock = hasSupport && applyLandingBehavior(owner, player, supportBlock,
+                                                                                 std::min(0.0f, requestedY));
+            if (!landedOnSpecialBlock)
+                owner._handleFallDamage(player, hasSupport ? &supportBlock : nullptr);
+        }
+
+        player.resetFallDistance();
+    } else {
+        if (wasOnGround || requestedY > 0.0f || player.getMotion().y > 0.0f)
+            player.resetFallDistance();
+
+        if (feetPosition.y > player.getHighestPosition())
+            player.setHighestPosition(feetPosition.y);
+
+        player.updateFallDistance();
+    }
+}
+
+void MovementHandler::tickFluidEffects(ServerNetworkHandler &owner, ServerPlayer &player) {
+    if (!player.isSpawned() || player.isDead())
+        return;
+
+    const LiquidContact contact = LiquidBlocksFetch::at(owner.getLevel(), player.getPosition());
+    const FireContact fireContact = FireBlocksFetch::at(owner.getLevel(), player.getPosition());
+    WaterMoveSystem::tick(player, contact);
+    LavaResetFallDistanceSystem::tick(player, contact);
+
+    const bool creative = player.getGameType() == (int32_t) GameType::Creative;
+    const bool fireResistance = player.hasEffect(MobEffectId::FireResistance);
+    if (contact.lava || fireContact.fire)
+        ignitePlayer(player);
+
+    if (!creative && !fireResistance) {
+        if (contact.lava)
+            owner.applyDamage(player, 4.0f, "death.attack.lava", {player.getName()});
+        if (fireContact.fire)
+            owner.applyDamage(player, fireContact.damage, "death.attack.onFire", {player.getName()});
+    }
+
+    if (contact.eyeSubmerged && !player.hasEffect(MobEffectId::WaterBreathing)) {
+        if (player.getAirSupply() > 0) {
+            player.setAirSupply(player.getAirSupply() - 1);
+        } else if (owner.getCurrentTick() % 20 == 0) {
+            owner.applyDamage(player, 2.0f, "death.attack.drown", {player.getName()});
+        }
+    } else {
+        player.resetAirSupply();
+    }
+}
+
+void MovementHandler::handlePlayerAuthInput(ServerNetworkHandler &owner, const NetworkIdentifier &id,
+                                            ServerPlayer &player, const PlayerAuthInputPacket &packet) {
+    const Vector3f feetPosition(packet.mPosition.x, packet.mPosition.y - PLAYER_BASE_OFFSET, packet.mPosition.z);
+    player.queueMove(feetPosition, packet.mRotation);
+
+    if (player.isSpawned()) {
+        const int32_t chunkX = (int32_t) std::floor(feetPosition.x) >> 4;
+        const int32_t chunkZ = (int32_t) std::floor(feetPosition.z) >> 4;
+
+        if (!player.hasChunkPosition() || chunkX != player.getLastChunkX() || chunkZ != player.getLastChunkZ())
+            owner._sendChunks(player);
+    }
+
+    ActorFlags &flags = player.getFlags();
+    const ActorFlags previous = flags;
+
+    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StartSprinting) && player.canSprint())
+        flags.set(ActorFlag::Sprinting, true);
+
+    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::Sprinting) && player.canSprint())
+        flags.set(ActorFlag::Sprinting, true);
+
+    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StopSprinting))
+        flags.set(ActorFlag::Sprinting, false);
+
+    if (!player.canSprint())
+        flags.set(ActorFlag::Sprinting, false);
+
+    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StartSneaking))
+        flags.set(ActorFlag::Sneaking, true);
+    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StopSneaking))
+        flags.set(ActorFlag::Sneaking, false);
+
+    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StartSwimming))
+        flags.set(ActorFlag::Swimming, true);
+    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StopSwimming))
+        flags.set(ActorFlag::Swimming, false);
+
+    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StartGliding))
+        flags.set(ActorFlag::Gliding, true);
+    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StopGliding))
+        flags.set(ActorFlag::Gliding, false);
+
+    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StartCrawling))
+        flags.set(ActorFlag::Crawling, true);
+    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StopCrawling))
+        flags.set(ActorFlag::Crawling, false);
+
+    if (flags.getLowBits() != previous.getLowBits() || flags.getHighBits() != previous.getHighBits())
+        owner._sendEntityData(player);
+
+    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StartUsingItem)) {
+        player.clearAwaitingConsumableRelease();
+        owner._useHeldItem(player);
+    }
+
+    for (const PlayerBlockActionData &action: packet.mPlayerActions) {
+        if (action.mAction == PlayerActionType::StartBreak
+            || action.mAction == PlayerActionType::BlockContinueDestroy) {
+            if (player.hasLastBlockAttacked() && player.getLastBlockAttacked() == action.mBlockPosition)
+                continue;
+
+            BlockActionHandler::startBreakingBlock(owner, player, action.mBlockPosition, action.mFace);
+            player.setLastBlockAttacked(action.mBlockPosition);
+        } else if (action.mAction == PlayerActionType::ContinueBreak) {
+            if (player.isBreakingBlock() && player.getBreakingBlockPosition() == action.mBlockPosition)
+                player.setBreakingFace(action.mFace);
+
+            player.setLastBlockAttacked(action.mBlockPosition);
+        } else if (action.mAction == PlayerActionType::AbortBreak ||
+                  action.mAction == PlayerActionType::StopBreak) {
+            BlockActionHandler::stopBreakingBlock(owner, player);
+            player.clearLastBlockAttacked();
+        } else if (action.mAction == PlayerActionType::BlockPredictDestroy ||
+                  action.mAction == PlayerActionType::DimensionChangeRequestOrCreativeDestroyBlock) {
+            BlockActionHandler::completeBreakingBlock(owner, player, action.mBlockPosition);
+            player.clearLastBlockAttacked();
+        } else if (action.mAction == PlayerActionType::Jump) {
+            player.exhaust(player.getFlags().get(ActorFlag::Sprinting) ? 0.2f : 0.05f);
+        } else if (action.mAction == PlayerActionType::StartUsingItem) {
+            player.clearAwaitingConsumableRelease();
+            owner._useHeldItem(player);
+        }
+    }
+
+    if (packet.mHasItemUseTransaction) {
+        if (packet.mItemUseTransaction.mActionType == 0)
+            BlockActionHandler::placeBlock(owner, player, packet.mItemUseTransaction);
+        else if (packet.mItemUseTransaction.mActionType == 1)
+            owner._useHeldItem(player);
+        else if (packet.mItemUseTransaction.mActionType == 2)
+            BlockActionHandler::completeBreakingBlock(owner, player, packet.mItemUseTransaction.mBlockPosition);
+    }
+
+    (void) id;
+}
