@@ -1,5 +1,7 @@
 #include "Protocol/Types/BlockDefinitionRegistry.h"
 
+#include "Protocol/Types/PlacedBlockAliases.h"
+
 void BlockDefinitionRegistry::registerDefinition(std::shared_ptr<BlockDefinition> definition) {
     int runtimeId = definition->getRuntimeId();
     const std::string &identifier = definition->getIdentifier();
@@ -14,7 +16,15 @@ std::shared_ptr<BlockDefinition> BlockDefinitionRegistry::getDefinition(int runt
 
 std::shared_ptr<BlockDefinition> BlockDefinitionRegistry::getDefinition(const std::string &identifier) const {
     auto it = mByIdentifier.find(identifier);
-    return it == mByIdentifier.end() ? nullptr : it->second;
+    if (it != mByIdentifier.end())
+        return it->second;
+
+    const std::string &placed = PlacedBlockAliases::resolve(identifier);
+    if (placed.empty())
+        return nullptr;
+
+    auto aliased = mByIdentifier.find(placed);
+    return aliased == mByIdentifier.end() ? nullptr : aliased->second;
 }
 
 bool BlockDefinitionRegistry::isRegistered(const std::shared_ptr<BlockDefinition> &definition) const {

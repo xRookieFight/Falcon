@@ -27,7 +27,7 @@ bool CommandBlockContainerManagerModel::openWindow(ServerNetworkHandler &owner, 
     CommandBlockActor &actor = CommandBlockSystem::getOrCreate(owner, position);
 
     BlockActorDataPacket data;
-    data.mBlockPosition = actor.mPosition;
+    data.mBlockPosition = actor.getPosition();
     data.mData = actor.getSpawnCompound();
     owner.getNetworkHandler().send(player.getNetworkIdentifier(), data, owner.getCodecContext());
 

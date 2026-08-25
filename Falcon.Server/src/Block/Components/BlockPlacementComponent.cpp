@@ -94,6 +94,55 @@ namespace {
         return oppositeFacing;
     }
 
+    const char *leverDirection(int face, int playerFacing) {
+        if (face == FACE_DOWN)
+            return playerFacing == FACE_WEST || playerFacing == FACE_EAST ? "down_east_west"
+                                                                          : "down_north_south";
+
+        if (face == FACE_UP)
+            return playerFacing == FACE_WEST || playerFacing == FACE_EAST ? "up_east_west"
+                                                                         : "up_north_south";
+
+        return faceName(face);
+    }
+
+    const char *torchFacingDirection(int face) {
+        switch (face) {
+            case FACE_EAST:
+                return "west";
+            case FACE_WEST:
+                return "east";
+            case FACE_SOUTH:
+                return "north";
+            case FACE_NORTH:
+                return "south";
+            default:
+                return "top";
+        }
+    }
+
+    const float PLAYER_EYE_HEIGHT = 1.62f;
+
+    bool isPistonLike(std::string_view identifier) {
+        return identifier.find("piston") != std::string_view::npos;
+    }
+
+    int pistonFacingDirection(int playerFacing, const Vector3f &playerPosition, const Vector3i &blockPosition) {
+        const int32_t playerBlockX = (int32_t) std::floor(playerPosition.x);
+        const int32_t playerBlockZ = (int32_t) std::floor(playerPosition.z);
+
+        if (std::abs(playerBlockX - blockPosition.x) > 1 || std::abs(playerBlockZ - blockPosition.z) > 1)
+            return playerFacing;
+
+        const float eyeY = playerPosition.y + PLAYER_EYE_HEIGHT;
+        if (eyeY - (float) blockPosition.y > 2.0f)
+            return FACE_UP;
+        if ((float) blockPosition.y - eyeY > 0.0f)
+            return FACE_DOWN;
+
+        return playerFacing;
+    }
+
     int facingDirection(std::string_view identifier, int oppositeFacing, int face) {
         if (identifier.find("hopper") != std::string_view::npos)
             return face == FACE_DOWN ? FACE_DOWN : (face == FACE_UP ? FACE_DOWN : face ^ 1);
@@ -123,11 +172,13 @@ namespace {
 }
 
 BlockState BlockPlacementComponent::apply(const BlockState &state, float yaw, int face,
-                                          const Vector3f &clickPosition) {
+                                          const Vector3f &clickPosition, const Vector3f &playerPosition,
+                                          const Vector3i &blockPosition) {
     Tag states = state.mStates;
     const int playerFacing = horizontalFacing(yaw);
     const int oppositeFacing = playerFacing ^ 1;
     const int ordinal = horizontalOrdinal(playerFacing);
+    const int pistonFacing = pistonFacingDirection(playerFacing, playerPosition, blockPosition);
 
     if (states.contains("minecraft:cardinal_direction")) {
         const int facing = cardinalFacing(state.mName, playerFacing, oppositeFacing);
@@ -138,8 +189,21 @@ BlockState BlockPlacementComponent::apply(const BlockState &state, float yaw, in
         states.putString("minecraft:block_face", faceName(face));
 
     if (states.contains("facing_direction")) {
-        states.putInt("facing_direction", facingDirection(state.mName, oppositeFacing, face));
+        states.putInt("facing_direction", isPistonLike(state.mName)
+                                          ? pistonFacing
+                                          : facingDirection(state.mName, oppositeFacing, face));
     }
+
+    if (states.contains("minecraft:facing_direction")) {
+        states.putString("minecraft:facing_direction",
+                         faceName(facingDirection(state.mName, oppositeFacing, face)));
+    }
+
+    if (states.contains("lever_direction"))
+        states.putString("lever_direction", leverDirection(face, playerFacing));
+
+    if (states.contains("torch_facing_direction"))
+        states.putString("torch_facing_direction", torchFacingDirection(face));
 
     if (states.contains("direction")) {
         int direction = ordinal;

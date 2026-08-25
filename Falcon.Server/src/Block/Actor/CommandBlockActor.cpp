@@ -62,8 +62,10 @@ Tag CommandBlockActor::saveNbt() const
     return tag;
 }
 
-void CommandBlockActor::loadNbt(const Tag &tag)
+void CommandBlockActor::loadNbt(const Tag &tag, const PacketCodecContext &context)
 {
+    (void) context;
+
     if (!tag.isCompound())
         return;
 

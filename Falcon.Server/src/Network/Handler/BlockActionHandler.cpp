@@ -2,9 +2,12 @@
 
 #include "Block/BlockData.h"
 #include "Block/Components/BlockPlacementComponent.h"
+#include "Block/Blocks/ChestBlock.h"
 #include "Block/Blocks/CraftingTableBlock.h"
 #include "Block/Blocks/FurnaceBlock.h"
 #include "Block/Blocks/VanillaBlocks.h"
+#include "Block/Systems/PistonSystem.h"
+#include "Block/Systems/RedstoneSystem.h"
 #include "Actor/ServerPlayer.h"
 #include "Item/ItemData.h"
 #include "Item/VanillaItems.h"
@@ -24,6 +27,7 @@
 #include "Protocol/Packets/LevelSoundEventPacket.h"
 #include "Protocol/Packets/UpdateBlockPacket.h"
 #include "Protocol/Types/ItemUseTransaction.h"
+#include "Protocol/Types/PlacedBlockAliases.h"
 #include "Protocol/Types/StartGameTypes.h"
 
 #include <algorithm>
@@ -211,6 +215,11 @@ namespace {
             return "minecraft:blast_furnace";
         if (identifier == "minecraft:lit_smoker")
             return "minecraft:smoker";
+
+        const std::string &aliased = PlacedBlockAliases::resolveItem(identifier);
+        if (!aliased.empty())
+            return aliased;
+
         return identifier;
     }
 
@@ -393,6 +402,14 @@ void BlockActionHandler::breakBlock(ServerNetworkHandler &owner, ServerPlayer &p
 
     broadcastToViewers(owner, destroy.mPosition, update);
     broadcastToViewers(owner, destroy.mPosition, destroy);
+
+    if (ChestBlock::matches(brokenState.mName))
+        ChestBlock::onBroken(owner, position);
+
+    if (PistonSystem::isPiston(brokenState.mName))
+        PistonSystem::onBlockBroken(owner, position, brokenState);
+
+    RedstoneSystem::onBlockBroken(owner, position, brokenState);
 
     player.exhaust(0.005f);
 
@@ -625,12 +642,14 @@ void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &p
                                                         transaction.mBlockPosition.y,
                                                         transaction.mBlockPosition.z);
 
+    const ItemStack &heldItem = inventory.getItemInHand();
+    const bool useBlock = !player.getFlags().get(ActorFlag::Sneaking) || heldItem.isAir();
+
     const Block *clickedBlock = VanillaBlocks::fromIdentifier(clickedState.mName);
-    if (clickedBlock != nullptr &&
+    if (useBlock && clickedBlock != nullptr &&
         clickedBlock->onInteract(owner, player, transaction.mBlockPosition, clickedState))
         return;
 
-    const ItemStack &heldItem = inventory.getItemInHand();
     const bool bucket = BucketItem::isBucket(heldItem);
     if (heldItem.isAir() || heldItem.mCount <= 0 || heldItem.mDefinition == nullptr
         || (!bucket && heldItem.mBlockDefinition == nullptr)) {
@@ -697,7 +716,8 @@ void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &p
 
     const BlockState placedState = BlockPlacementComponent::apply(
             BlockState(definition.getIdentifier(), definition.getState()),
-            player.getRotation().y, transaction.mBlockFace, transaction.mClickPosition);
+            player.getRotation().y, transaction.mBlockFace, transaction.mClickPosition,
+            player.getPosition(), target);
     const int32_t blockHash = BlockStateHasher::hash(placedState.mName, placedState.mStates);
     level.setBlockState(target.x, target.y, target.z, placedState);
 
@@ -728,4 +748,8 @@ void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &p
 
     owner.playLevelSound(LevelSoundEvent::PLACE, targetCenter, "", (int32_t) blockHash);
 
+    if (ChestBlock::matches(placedState.mName))
+        ChestBlock::onPlaced(owner.getLevel(), target);
+
+    RedstoneSystem::onBlockPlaced(owner, target, placedState);
 }

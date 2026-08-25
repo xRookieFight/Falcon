@@ -15,6 +15,8 @@ enum class CommandBlockActorMode : int32_t {
 
 class CommandBlockActor final : public BlockActor {
 public:
+    static constexpr const char *BLOCK_ACTOR_ID = "CommandBlock";
+
     static const int32_t CURRENT_VERSION = 10;
 
     static const char *const TAG_ID;
@@ -97,13 +99,14 @@ public:
         mPowered = value;
     }
 
-    Tag saveNbt() const;
+    const char *getBlockActorId() const override { return BLOCK_ACTOR_ID; }
 
-    void loadNbt(const Tag &tag);
+    Tag saveNbt() const override;
+
+    void loadNbt(const Tag &tag, const PacketCodecContext &context) override;
 
     Tag getSpawnCompound() const;
 
-    Vector3i mPosition;
     CommandBlockActorMode mMode = CommandBlockActorMode::Normal;
     std::string mCommand;
     std::string mCustomName;

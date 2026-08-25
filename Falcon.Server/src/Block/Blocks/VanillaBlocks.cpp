@@ -1,8 +1,13 @@
 #include "Block/Blocks/VanillaBlocks.h"
 
+#include "Block/Blocks/ButtonBlock.h"
 #include "Block/Blocks/CommandBlock.h"
 #include "Block/Blocks/FurnaceBlock.h"
 #include "Block/Blocks/CraftingTableBlock.h"
+#include "Block/Blocks/ChestBlock.h"
+#include "Block/Blocks/DaylightDetectorBlock.h"
+#include "Block/Blocks/LeverBlock.h"
+#include "Block/Blocks/RedstoneDiodeBlock.h"
 #include "Block/BlockTypeIds.h"
 
 namespace {
@@ -28,6 +33,24 @@ namespace {
 
         if (CommandBlock::matches(identifier))
             return std::make_unique<CommandBlock>(block);
+
+        if (ChestBlock::matches(identifier))
+            return std::make_unique<ChestBlock>(block);
+
+        if (DaylightDetectorBlock::matches(identifier))
+            return std::make_unique<DaylightDetectorBlock>(block);
+
+        if (LeverBlock::matches(identifier))
+            return std::make_unique<LeverBlock>(block);
+
+        if (ButtonBlock::matches(identifier))
+            return std::make_unique<ButtonBlock>(block);
+
+        if (RedstoneRepeaterBlock::matches(identifier))
+            return std::make_unique<RedstoneRepeaterBlock>(block);
+
+        if (RedstoneComparatorBlock::matches(identifier))
+            return std::make_unique<RedstoneComparatorBlock>(block);
 
         return std::make_unique<Block>(block);
     }

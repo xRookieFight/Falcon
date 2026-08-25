@@ -137,7 +137,7 @@ namespace {
             return;
         }
 
-        const Vector3i behind = behindOf(state, actor.mPosition);
+        const Vector3i behind = behindOf(state, actor.getPosition());
         const BlockState behindState = owner.getLevel().getBlockState(behind.x, behind.y, behind.z);
         if (!CommandBlock::matches(behindState.mName)) {
             actor.mConditionMet = false;
@@ -153,7 +153,7 @@ namespace {
         if (chain > MAX_CHAIN_LENGTH)
             return false;
 
-        const Vector3i position = actor.mPosition;
+        const Vector3i position = actor.getPosition();
         const BlockState state = owner.getLevel().getBlockState(position.x, position.y, position.z);
         if (!CommandBlock::matches(state.mName)) {
             CommandBlockSystem::remove(position);
@@ -244,7 +244,7 @@ CommandBlockActor &CommandBlockSystem::getOrCreate(ServerNetworkHandler &owner, 
 
     CommandBlockActor actor;
     actor.setState(state);
-    actor.mPosition = position;
+    actor.setPosition(position);
     actor.setMode(CommandBlockActor::modeFromBlockName(state.mName));
 
     return gCommandBlocks.emplace(key, actor).first->second;
@@ -274,7 +274,7 @@ void CommandBlockSystem::onCommandBlockUpdate(ServerNetworkHandler &owner, Serve
 
     CommandBlockActor &actor = getOrCreate(owner, position);
     actor.setState(state);
-    actor.mPosition = position;
+    actor.setPosition(position);
     actor.setMode(CommandBlockActor::modeFromBlockName(state.mName));
     actor.setCommand(packet.mCommand);
     actor.mCustomName = packet.mName;
@@ -324,17 +324,19 @@ void CommandBlockSystem::trigger(ServerNetworkHandler &owner, const Vector3i &po
 
 void CommandBlockSystem::broadcastData(ServerNetworkHandler &owner, const CommandBlockActor &actor)
 {
+    const Vector3i actorPosition = actor.getPosition();
+
     BlockActorDataPacket data;
-    data.mBlockPosition = actor.mPosition;
+    data.mBlockPosition = actorPosition;
     data.mData = actor.getSpawnCompound();
 
-    const Vector3f center((float) actor.mPosition.x + 0.5f, (float) actor.mPosition.y + 0.5f,
-                          (float) actor.mPosition.z + 0.5f);
+    const Vector3f center((float) actorPosition.x + 0.5f, (float) actorPosition.y + 0.5f,
+                          (float) actorPosition.z + 0.5f);
     BlockActionHandler::broadcastToViewers(owner, center, data);
 
-    const int64_t key = packPosition(actor.mPosition);
-    const int32_t chunkX = actor.mPosition.x >> 4;
-    const int32_t chunkZ = actor.mPosition.z >> 4;
+    const int64_t key = packPosition(actorPosition);
+    const int32_t chunkX = actorPosition.x >> 4;
+    const int32_t chunkZ = actorPosition.z >> 4;
     const int64_t chunkKey = ((int64_t) chunkX << 32) | (uint32_t) chunkZ;
 
     for (auto &entry: owner.getPlayers()) {
@@ -349,7 +351,7 @@ void CommandBlockSystem::tickCommandBlocks(ServerNetworkHandler &owner)
 
     for (auto &entry: gCommandBlocks) {
         CommandBlockActor &actor = entry.second;
-        const Vector3i position = actor.mPosition;
+        const Vector3i position = actor.getPosition();
         const BlockState state = owner.getLevel().getBlockState(position.x, position.y, position.z);
 
         if (!CommandBlock::matches(state.mName)) {
@@ -394,8 +396,9 @@ void CommandBlockSystem::tickCommandBlocks(ServerNetworkHandler &owner)
 
         for (auto &blockEntry: gCommandBlocks) {
             const CommandBlockActor &actor = blockEntry.second;
-            const int32_t chunkX = actor.mPosition.x >> 4;
-            const int32_t chunkZ = actor.mPosition.z >> 4;
+            const Vector3i actorPosition = actor.getPosition();
+            const int32_t chunkX = actorPosition.x >> 4;
+            const int32_t chunkZ = actorPosition.z >> 4;
             const int64_t chunkKey = ((int64_t) chunkX << 32) | (uint32_t) chunkZ;
 
             if (player.getSentChunks().count(chunkKey) == 0)
@@ -406,7 +409,7 @@ void CommandBlockSystem::tickCommandBlocks(ServerNetworkHandler &owner)
                 continue;
 
             BlockActorDataPacket data;
-            data.mBlockPosition = actor.mPosition;
+            data.mBlockPosition = actorPosition;
             data.mData = actor.getSpawnCompound();
             owner.getNetworkHandler().send(playerEntry.first, data, owner.getCodecContext());
 
