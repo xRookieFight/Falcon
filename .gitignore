@@ -3,6 +3,7 @@
 !/CMakeLists.txt
 !/README.md
 !/build.bat
+!/build.sh
 !/Falcon.Network
 !/Falcon.Network/**
 !/Falcon.Protocol
