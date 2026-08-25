@@ -5,7 +5,7 @@
 
 class SetActorLinkPacket : public Packet {
 public:
-    static const MinecraftPacketIds ID = MinecraftPacketIds::SetEntityLink;
+    static const MinecraftPacketIds ID = MinecraftPacketIds::SetActorLink;
 
     SetActorLinkPacket();
 

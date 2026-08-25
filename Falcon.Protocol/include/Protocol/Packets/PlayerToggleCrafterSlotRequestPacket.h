@@ -7,7 +7,7 @@
 
 class PlayerToggleCrafterSlotRequestPacket : public Packet {
 public:
-    static const MinecraftPacketIds ID = MinecraftPacketIds::ToggleCrafterSlotRequest;
+    static const MinecraftPacketIds ID = MinecraftPacketIds::PlayerToggleCrafterSlotRequest;
 
     PlayerToggleCrafterSlotRequestPacket();
 

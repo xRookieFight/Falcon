@@ -8,7 +8,7 @@
 
 class ClientMovementPredictionSyncPacket : public Packet {
 public:
-    static const MinecraftPacketIds ID = MinecraftPacketIds::MovementPredictionSync;
+    static const MinecraftPacketIds ID = MinecraftPacketIds::ClientMovementPredictionSync;
 
     ClientMovementPredictionSyncPacket();
 

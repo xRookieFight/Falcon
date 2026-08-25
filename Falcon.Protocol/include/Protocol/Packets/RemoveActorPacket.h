@@ -4,7 +4,7 @@
 
 class RemoveActorPacket : public Packet {
 public:
-    static const MinecraftPacketIds ID = MinecraftPacketIds::RemoveEntity;
+    static const MinecraftPacketIds ID = MinecraftPacketIds::RemoveActor;
 
     RemoveActorPacket();
 

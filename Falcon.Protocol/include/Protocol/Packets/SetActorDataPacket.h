@@ -8,7 +8,7 @@
 
 class SetActorDataPacket : public Packet {
 public:
-    static const MinecraftPacketIds ID = MinecraftPacketIds::SetEntityData;
+    static const MinecraftPacketIds ID = MinecraftPacketIds::SetActorData;
 
     SetActorDataPacket();
 

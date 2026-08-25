@@ -6,7 +6,7 @@
 
 class BlockActorDataPacket : public Packet {
 public:
-    static const MinecraftPacketIds ID = MinecraftPacketIds::BlockEntityData;
+    static const MinecraftPacketIds ID = MinecraftPacketIds::BlockActorData;
 
     BlockActorDataPacket();
 

@@ -7,7 +7,7 @@
 
 class LegacyTelemetryEventPacket : public Packet {
 public:
-    static const MinecraftPacketIds ID = MinecraftPacketIds::Event;
+    static const MinecraftPacketIds ID = MinecraftPacketIds::LegacyTelemetryEvent;
 
     LegacyTelemetryEventPacket();
 

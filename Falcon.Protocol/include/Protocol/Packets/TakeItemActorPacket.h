@@ -4,7 +4,7 @@
 
 class TakeItemActorPacket : public Packet {
 public:
-    static const MinecraftPacketIds ID = MinecraftPacketIds::TakeItemEntity;
+    static const MinecraftPacketIds ID = MinecraftPacketIds::TakeItemActor;
 
     TakeItemActorPacket();
 

@@ -9,7 +9,7 @@
 
 class AddItemActorPacket : public Packet {
 public:
-    static const MinecraftPacketIds ID = MinecraftPacketIds::AddItemEntity;
+    static const MinecraftPacketIds ID = MinecraftPacketIds::AddItemActor;
 
     AddItemActorPacket();
 

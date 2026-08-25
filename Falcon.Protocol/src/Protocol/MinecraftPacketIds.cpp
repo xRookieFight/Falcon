@@ -26,18 +26,18 @@ const char *toString(MinecraftPacketIds id) {
             return "StartGame";
         case MinecraftPacketIds::AddPlayer:
             return "AddPlayer";
-        case MinecraftPacketIds::AddEntity:
-            return "AddEntity";
-        case MinecraftPacketIds::RemoveEntity:
-            return "RemoveEntity";
-        case MinecraftPacketIds::AddItemEntity:
-            return "AddItemEntity";
+        case MinecraftPacketIds::AddActor:
+            return "AddActor";
+        case MinecraftPacketIds::RemoveActor:
+            return "RemoveActor";
+        case MinecraftPacketIds::AddItemActor:
+            return "AddItemActor";
         case MinecraftPacketIds::ServerPlayerPostMovePosition:
             return "ServerPlayerPostMovePosition";
-        case MinecraftPacketIds::TakeItemEntity:
-            return "TakeItemEntity";
-        case MinecraftPacketIds::MoveEntityAbsolute:
-            return "MoveEntityAbsolute";
+        case MinecraftPacketIds::TakeItemActor:
+            return "TakeItemActor";
+        case MinecraftPacketIds::MoveActorAbsolute:
+            return "MoveActorAbsolute";
         case MinecraftPacketIds::MovePlayer:
             return "MovePlayer";
         case MinecraftPacketIds::UpdateBlock:
@@ -46,8 +46,8 @@ const char *toString(MinecraftPacketIds id) {
             return "AddPainting";
         case MinecraftPacketIds::BlockEvent:
             return "BlockEvent";
-        case MinecraftPacketIds::EntityEvent:
-            return "EntityEvent";
+        case MinecraftPacketIds::ActorEvent:
+            return "ActorEvent";
         case MinecraftPacketIds::MobEffect:
             return "MobEffect";
         case MinecraftPacketIds::UpdateAttributes:
@@ -62,20 +62,20 @@ const char *toString(MinecraftPacketIds id) {
             return "Interact";
         case MinecraftPacketIds::BlockPickRequest:
             return "BlockPickRequest";
-        case MinecraftPacketIds::EntityPickRequest:
-            return "EntityPickRequest";
+        case MinecraftPacketIds::ActorPickRequest:
+            return "ActorPickRequest";
         case MinecraftPacketIds::PlayerAction:
             return "PlayerAction";
         case MinecraftPacketIds::EntityFall:
             return "EntityFall";
         case MinecraftPacketIds::HurtArmor:
             return "HurtArmor";
-        case MinecraftPacketIds::SetEntityData:
-            return "SetEntityData";
-        case MinecraftPacketIds::SetEntityMotion:
-            return "SetEntityMotion";
-        case MinecraftPacketIds::SetEntityLink:
-            return "SetEntityLink";
+        case MinecraftPacketIds::SetActorData:
+            return "SetActorData";
+        case MinecraftPacketIds::SetActorMotion:
+            return "SetActorMotion";
+        case MinecraftPacketIds::SetActorLink:
+            return "SetActorLink";
         case MinecraftPacketIds::SetHealth:
             return "SetHealth";
         case MinecraftPacketIds::SetSpawnPosition:
@@ -104,8 +104,8 @@ const char *toString(MinecraftPacketIds id) {
             return "GuiDataPickItem";
         case MinecraftPacketIds::AdventureSettings:
             return "AdventureSettings";
-        case MinecraftPacketIds::BlockEntityData:
-            return "BlockEntityData";
+        case MinecraftPacketIds::BlockActorData:
+            return "BlockActorData";
         case MinecraftPacketIds::LevelChunk:
             return "LevelChunk";
         case MinecraftPacketIds::SetCommandsEnabled:
@@ -120,8 +120,8 @@ const char *toString(MinecraftPacketIds id) {
             return "PlayerList";
         case MinecraftPacketIds::SimpleEvent:
             return "SimpleEvent";
-        case MinecraftPacketIds::Event:
-            return "Event";
+        case MinecraftPacketIds::LegacyTelemetryEvent:
+            return "LegacyTelemetryEvent";
         case MinecraftPacketIds::SpawnExperienceOrb:
             return "SpawnExperienceOrb";
         case MinecraftPacketIds::ClientboundMapItemData:
@@ -208,8 +208,8 @@ const char *toString(MinecraftPacketIds id) {
             return "LabTable";
         case MinecraftPacketIds::UpdateBlockSynced:
             return "UpdateBlockSynced";
-        case MinecraftPacketIds::MoveEntityDelta:
-            return "MoveEntityDelta";
+        case MinecraftPacketIds::MoveActorDelta:
+            return "MoveActorDelta";
         case MinecraftPacketIds::SetScoreboardIdentity:
             return "SetScoreboardIdentity";
         case MinecraftPacketIds::SetLocalPlayerAsInitialized:
@@ -220,8 +220,8 @@ const char *toString(MinecraftPacketIds id) {
             return "NetworkStackLatency";
         case MinecraftPacketIds::SpawnParticleEffect:
             return "SpawnParticleEffect";
-        case MinecraftPacketIds::AvailableEntityIdentifiers:
-            return "AvailableEntityIdentifiers";
+        case MinecraftPacketIds::AvailableActorIdentifiers:
+            return "AvailableActorIdentifiers";
         case MinecraftPacketIds::NetworkChunkPublisherUpdate:
             return "NetworkChunkPublisherUpdate";
         case MinecraftPacketIds::BiomeDefinitionList:
@@ -292,12 +292,12 @@ const char *toString(MinecraftPacketIds id) {
             return "PlayerFog";
         case MinecraftPacketIds::CorrectPlayerMovePrediction:
             return "CorrectPlayerMovePrediction";
-        case MinecraftPacketIds::ItemComponent:
-            return "ItemComponent";
+        case MinecraftPacketIds::ItemRegistry:
+            return "ItemRegistry";
         case MinecraftPacketIds::ClientboundDebugRenderer:
             return "ClientboundDebugRenderer";
-        case MinecraftPacketIds::SyncEntityProperty:
-            return "SyncEntityProperty";
+        case MinecraftPacketIds::SyncActorProperty:
+            return "SyncActorProperty";
         case MinecraftPacketIds::AddVolumeEntity:
             return "AddVolumeEntity";
         case MinecraftPacketIds::RemoveVolumeEntity:
@@ -376,8 +376,8 @@ const char *toString(MinecraftPacketIds id) {
             return "AgentAnimation";
         case MinecraftPacketIds::RefreshEntitlements:
             return "RefreshEntitlements";
-        case MinecraftPacketIds::ToggleCrafterSlotRequest:
-            return "ToggleCrafterSlotRequest";
+        case MinecraftPacketIds::PlayerToggleCrafterSlotRequest:
+            return "PlayerToggleCrafterSlotRequest";
         case MinecraftPacketIds::SetPlayerInventoryOptions:
             return "SetPlayerInventoryOptions";
         case MinecraftPacketIds::SetHud:
@@ -402,10 +402,10 @@ const char *toString(MinecraftPacketIds id) {
             return "MovementEffect";
         case MinecraftPacketIds::CameraAimAssistPresets:
             return "CameraAimAssistPresets";
-        case MinecraftPacketIds::CameraAimAssistInstruction:
-            return "CameraAimAssistInstruction";
-        case MinecraftPacketIds::MovementPredictionSync:
-            return "MovementPredictionSync";
+        case MinecraftPacketIds::ClientCameraAimAssist:
+            return "ClientCameraAimAssist";
+        case MinecraftPacketIds::ClientMovementPredictionSync:
+            return "ClientMovementPredictionSync";
         case MinecraftPacketIds::UpdateClientOptions:
             return "UpdateClientOptions";
         case MinecraftPacketIds::PlayerVideoCapture:
@@ -416,14 +416,14 @@ const char *toString(MinecraftPacketIds id) {
             return "PlayerLocation";
         case MinecraftPacketIds::ClientboundControlSchemeSet:
             return "ClientboundControlSchemeSet";
-        case MinecraftPacketIds::DebugDrawer:
-            return "DebugDrawer";
+        case MinecraftPacketIds::PrimitiveShapes:
+            return "PrimitiveShapes";
         case MinecraftPacketIds::ServerboundPackSettingChange:
             return "ServerboundPackSettingChange";
         case MinecraftPacketIds::ClientboundDataStore:
             return "ClientboundDataStore";
-        case MinecraftPacketIds::GraphicsParameterOverride:
-            return "GraphicsParameterOverride";
+        case MinecraftPacketIds::GraphicsOverrideParameter:
+            return "GraphicsOverrideParameter";
         case MinecraftPacketIds::ServerboundDataStore:
             return "ServerboundDataStore";
         case MinecraftPacketIds::ClientboundDataDrivenUIShowScreen:

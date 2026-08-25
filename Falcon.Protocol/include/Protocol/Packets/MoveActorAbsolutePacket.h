@@ -7,7 +7,7 @@
 
 class MoveActorAbsolutePacket : public Packet {
 public:
-    static const MinecraftPacketIds ID = MinecraftPacketIds::MoveEntityAbsolute;
+    static const MinecraftPacketIds ID = MinecraftPacketIds::MoveActorAbsolute;
 
     MoveActorAbsolutePacket();
 

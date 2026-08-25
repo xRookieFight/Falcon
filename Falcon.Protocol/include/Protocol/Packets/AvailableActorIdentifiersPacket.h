@@ -5,7 +5,7 @@
 
 class AvailableActorIdentifiersPacket : public Packet {
 public:
-    static const MinecraftPacketIds ID = MinecraftPacketIds::AvailableEntityIdentifiers;
+    static const MinecraftPacketIds ID = MinecraftPacketIds::AvailableActorIdentifiers;
 
     AvailableActorIdentifiersPacket();
 

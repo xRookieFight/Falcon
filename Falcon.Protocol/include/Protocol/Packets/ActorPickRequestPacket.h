@@ -4,7 +4,7 @@
 
 class ActorPickRequestPacket : public Packet {
 public:
-    static const MinecraftPacketIds ID = MinecraftPacketIds::EntityPickRequest;
+    static const MinecraftPacketIds ID = MinecraftPacketIds::ActorPickRequest;
 
     ActorPickRequestPacket();
 

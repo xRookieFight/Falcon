@@ -17,7 +17,7 @@ enum class EntityEventType : int {
 
 class ActorEventPacket : public Packet {
 public:
-    static const MinecraftPacketIds ID = MinecraftPacketIds::EntityEvent;
+    static const MinecraftPacketIds ID = MinecraftPacketIds::ActorEvent;
 
     ActorEventPacket();
 

@@ -6,7 +6,7 @@
 
 class MoveActorDeltaPacket : public Packet {
 public:
-    static const MinecraftPacketIds ID = MinecraftPacketIds::MoveEntityDelta;
+    static const MinecraftPacketIds ID = MinecraftPacketIds::MoveActorDelta;
 
     enum Flag : uint32_t {
         HasX = 1 << 0,

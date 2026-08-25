@@ -17,7 +17,7 @@ struct ItemComponentEntry {
 
 class ItemRegistryPacket : public Packet {
 public:
-    static const MinecraftPacketIds ID = MinecraftPacketIds::ItemComponent;
+    static const MinecraftPacketIds ID = MinecraftPacketIds::ItemRegistry;
 
     ItemRegistryPacket();
 

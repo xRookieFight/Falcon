@@ -10,7 +10,7 @@
 
 class GraphicsOverrideParameterPacket : public Packet {
 public:
-    static const MinecraftPacketIds ID = MinecraftPacketIds::GraphicsParameterOverride;
+    static const MinecraftPacketIds ID = MinecraftPacketIds::GraphicsOverrideParameter;
 
     GraphicsOverrideParameterPacket();
 

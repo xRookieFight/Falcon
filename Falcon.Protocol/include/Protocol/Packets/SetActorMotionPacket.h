@@ -4,7 +4,7 @@
 
 class SetActorMotionPacket : public Packet {
 public:
-    static const MinecraftPacketIds ID = MinecraftPacketIds::SetEntityMotion;
+    static const MinecraftPacketIds ID = MinecraftPacketIds::SetActorMotion;
 
     SetActorMotionPacket();
 

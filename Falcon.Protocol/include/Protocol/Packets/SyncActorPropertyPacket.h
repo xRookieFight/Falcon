@@ -5,7 +5,7 @@
 
 class SyncActorPropertyPacket : public Packet {
 public:
-    static const MinecraftPacketIds ID = MinecraftPacketIds::SyncEntityProperty;
+    static const MinecraftPacketIds ID = MinecraftPacketIds::SyncActorProperty;
 
     SyncActorPropertyPacket();
 

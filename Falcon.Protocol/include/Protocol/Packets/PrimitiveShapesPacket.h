@@ -7,7 +7,7 @@
 
 class PrimitiveShapesPacket : public Packet {
 public:
-    static const MinecraftPacketIds ID = MinecraftPacketIds::DebugDrawer;
+    static const MinecraftPacketIds ID = MinecraftPacketIds::PrimitiveShapes;
 
     PrimitiveShapesPacket();
 

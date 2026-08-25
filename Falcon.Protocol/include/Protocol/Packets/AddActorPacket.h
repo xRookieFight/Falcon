@@ -13,7 +13,7 @@
 
 class AddActorPacket : public Packet {
 public:
-    static const MinecraftPacketIds ID = MinecraftPacketIds::AddEntity;
+    static const MinecraftPacketIds ID = MinecraftPacketIds::AddActor;
 
     AddActorPacket();
 

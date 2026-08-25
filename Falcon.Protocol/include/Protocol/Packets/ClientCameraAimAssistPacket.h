@@ -7,7 +7,7 @@
 
 class ClientCameraAimAssistPacket : public Packet {
 public:
-    static const MinecraftPacketIds ID = MinecraftPacketIds::CameraAimAssistInstruction;
+    static const MinecraftPacketIds ID = MinecraftPacketIds::ClientCameraAimAssist;
 
     ClientCameraAimAssistPacket();
 
