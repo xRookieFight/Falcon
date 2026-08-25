@@ -15,6 +15,7 @@ enum class ActorFlag : int {
     Breathing = 35,
     HasCollision = 48,
     HasGravity = 49,
+    SpinAttack = 56,
     Swimming = 57,
     Crawling = 114,
 };
