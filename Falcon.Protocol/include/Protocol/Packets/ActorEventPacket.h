@@ -11,7 +11,9 @@ enum class EntityEventType : int {
     DeathAnimation = 3,
     ArmSwing = 4,
     StopAttack = 5,
+    FireworkParticles = 25,
     EatingItem = 57,
+    ConsumeTotem = 65,
     Respawn = 18,
 };
 

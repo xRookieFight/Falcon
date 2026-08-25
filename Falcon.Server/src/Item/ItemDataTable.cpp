@@ -332,7 +332,7 @@ const ItemData gItemDataTable[] = {
         {ItemTypeIds::LODESTONE_COMPASS, "minecraft:lodestone_compass", "Lodestone Compass", 1, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::LOG, "minecraft:log", "Log", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::LOG2, "minecraft:log2", "Log2", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
-        {ItemTypeIds::MACE, "minecraft:mace", "Mace", 1, 501, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
+        {ItemTypeIds::MACE, "minecraft:mace", "Mace", 1, 501, ToolType::None, 0, 0, 6, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::MAGENTA_BUNDLE, "minecraft:magenta_bundle", "Magenta Bundle", 1, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::MAGENTA_CUSHION, "minecraft:magenta_cushion", "Magenta Cushion", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::MAGENTA_DYE, "minecraft:magenta_dye", "Magenta Dye", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},

@@ -1,5 +1,9 @@
 #include "Item/VanillaItems.h"
 
+#include "Item/Items/MaceItem.h"
+#include "Item/Items/FireworkRocketItem.h"
+#include "Item/Items/RangedWeaponItems.h"
+#include "Item/Items/SpearItem.h"
 #include "Item/Items/ThrowableItems.h"
 
 #include "Item/ItemData.h"
@@ -2446,10 +2450,26 @@ namespace {
         if (identifier == "minecraft:ender_eye")
             return std::make_unique<ThrowableItem>(base, "minecraft:eye_of_ender_signal", 1.2f, 0);
 
+        if (identifier == "minecraft:mace")
+            return std::make_unique<MaceItem>(base);
+
+        if (identifier == "minecraft:firework_rocket")
+            return std::make_unique<FireworkRocketItem>(base);
+
+        if (identifier == "minecraft:bow")
+            return std::make_unique<BowItem>(base);
+        if (identifier == "minecraft:crossbow")
+            return std::make_unique<CrossbowItem>(base);
+        if (identifier == "minecraft:trident")
+            return std::make_unique<TridentItem>(base);
+
         if (identifier == "minecraft:splash_potion")
             return std::make_unique<ThrownPotionItem>(base, "minecraft:splash_potion");
         if (identifier == "minecraft:lingering_potion")
             return std::make_unique<ThrownPotionItem>(base, "minecraft:lingering_potion");
+
+        if (SpearItem::matches(identifier))
+            return std::make_unique<SpearItem>(base);
 
         if (identifier.size() > 10 && identifier.compare(identifier.size() - 10, 10, "_spawn_egg") == 0)
             return std::make_unique<SpawnEggItem>(base);

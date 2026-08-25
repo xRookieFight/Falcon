@@ -12,7 +12,12 @@ public:
         BlockStartBreak = 3600,
         BlockStopBreak = 3601,
         BlockUpdateBreak = 3602,
-        ParticleDestroy = 2001
+        ParticleDestroy = 2001,
+        ParticleSmashAttackGroundDust = 9815,
+        StartRain = 3001,
+        StartThunder = 3002,
+        StopRain = 3003,
+        StopThunder = 3004
     };
 
     LevelEventPacket();

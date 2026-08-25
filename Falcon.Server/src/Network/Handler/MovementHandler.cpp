@@ -191,6 +191,7 @@ void MovementHandler::handlePlayerAuthInput(ServerNetworkHandler &owner, const N
                                             ServerPlayer &player, const PlayerAuthInputPacket &packet) {
     const Vector3f feetPosition(packet.mPosition.x, packet.mPosition.y - PLAYER_BASE_OFFSET, packet.mPosition.z);
     player.queueMove(feetPosition, packet.mRotation);
+    player.setMotion(packet.mDelta);
 
     if (player.isSpawned()) {
         const int32_t chunkX = (int32_t) std::floor(feetPosition.x) >> 4;

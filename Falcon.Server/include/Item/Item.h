@@ -14,12 +14,33 @@
 class ServerNetworkHandler;
 class ServerPlayer;
 class ItemStack;
+class Actor;
 struct Vector3f;
 struct Vector3i;
 
 class Item {
 public:
     virtual ~Item() = default;
+
+    virtual float getAttackDamageBonus(const ItemStack &item, ServerPlayer &attacker) const {
+        (void) item;
+        (void) attacker;
+        return 0.0f;
+    }
+
+    virtual float getArmorEfficiency(const ItemStack &item) const {
+        (void) item;
+        return 1.0f;
+    }
+
+    virtual void onPostAttack(ServerNetworkHandler &owner, ServerPlayer &attacker, Actor &victim, float damage,
+                              const ItemStack &item) const {
+        (void) owner;
+        (void) attacker;
+        (void) victim;
+        (void) damage;
+        (void) item;
+    }
 
     virtual bool onUse(ServerNetworkHandler &owner, ServerPlayer &player, const ItemStack &item) const {
         (void) owner;
