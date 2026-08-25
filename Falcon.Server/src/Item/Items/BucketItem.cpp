@@ -153,15 +153,8 @@ void BucketItem::sendBlockUpdate(ServerNetworkHandler &owner, const Vector3i &po
 }
 
 void BucketItem::sendSound(ServerNetworkHandler &owner, const Vector3i &position, const char *sound) {
-    LevelSoundEventPacket packet;
-    packet.mSound = sound;
-    packet.mPosition = Vector3f((float) position.x + 0.5f,
-                                (float) position.y + 0.5f,
-                                (float) position.z + 0.5f);
-    packet.mExtraData = -1;
-    packet.mActorType = "";
-    packet.mActorUniqueId = -1;
-    BlockActionHandler::broadcastToViewers(owner, packet.mPosition, packet);
+    const Vector3f center((float) position.x + 0.5f, (float) position.y + 0.5f, (float) position.z + 0.5f);
+    owner.playLevelSound(sound, center, "");
 }
 
 void BucketItem::sendArmSwing(ServerNetworkHandler &owner, ServerPlayer &player, const Vector3i &position) {

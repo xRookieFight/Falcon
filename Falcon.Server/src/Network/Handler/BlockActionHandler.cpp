@@ -6,6 +6,7 @@
 #include "Block/Blocks/FurnaceBlock.h"
 #include "Actor/ServerPlayer.h"
 #include "Item/ItemData.h"
+#include "Item/ItemBehavior.h"
 #include "Scripting/Content/CustomContentRegistry.h"
 #include "Item/ItemEnchantments.h"
 #include "Item/Items/BucketItem.h"
@@ -556,13 +557,7 @@ void BlockActionHandler::sendBreakingFx(ServerNetworkHandler &owner, ServerPlaye
     punch.mData = blockHash | (player.getBreakingFace() << 24);
     broadcastToViewers(owner, center, punch);
 
-    LevelSoundEventPacket hit;
-    hit.mSound = "hit";
-    hit.mPosition = center;
-    hit.mExtraData = blockHash;
-    hit.mActorType = "";
-    hit.mActorUniqueId = -1;
-    broadcastToViewers(owner, center, hit);
+    owner.playLevelSound(LevelSoundEvent::HIT, center, "", blockHash);
 
     ActorEventPacket swing;
     swing.mRuntimeActorId = player.getRuntimeId();
@@ -620,6 +615,14 @@ void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &p
 
     owner.getScriptEngine().onItemUseOnBlock(player, transaction.mBlockPosition.x,
                                              transaction.mBlockPosition.y, transaction.mBlockPosition.z);
+
+    const ItemStack &interactItem = inventory.getItemInHand();
+    if (!interactItem.isAir() && interactItem.mDefinition != nullptr) {
+        ItemBehavior *behavior = ItemBehaviorRegistry::getInstance().find(interactItem.mDefinition->getIdentifier());
+        if (behavior != nullptr && behavior->onUseOnBlock(owner, player, interactItem, transaction.mBlockPosition,
+                                                          transaction.mBlockFace, transaction.mClickPosition))
+            return;
+    }
 
     Level &level = owner.getLevel();
     const BlockState clickedState = level.getBlockState(transaction.mBlockPosition.x,
@@ -732,12 +735,6 @@ void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &p
     const Vector3f targetCenter((float) target.x + 0.5f, (float) target.y + 0.5f, (float) target.z + 0.5f);
     broadcastToViewers(owner, targetCenter, update);
 
-    LevelSoundEventPacket placeSound;
-    placeSound.mSound = "place";
-    placeSound.mPosition = targetCenter;
-    placeSound.mExtraData = (int32_t) blockHash;
-    placeSound.mActorType = "";
-    placeSound.mActorUniqueId = -1;
-    broadcastToViewers(owner, targetCenter, placeSound);
+    owner.playLevelSound(LevelSoundEvent::PLACE, targetCenter, "", (int32_t) blockHash);
 
 }

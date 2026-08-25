@@ -7,8 +7,11 @@
 #include "Protocol/Packets/AnimateEntityPacket.h"
 #include "Protocol/Packets/MoveActorAbsolutePacket.h"
 #include "Protocol/Packets/PlaySoundPacket.h"
+#include "Protocol/Packets/LevelSoundEventPacket.h"
 #include "Protocol/Packets/RemoveActorPacket.h"
 #include "Protocol/Packets/SetActorDataPacket.h"
+#include "Protocol/Packets/SetActorMotionPacket.h"
+#include "Protocol/Packets/ActorEventPacket.h"
 #include "Protocol/Packets/SpawnParticleEffectPacket.h"
 #include "Protocol/Packets/CameraInstructionPacket.h"
 #include "Protocol/Packets/MobEffectPacket.h"
@@ -23,12 +26,16 @@
 #include "Item/ItemData.h"
 #include "Item/ItemEnchantments.h"
 #include "Item/EnchantmentData.h"
+#include "Item/Items/ThrowableItems.h"
+#include "Item/PotionEffects.h"
 #include "Item/StringToItemParser.h"
 
 #include <random>
+#include "Network/Handler/BlockActionHandler.h"
 #include "Network/Handler/ItemActorHandler.h"
 #include "Scripting/Content/CustomContentRegistry.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace {
@@ -90,6 +97,246 @@ ServerActor *ServerNetworkHandler::spawnActor(const std::string &identifier, con
 ServerActor *ServerNetworkHandler::getActor(int64_t uniqueId) {
     auto it = mActors.find(uniqueId);
     return it == mActors.end() ? nullptr : it->second.get();
+}
+
+ServerActor *ServerNetworkHandler::spawnProjectile(ServerPlayer &player, const std::string &identifier, float speed) {
+    const float degreesToRadians = 3.14159265358979323846f / 180.0f;
+    const Vector3f &rotation = player.getRotation();
+    const float pitch = rotation.x * degreesToRadians;
+    const float yaw = rotation.y * degreesToRadians;
+
+    const Vector3f direction(-std::sin(yaw) * std::cos(pitch), -std::sin(pitch), std::cos(yaw) * std::cos(pitch));
+
+    Vector3f spawnPosition = player.getPosition();
+    spawnPosition.y += 1.5f;
+
+    ServerActor *projectile = spawnActor(identifier, spawnPosition);
+    if (projectile == nullptr)
+        return nullptr;
+
+    projectile->setProjectile(true);
+    projectile->setOwnerUniqueId((int64_t) player.getRuntimeId());
+    projectile->setMotion(Vector3f(direction.x * speed, direction.y * speed, direction.z * speed));
+    return projectile;
+}
+
+bool ServerNetworkHandler::onThrownProjectileHit(ServerActor &projectile, const Vector3f &hitPosition,
+                                                 ServerPlayer *hitPlayer) {
+    const std::string identifier = projectile.getIdentifier();
+
+    if (identifier == "minecraft:ender_pearl") {
+        const int64_t ownerId = projectile.getOwnerUniqueId();
+        for (auto &entry: mPlayers) {
+            ServerPlayer &shooter = entry.second;
+            if ((int64_t) shooter.getRuntimeId() != ownerId)
+                continue;
+
+            shooter.teleport(*this, hitPosition, MovePlayerTeleportationCause::Behavior);
+            applyDamage(shooter, 5.0f, "death.fell.accident.generic", {shooter.getName()}, false, false);
+            break;
+        }
+        spawnParticleEffect("minecraft:endermanpop_emitter", hitPosition);
+        return true;
+    }
+
+    if (identifier == "minecraft:snowball") {
+        if (hitPlayer != nullptr) {
+            const Vector3f target = hitPlayer->getPosition();
+            knockBack(*hitPlayer, target.x - hitPosition.x, target.z - hitPosition.z, 0.3f);
+        }
+        spawnParticleEffect("minecraft:snowballpoof", hitPosition);
+        return true;
+    }
+
+    if (identifier == "minecraft:egg") {
+        static std::mt19937 eggRng(0x51ED270Bu);
+        if (eggRng() % 8 == 0)
+            spawnActor("minecraft:chicken", hitPosition);
+        return true;
+    }
+
+    if (identifier == "minecraft:wind_charge_projectile") {
+        const float burstRadius = 3.5f;
+        for (auto &entry: mPlayers) {
+            ServerPlayer &nearby = entry.second;
+            if (!nearby.isSpawned())
+                continue;
+
+            const Vector3f position = nearby.getPosition();
+            const float dx = position.x - hitPosition.x;
+            const float dy = position.y - hitPosition.y;
+            const float dz = position.z - hitPosition.z;
+            const float distanceSquared = dx * dx + dy * dy + dz * dz;
+            if (distanceSquared > burstRadius * burstRadius)
+                continue;
+
+            const float falloff = 1.0f - std::sqrt(distanceSquared) / burstRadius;
+            knockBack(nearby, dx, dz, 1.2f * falloff, 0.9f);
+        }
+
+        for (auto &entry: mActors) {
+            ServerActor &nearby = *entry.second;
+            if (!nearby.isAlive() || nearby.isProjectile())
+                continue;
+
+            const Vector3f position = nearby.getPosition();
+            const float dx = position.x - hitPosition.x;
+            const float dy = position.y - hitPosition.y;
+            const float dz = position.z - hitPosition.z;
+            const float distanceSquared = dx * dx + dy * dy + dz * dz;
+            if (distanceSquared > burstRadius * burstRadius)
+                continue;
+
+            const float falloff = 1.0f - std::sqrt(distanceSquared) / burstRadius;
+            knockBack(nearby, dx, dz, 1.2f * falloff, 0.9f);
+        }
+
+        const Vector3f burstPosition(hitPosition.x, hitPosition.y + 1.0f, hitPosition.z);
+        spawnParticleEffect("minecraft:wind_explosion_emitter", burstPosition);
+        playLevelSound(LevelSoundEvent::WIND_CHARGE_BURST, burstPosition);
+        return true;
+    }
+
+    if (identifier == "minecraft:splash_potion") {
+        const auto it = mProjectilePotionId.find(projectile.getUniqueId());
+        const int32_t potionId = it != mProjectilePotionId.end() ? it->second : 0;
+        if (it != mProjectilePotionId.end())
+            mProjectilePotionId.erase(it);
+
+        for (auto &entry: mPlayers) {
+            ServerPlayer &nearby = entry.second;
+            if (!nearby.isSpawned())
+                continue;
+
+            const Vector3f position = nearby.getPosition();
+            const float dx = position.x - hitPosition.x;
+            const float dy = position.y - hitPosition.y;
+            const float dz = position.z - hitPosition.z;
+            const float distanceSquared = dx * dx + dy * dy + dz * dz;
+            if (distanceSquared > 16.0f)
+                continue;
+
+            const float scale = std::max(0.25f, 1.0f - std::sqrt(distanceSquared) / 4.0f);
+            applyPotionEffects(nearby, potionId, scale);
+        }
+
+        spawnParticleEffect("minecraft:splash_spell_emitter", hitPosition);
+        return true;
+    }
+
+    if (identifier == "minecraft:lingering_potion") {
+        const auto it = mProjectilePotionId.find(projectile.getUniqueId());
+        const int32_t potionId = it != mProjectilePotionId.end() ? it->second : 0;
+        if (it != mProjectilePotionId.end())
+            mProjectilePotionId.erase(it);
+
+        ServerActor *cloud = spawnActor("minecraft:area_effect_cloud", hitPosition);
+        if (cloud != nullptr) {
+            const float cloudRadius = 3.0f;
+
+            EntityDataMap metadata;
+
+            EntityDataEntry radius;
+            radius.mId = ACTOR_DATA_AREA_EFFECT_CLOUD_RADIUS;
+            radius.mFormat = EntityDataFormat::Float;
+            radius.mFloatValue = cloudRadius;
+            metadata.mEntries.push_back(radius);
+
+            EntityDataEntry particle;
+            particle.mId = ACTOR_DATA_AREA_EFFECT_CLOUD_PARTICLE_ID;
+            particle.mFormat = EntityDataFormat::Int;
+            particle.mIntValue = AREA_EFFECT_CLOUD_POTION_PARTICLE;
+            metadata.mEntries.push_back(particle);
+
+            EntityDataEntry auxValue;
+            auxValue.mId = ACTOR_DATA_POTION_AUX_VALUE;
+            auxValue.mFormat = EntityDataFormat::Short;
+            auxValue.mShortValue = (int16_t) potionId;
+            metadata.mEntries.push_back(auxValue);
+
+            EntityDataEntry color;
+            color.mId = ACTOR_DATA_POTION_COLOR;
+            color.mFormat = EntityDataFormat::Int;
+            color.mIntValue = getPotionColor(potionId);
+            metadata.mEntries.push_back(color);
+
+            EntityDataEntry width;
+            width.mId = ACTOR_DATA_WIDTH;
+            width.mFormat = EntityDataFormat::Float;
+            width.mFloatValue = cloudRadius;
+            metadata.mEntries.push_back(width);
+
+            EntityDataEntry height;
+            height.mId = ACTOR_DATA_HEIGHT;
+            height.mFormat = EntityDataFormat::Float;
+            height.mFloatValue = 0.5f;
+            metadata.mEntries.push_back(height);
+
+            sendActorMetadata(*cloud, metadata);
+
+            LingeringCloud state;
+            state.mPotionId = potionId;
+            state.mTicksRemaining = 600;
+            state.mReapplyTimer = 0;
+            state.mPosition = hitPosition;
+            mLingeringClouds[cloud->getUniqueId()] = state;
+        }
+        return true;
+    }
+
+    return isThrownProjectile(identifier);
+}
+
+bool ServerNetworkHandler::onThrownProjectileHitActor(ServerActor &projectile, const Vector3f &hitPosition,
+                                                      ServerActor &hitActor) {
+    const std::string identifier = projectile.getIdentifier();
+
+    if (hitActor.isProjectile()) {
+        const bool handled = onThrownProjectileHit(projectile, hitPosition, nullptr);
+        removeActor(hitActor.getUniqueId());
+        return handled;
+    }
+
+    if (identifier == "minecraft:snowball") {
+        damageActor(hitActor, 0.0f, nullptr);
+        knockBack(hitActor, hitActor.getPosition().x - hitPosition.x, hitActor.getPosition().z - hitPosition.z, 0.3f);
+        spawnParticleEffect("minecraft:snowballpoof", hitPosition);
+        return true;
+    }
+
+    if (identifier == "minecraft:egg") {
+        knockBack(hitActor, hitActor.getPosition().x - hitPosition.x, hitActor.getPosition().z - hitPosition.z, 0.2f);
+        return true;
+    }
+
+    return onThrownProjectileHit(projectile, hitPosition, nullptr);
+}
+
+void ServerNetworkHandler::setProjectilePotionData(int64_t uniqueId, int32_t potionId) {
+    mProjectilePotionId[uniqueId] = potionId;
+}
+
+void ServerNetworkHandler::applyPotionEffects(ServerPlayer &player, int32_t potionId, float durationScale) {
+    for (const PotionEffect &effect: getPotionEffects(potionId)) {
+        if (effect.mInstant) {
+            if (effect.mId == MobEffectId::InstantHealth) {
+                player.heal(4.0f * (float) (1 << effect.mAmplifier));
+            } else if (effect.mId == MobEffectId::InstantDamage) {
+                applyDamage(player, 6.0f * (float) (1 << effect.mAmplifier), "death.attack.magic",
+                            {player.getName()}, false, false);
+            }
+            continue;
+        }
+
+        MobEffectInstance instance;
+        instance.mId = effect.mId;
+        instance.mDuration = (int32_t) ((float) effect.mDuration * durationScale);
+        if (instance.mDuration < 1)
+            instance.mDuration = 1;
+        instance.mAmplifier = effect.mAmplifier;
+        instance.mParticles = true;
+        player.addEffect(instance);
+    }
 }
 
 void ServerNetworkHandler::removeActor(int64_t uniqueId) {
@@ -158,6 +405,80 @@ void ServerNetworkHandler::syncActorProperties(ServerActor &actor) {
     }
 }
 
+void ServerNetworkHandler::sendActorMetadata(ServerActor &actor, const EntityDataMap &metadata) {
+    SetActorDataPacket packet;
+    packet.mRuntimeActorId = (int64_t) actor.getRuntimeId();
+    packet.mMetadata = metadata;
+    packet.mTick = (int64_t) mCurrentTick;
+
+    for (auto &entry: mPlayers) {
+        if (entry.second.isSpawned())
+            mNetworkHandler->send(entry.first, packet, mCodecContext);
+    }
+}
+
+void ServerNetworkHandler::sendActorMotion(Actor &actor) {
+    SetActorMotionPacket packet;
+    packet.mRuntimeActorId = (int64_t) actor.getRuntimeId();
+    packet.mMotion = actor.getMotion();
+    packet.mTick = (uint64_t) mCurrentTick;
+
+    for (auto &entry: mPlayers) {
+        if (entry.second.isSpawned())
+            mNetworkHandler->send(entry.first, packet, mCodecContext);
+    }
+}
+
+void ServerNetworkHandler::knockBack(Actor &actor, float deltaX, float deltaZ, float force, float verticalLimit) {
+    actor.knockBack(deltaX, deltaZ, force, verticalLimit);
+    sendActorMotion(actor);
+}
+
+bool ServerNetworkHandler::damageActor(ServerActor &actor, float amount, ServerPlayer *source) {
+    if (!actor.isAlive() || amount <= 0.0f)
+        return false;
+
+    actor.setHealth(actor.getHealth() - amount);
+
+    ActorEventPacket hurt;
+    hurt.mRuntimeActorId = actor.getRuntimeId();
+    hurt.mEventId = (uint8_t) EntityEventType::HurtAnimation;
+    hurt.mEventData = 0;
+    hurt.mHasFirePosition = false;
+
+    for (auto &entry: mPlayers) {
+        if (entry.second.isSpawned())
+            mNetworkHandler->send(entry.first, hurt, mCodecContext);
+    }
+
+    playLevelSound(LevelSoundEvent::HIT, actor.getPosition(), actor.getIdentifier());
+
+    if (source != nullptr) {
+        const Vector3f actorPosition = actor.getPosition();
+        const Vector3f sourcePosition = source->getPosition();
+        const float dx = actorPosition.x - sourcePosition.x;
+        const float dz = actorPosition.z - sourcePosition.z;
+        knockBack(actor, dx, dz, 0.4f);
+    }
+
+    if (actor.getHealth() <= 0.0f) {
+        ActorEventPacket death;
+        death.mRuntimeActorId = actor.getRuntimeId();
+        death.mEventId = (uint8_t) EntityEventType::DeathAnimation;
+        death.mEventData = 0;
+        death.mHasFirePosition = false;
+
+        for (auto &entry: mPlayers) {
+            if (entry.second.isSpawned())
+                mNetworkHandler->send(entry.first, death, mCodecContext);
+        }
+
+        removeActor(actor.getUniqueId());
+    }
+
+    return true;
+}
+
 void ServerNetworkHandler::broadcastActorMove(ServerActor &actor) {
     MoveActorAbsolutePacket move;
     move.mRuntimeActorId = (int64_t) actor.getRuntimeId();
@@ -195,7 +516,22 @@ void ServerNetworkHandler::spawnParticleEffect(const std::string &identifier, co
     }
 }
 
-void ServerNetworkHandler::playLevelSound(const std::string &sound, const Vector3f &position, float volume,
+void ServerNetworkHandler::playLevelSound(const std::string &sound, const Vector3f &position,
+                                          const std::string &actorType, int32_t extraData) {
+    LevelSoundEventPacket packet;
+    packet.mSound = sound;
+    packet.mPosition = position;
+    packet.mExtraData = extraData;
+    packet.mActorType = actorType;
+    packet.mIsBabyMob = false;
+    packet.mDisableRelativeVolume = false;
+    packet.mActorUniqueId = -1;
+    packet.mHasFirePosition = false;
+
+    BlockActionHandler::broadcastToViewers(*this, position, packet);
+}
+
+void ServerNetworkHandler::playNamedSound(const std::string &sound, const Vector3f &position, float volume,
                                           float pitch) {
     PlaySoundPacket packet;
     packet.mSound = sound;
@@ -459,7 +795,7 @@ void ServerNetworkHandler::damagePlayerHeldItem(ServerPlayer &player, int32_t am
     held.mDamage += applied;
     if (held.mDamage >= itemData->mMaxDurability) {
         inventory.setItemInHand(ItemStack::air());
-        playLevelSound("random.break", player.getPosition(), 1.0f, 1.0f);
+        playLevelSound(LevelSoundEvent::BREAK, player.getPosition(), "minecraft:player");
     } else {
         inventory.setItemInHand(std::move(held));
     }
@@ -517,7 +853,13 @@ void ServerNetworkHandler::tickActors() {
 
         if (actor.isProjectile()) {
             Vector3f motion = actor.getMotion();
-            motion.y -= ACTOR_GRAVITY;
+            const bool thrown = isThrownProjectile(actor.getIdentifier());
+            motion.y -= thrown ? 0.03f : ACTOR_GRAVITY;
+            if (thrown) {
+                motion.x *= 0.99f;
+                motion.y *= 0.99f;
+                motion.z *= 0.99f;
+            }
 
             Vector3f position = actor.getPosition();
             position.x += motion.x;
@@ -532,9 +874,66 @@ void ServerNetworkHandler::tickActors() {
             const int32_t blockZ = (int32_t) std::floor(position.z);
 
             if (actor.getLifetimeTicks() > 1 && mLevel.isSolidAt(blockX, blockY, blockZ)) {
-                mScriptEngine.onProjectileHitBlock(actor, blockX, blockY, blockZ);
+                const Vector3f hitPosition((float) blockX + 0.5f, (float) blockY + 0.5f, (float) blockZ + 0.5f);
+                if (!onThrownProjectileHit(actor, hitPosition, nullptr))
+                    mScriptEngine.onProjectileHitBlock(actor, blockX, blockY, blockZ);
                 expired.push_back(entry.first);
                 continue;
+            }
+
+            if (actor.getLifetimeTicks() > 1 && isThrownProjectile(actor.getIdentifier())) {
+                ServerPlayer *hitPlayer = nullptr;
+                for (auto &playerEntry: mPlayers) {
+                    ServerPlayer &candidate = playerEntry.second;
+                    if (!candidate.isSpawned())
+                        continue;
+                    if ((int64_t) candidate.getRuntimeId() == actor.getOwnerUniqueId() &&
+                        actor.getLifetimeTicks() < 8)
+                        continue;
+
+                    const Vector3f candidatePosition = candidate.getPosition();
+                    const float dx = candidatePosition.x - position.x;
+                    const float dy = (candidatePosition.y + 1.0f) - position.y;
+                    const float dz = candidatePosition.z - position.z;
+                    if (dx * dx + dy * dy + dz * dz <= 1.1f) {
+                        hitPlayer = &candidate;
+                        break;
+                    }
+                }
+
+                if (hitPlayer != nullptr) {
+                    onThrownProjectileHit(actor, position, hitPlayer);
+                    expired.push_back(entry.first);
+                    continue;
+                }
+
+                ServerActor *hitActor = nullptr;
+                for (auto &actorEntry: mActors) {
+                    ServerActor &candidate = *actorEntry.second;
+                    if (&candidate == &actor || !candidate.isAlive())
+                        continue;
+
+                    const bool candidateIsProjectile = candidate.isProjectile();
+                    if (candidateIsProjectile && candidate.getOwnerUniqueId() == actor.getOwnerUniqueId() &&
+                        candidate.getLifetimeTicks() < 8)
+                        continue;
+
+                    const Vector3f candidatePosition = candidate.getPosition();
+                    const float dx = candidatePosition.x - position.x;
+                    const float dy = (candidatePosition.y + (candidateIsProjectile ? 0.0f : 0.9f)) - position.y;
+                    const float dz = candidatePosition.z - position.z;
+                    const float hitRadius = candidateIsProjectile ? 0.36f : 1.1f;
+                    if (dx * dx + dy * dy + dz * dz <= hitRadius) {
+                        hitActor = &candidate;
+                        break;
+                    }
+                }
+
+                if (hitActor != nullptr) {
+                    onThrownProjectileHitActor(actor, position, *hitActor);
+                    expired.push_back(entry.first);
+                    continue;
+                }
             }
 
             MoveActorAbsolutePacket move;
@@ -550,6 +949,37 @@ void ServerNetworkHandler::tickActors() {
             if (actor.getLifetimeTicks() > PROJECTILE_MAX_LIFETIME)
                 expired.push_back(entry.first);
         }
+    }
+
+    std::vector<int64_t> expiredClouds;
+    for (auto &entry: mLingeringClouds) {
+        LingeringCloud &cloud = entry.second;
+        cloud.mTicksRemaining -= 1;
+        cloud.mReapplyTimer -= 1;
+
+        if (cloud.mReapplyTimer <= 0) {
+            cloud.mReapplyTimer = 20;
+            for (auto &playerEntry: mPlayers) {
+                ServerPlayer &nearby = playerEntry.second;
+                if (!nearby.isSpawned())
+                    continue;
+
+                const Vector3f position = nearby.getPosition();
+                const float dx = position.x - cloud.mPosition.x;
+                const float dy = position.y - cloud.mPosition.y;
+                const float dz = position.z - cloud.mPosition.z;
+                if (dx * dx + dy * dy + dz * dz <= 9.0f)
+                    applyPotionEffects(nearby, cloud.mPotionId, 0.25f);
+            }
+        }
+
+        if (cloud.mTicksRemaining <= 0)
+            expiredClouds.push_back(entry.first);
+    }
+
+    for (const int64_t uniqueId: expiredClouds) {
+        mLingeringClouds.erase(uniqueId);
+        removeActor(uniqueId);
     }
 
     for (const int64_t uniqueId: expired)

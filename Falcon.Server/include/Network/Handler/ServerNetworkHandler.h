@@ -24,6 +24,7 @@
 #include "Actor/ServerActor.h"
 #include "Actor/ServerPlayer.h"
 #include "Protocol/Types/ContainerSlotType.h"
+#include "Protocol/Types/EntityDataMap.h"
 #include "Protocol/Packets/CraftingDataPacket.h"
 #include "Protocol/Packets/CreativeContentPacket.h"
 
@@ -107,6 +108,16 @@ public:
 
     ServerActor *spawnActor(const std::string &identifier, const Vector3f &position);
 
+    ServerActor *spawnProjectile(ServerPlayer &player, const std::string &identifier, float speed);
+
+    bool onThrownProjectileHit(ServerActor &projectile, const Vector3f &hitPosition, ServerPlayer *hitPlayer);
+
+    bool onThrownProjectileHitActor(ServerActor &projectile, const Vector3f &hitPosition, ServerActor &hitActor);
+
+    void applyPotionEffects(ServerPlayer &player, int32_t potionId, float durationScale);
+
+    void setProjectilePotionData(int64_t uniqueId, int32_t potionId);
+
     ServerActor *getActor(int64_t uniqueId);
 
     void removeActor(int64_t uniqueId);
@@ -121,6 +132,14 @@ public:
 
     void syncActorProperties(ServerActor &actor);
 
+    void sendActorMetadata(ServerActor &actor, const EntityDataMap &metadata);
+
+    bool damageActor(ServerActor &actor, float amount, ServerPlayer *source);
+
+    void sendActorMotion(Actor &actor);
+
+    void knockBack(Actor &actor, float deltaX, float deltaZ, float force, float verticalLimit = 0.4f);
+
     void playActorAnimation(ServerActor &actor, const std::string &animation);
 
     void applyActorEffect(ServerActor &actor, int32_t effectId, int32_t amplifier, int32_t durationTicks,
@@ -131,7 +150,10 @@ public:
 
     void spawnParticleEffect(const std::string &identifier, const Vector3f &position);
 
-    void playLevelSound(const std::string &sound, const Vector3f &position, float volume, float pitch);
+    void playLevelSound(const std::string &sound, const Vector3f &position,
+                        const std::string &actorType = ":", int32_t extraData = -1);
+
+    void playNamedSound(const std::string &sound, const Vector3f &position, float volume, float pitch);
 
     void spawnItemActor(const std::string &typeId, int32_t amount, const Vector3f &position);
 
@@ -441,6 +463,17 @@ private:
 
     std::unordered_map<NetworkIdentifier, ServerPlayer, NetworkIdentifier::Hasher> mPlayers;
     std::unordered_map<int64_t, std::unique_ptr<ServerActor>> mActors;
+
+    std::unordered_map<int64_t, int32_t> mProjectilePotionId;
+
+    struct LingeringCloud {
+        int32_t mPotionId;
+        int32_t mTicksRemaining;
+        int32_t mReapplyTimer;
+        Vector3f mPosition;
+    };
+
+    std::unordered_map<int64_t, LingeringCloud> mLingeringClouds;
     std::unordered_set<int64_t> mActorLoadedChunks;
     std::unordered_map<std::string, DynamicPropertyValue> mWorldDynamicProperties;
     std::unordered_map<std::string, int64_t> mScoreboardIds;

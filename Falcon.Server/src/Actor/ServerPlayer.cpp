@@ -1,6 +1,7 @@
 #include "Actor/ServerPlayer.h"
 
 #include "Actor/DynamicPropertyStore.h"
+#include "Actor/ServerActor.h"
 #include "Inventory/ItemStackNbt.h"
 #include "Inventory/InventoryManager.h"
 #include "Item/ItemData.h"
@@ -232,6 +233,35 @@ bool ServerPlayer::attackActor(ServerNetworkHandler &owner, uint64_t targetRunti
         }
     }
 
+    if (victim == nullptr) {
+        for (auto &entry: owner.getActors()) {
+            ServerActor &target = *entry.second;
+            if (target.getRuntimeId() != targetRuntimeId || !target.isAlive() || target.isProjectile())
+                continue;
+
+            const Vector3f actorDelta(target.getPosition().x - getPosition().x,
+                                      target.getPosition().y - getPosition().y,
+                                      target.getPosition().z - getPosition().z);
+            if (actorDelta.x * actorDelta.x + actorDelta.y * actorDelta.y + actorDelta.z * actorDelta.z >
+                MAX_REACH * MAX_REACH)
+                return false;
+
+            const ItemStack &weapon = getInventory().getItemInHand();
+            const ItemData *weaponData = weapon.isAir() || weapon.mDefinition == nullptr
+                                                 ? nullptr
+                                                 : ItemDataTable::find(weapon.mDefinition->getIdentifier());
+            const float attackDamage = weaponData == nullptr || weaponData->mAttackDamage <= 0
+                                               ? 1.0f
+                                               : (float) weaponData->mAttackDamage;
+
+            owner.damageActor(target, attackDamage, this);
+
+            const int32_t weaponWear = (weaponData != nullptr && weaponData->mToolType == ToolType::Sword) ? 1 : 2;
+            owner.damagePlayerHeldItem(*this, weaponWear);
+            return true;
+        }
+    }
+
     if (victim == nullptr || victim == this || !victim->isSpawned() || victim->isDead() ||
         victim->getGameType() == (int32_t) GameType::Spectator ||
         victim->getGameType() == (int32_t) GameType::Creative)
@@ -381,10 +411,11 @@ int ServerPlayer::getItemCooldownRemaining(const ItemStack &item, int64_t curren
 
     const CooldownItemComponent *cooldown = ItemDataTable::getComponents(item.mDefinition->getIdentifier())
                                                     .get<CooldownItemComponent>();
-    if (cooldown == nullptr || cooldown->getCategory().empty())
-        return 0;
+    const std::string category = (cooldown != nullptr && !cooldown->getCategory().empty())
+                                         ? cooldown->getCategory()
+                                         : item.mDefinition->getIdentifier();
 
-    const auto it = mItemCooldowns.find(cooldown->getCategory());
+    const auto it = mItemCooldowns.find(category);
     if (it == mItemCooldowns.end() || it->second <= currentTick)
         return 0;
 
@@ -398,11 +429,10 @@ void ServerPlayer::startItemCooldown(const ItemStack &item, int64_t currentTick,
 
     const CooldownItemComponent *cooldown = ItemDataTable::getComponents(item.mDefinition->getIdentifier())
                                                     .get<CooldownItemComponent>();
-    if (cooldown == nullptr || cooldown->getCategory().empty())
-        return;
-
-    const std::string &category = cooldown->getCategory();
-    const int duration = ticks > 0 ? ticks : cooldown->getDurationTicks();
+    const std::string category = (cooldown != nullptr && !cooldown->getCategory().empty())
+                                         ? cooldown->getCategory()
+                                         : item.mDefinition->getIdentifier();
+    const int duration = ticks > 0 ? ticks : (cooldown != nullptr ? cooldown->getDurationTicks() : 0);
     if (duration <= 0)
         return;
 

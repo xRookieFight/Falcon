@@ -24,15 +24,15 @@ void ItemCodec::writeItemInstance(BinaryStream &stream, const PacketCodecContext
     if (item.isAir()) {
         stream.putVarInt(0);
         stream.putLShort(0);
-        stream.putUnsignedVarInt(0);
+        stream.putUnsignedVarInt((uint32_t) item.mDamage);
         stream.putVarInt(0);
-        stream.putUnsignedVarInt(0);
+        stream.putUnsignedVarInt((uint32_t) item.mDamage);
         return;
     }
 
     stream.putVarInt(item.mDefinition->getRuntimeId());
     stream.putLShort((uint16_t) item.mCount);
-    stream.putUnsignedVarInt(0);
+    stream.putUnsignedVarInt((uint32_t) item.mDamage);
     stream.putVarInt(item.mBlockDefinition == nullptr ? 0 : item.mBlockDefinition->getRuntimeId());
 
     const Tag networkTag = networkItemTag(item);
@@ -126,16 +126,16 @@ void ItemCodec::writeNetworkItemStackDescriptor(BinaryStream &stream, const Pack
     if (item.isAir()) {
         stream.putLShort(0);
         stream.putLShort(0);
-        stream.putUnsignedVarInt(0);
+        stream.putUnsignedVarInt((uint32_t) item.mDamage);
         stream.putBool(false);
-        stream.putUnsignedVarInt(0);
-        stream.putUnsignedVarInt(0);
+        stream.putUnsignedVarInt((uint32_t) item.mDamage);
+        stream.putUnsignedVarInt((uint32_t) item.mDamage);
         return;
     }
 
     stream.putLShort((uint16_t) item.mDefinition->getRuntimeId());
     stream.putLShort((uint16_t) item.mCount);
-    stream.putUnsignedVarInt(0);
+    stream.putUnsignedVarInt((uint32_t) item.mDamage);
 
     stream.putBool(item.mUsingNetId);
     if (item.mUsingNetId) {

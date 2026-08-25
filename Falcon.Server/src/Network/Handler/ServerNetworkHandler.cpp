@@ -99,6 +99,7 @@
 #include "Item/CraftingRecipeTable.h"
 #include "Item/ItemNetworkIdTable.h"
 #include "Item/ItemData.h"
+#include "Item/ItemBehavior.h"
 #include "Item/ItemEnchantments.h"
 #include "Item/Items/ChorusFruitItem.h"
 #include "Core/NBT/NbtIo.h"
@@ -484,6 +485,7 @@ void ServerNetworkHandler::setProtocolVersion(int protocolVersion, const std::st
 
 void ServerNetworkHandler::setProperties(const PropertiesSettings &properties) {
     mProperties = properties;
+    ItemBehaviorRegistry::getInstance().registerVanilla();
     mLevel = Level(properties.getLevelName(), _getServerViewDistance());
     mLevel.openStorage("worlds");
     mLevel.startWorkers(_getChunkWorkerThreadCount());
@@ -1952,13 +1954,21 @@ void ServerNetworkHandler::_useHeldItem(ServerPlayer &player) {
 
     emitItemUse(player);
 
+    if (!heldItem.isAir() && heldItem.mDefinition != nullptr) {
+        ItemBehavior *behavior = ItemBehaviorRegistry::getInstance().find(heldItem.mDefinition->getIdentifier());
+        if (behavior != nullptr && behavior->onUse(*this, player, heldItem))
+            return;
+    }
+
     const bool isMilk = !heldItem.isAir() && heldItem.mDefinition != nullptr
                         && std::string(heldItem.mDefinition->getIdentifier()) == "minecraft:milk_bucket";
+    const bool isPotion = !heldItem.isAir() && heldItem.mDefinition != nullptr
+                          && std::string(heldItem.mDefinition->getIdentifier()) == "minecraft:potion";
     const FoodItemComponent *food = findFoodComponent(heldItem);
-    if (food == nullptr && !isMilk)
+    if (food == nullptr && !isMilk && !isPotion)
         return;
 
-    if (!isMilk && ChorusFruitItem::isChorusFruit(heldItem)
+    if (!isMilk && !isPotion && ChorusFruitItem::isChorusFruit(heldItem)
         && !ChorusFruitItem::canConsume(*this, player))
         return;
 
@@ -1973,7 +1983,7 @@ void ServerNetworkHandler::_useHeldItem(ServerPlayer &player) {
 
     const bool usingItem = player.getFlags().get(ActorFlag::UsingItem);
 
-    if (!isMilk && !food->canAlwaysEat() && !player.canEat()) {
+    if (!isMilk && !isPotion && !food->canAlwaysEat() && !player.canEat()) {
         if (usingItem) {
             player.getFlags().set(ActorFlag::UsingItem, false);
             _sendEntityData(player);
@@ -2005,8 +2015,10 @@ void ServerNetworkHandler::_consumeHeldItem(ServerPlayer &player) {
     const ItemStack &heldItem = inventory.getItemInHand();
     const bool isMilk = !heldItem.isAir() && heldItem.mDefinition != nullptr
                         && std::string(heldItem.mDefinition->getIdentifier()) == "minecraft:milk_bucket";
+    const bool isPotion = !heldItem.isAir() && heldItem.mDefinition != nullptr
+                          && std::string(heldItem.mDefinition->getIdentifier()) == "minecraft:potion";
     const FoodItemComponent *food = findFoodComponent(heldItem);
-    const bool consumable = food != nullptr || isMilk;
+    const bool consumable = food != nullptr || isMilk || isPotion;
 
     if (wasUsing && consumable && heldTicks < useDurationTicksFor(heldItem))
         return;
@@ -2032,7 +2044,7 @@ void ServerNetworkHandler::_consumeHeldItem(ServerPlayer &player) {
         return;
     }
 
-    if (!isMilk && !food->canAlwaysEat() && !player.canEat()) {
+    if (!isMilk && !isPotion && !food->canAlwaysEat() && !player.canEat()) {
         player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, slot);
         _sendAttributes(player);
         return;
@@ -2046,6 +2058,8 @@ void ServerNetworkHandler::_consumeHeldItem(ServerPlayer &player) {
 
     if (isMilk) {
         player.getEffects().clear();
+    } else if (isPotion) {
+        applyPotionEffects(player, usedItem.mDamage, 1.0f);
     } else {
         if (ChorusFruitItem::isChorusFruit(usedItem))
             ChorusFruitItem::onEaten(*this, player);

@@ -7,6 +7,18 @@
 
 namespace LevelSoundEvent {
     inline constexpr const char *BURP = "burp";
+    inline constexpr const char *THROW = "throw";
+    inline constexpr const char *TELEPORT = "teleport";
+    inline constexpr const char *BREAK = "break";
+    inline constexpr const char *HIT = "hit";
+    inline constexpr const char *PLACE = "place";
+    inline constexpr const char *ITEM_USE_ON = "item.use.on";
+    inline constexpr const char *BUCKET_FILL_WATER = "bucket.fill_water";
+    inline constexpr const char *BUCKET_EMPTY_WATER = "bucket.empty_water";
+    inline constexpr const char *BUCKET_FILL_LAVA = "bucket.fill_lava";
+    inline constexpr const char *BUCKET_EMPTY_LAVA = "bucket.empty_lava";
+    inline constexpr const char *WIND_CHARGE_BURST = "wind_charge.burst";
+    inline constexpr const char *DRINK = "drink";
 }
 
 class LevelSoundEventPacket : public Packet {

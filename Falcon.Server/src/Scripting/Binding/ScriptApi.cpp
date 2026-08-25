@@ -3274,7 +3274,7 @@ namespace {
             JS_FreeValue(ctx, pitchValue);
         }
 
-        api->host().playLevelSound(sound, Vector3f((float) x, (float) y, (float) z), volume, pitch);
+        api->host().playNamedSound(sound, Vector3f((float) x, (float) y, (float) z), volume, pitch);
         return JS_UNDEFINED;
     }
 

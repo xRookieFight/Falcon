@@ -10,6 +10,7 @@
 #include "Core/Utility/BinaryStream.h"
 #include "Core/Utility/ReadOnlyBinaryStream.h"
 #include "Actor/ActorAttributes.h"
+#include "Actor/VanillaActorTable.h"
 #include "Actor/PlayerAbility.h"
 #include "Actor/ServerPlayer.h"
 #include "Item/CraftingRecipeTable.h"
@@ -474,6 +475,19 @@ void LoginHandler::sendActorIdentifiers(ServerNetworkHandler &owner, ServerPlaye
 
     Tag idlist = Tag::ofList(Tag::Type::Compound);
     int32_t rid = 1;
+
+    const char *const *vanillaIds = VanillaActorTable::getIdentifiers();
+    for (size_t index = 0; index < VanillaActorTable::getCount(); ++index) {
+        Tag entry = Tag::ofCompound();
+        entry.putString("bid", "");
+        entry.putByte("hasspawnegg", 0);
+        entry.putString("id", vanillaIds[index]);
+        entry.putInt("rid", rid++);
+        entry.putByte("summonable", 1);
+        entry.putByte("experimental", 0);
+        idlist.addToList(entry);
+    }
+
     for (const CustomActorDefinition &actor: CustomContentRegistry::getInstance().getActors()) {
         Tag entry = Tag::ofCompound();
         entry.putString("bid", "");
