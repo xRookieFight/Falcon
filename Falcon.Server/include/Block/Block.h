@@ -10,9 +10,23 @@
 struct BlockData;
 class Actor;
 class BlockBehavior;
+class ServerNetworkHandler;
+class ServerPlayer;
+struct Vector3i;
 
 class Block {
 public:
+    virtual ~Block() = default;
+
+    virtual bool onInteract(ServerNetworkHandler &owner, ServerPlayer &player, const Vector3i &position,
+                            const BlockState &state) const {
+        (void) owner;
+        (void) player;
+        (void) position;
+        (void) state;
+        return false;
+    }
+
     Block() : mTypeId(0), mIdentifier("minecraft:air"), mName("Air"), mStates(Tag::ofCompound()) {}
 
     Block(int32_t typeId, const std::string &identifier, const std::string &name)

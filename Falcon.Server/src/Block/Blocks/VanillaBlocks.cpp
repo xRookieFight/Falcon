@@ -1,5 +1,8 @@
 #include "Block/Blocks/VanillaBlocks.h"
 
+#include "Block/Blocks/CommandBlock.h"
+#include "Block/Blocks/FurnaceBlock.h"
+#include "Block/Blocks/CraftingTableBlock.h"
 #include "Block/BlockTypeIds.h"
 
 namespace {
@@ -9,6 +12,24 @@ namespace {
             return Block(BlockTypeIds::AIR, "minecraft:air", "Air");
 
         return VanillaBlocks::fromData(*data);
+    }
+}
+
+namespace {
+    std::unique_ptr<Block> makeBlock(const BlockData &data) {
+        const Block block = VanillaBlocks::fromData(data);
+        const std::string &identifier = block.getIdentifier();
+
+        if (CraftingTableBlock::matches(identifier))
+            return std::make_unique<CraftingTableBlock>(block);
+
+        if (FurnaceBlock::matches(identifier))
+            return std::make_unique<FurnaceBlock>(block);
+
+        if (CommandBlock::matches(identifier))
+            return std::make_unique<CommandBlock>(block);
+
+        return std::make_unique<Block>(block);
     }
 }
 
@@ -5553,18 +5574,18 @@ Block VanillaBlocks::GRASS() {
     return buildFromTypeId(BlockTypeIds::GRASS_BLOCK);
 }
 
-const std::vector<Block> &VanillaBlocks::getAll() {
-    static const std::vector<Block> blocks = []() {
-        std::vector<Block> result;
+const std::vector<std::unique_ptr<Block>> &VanillaBlocks::getAll() {
+    static const std::vector<std::unique_ptr<Block>> blocks = []() {
+        std::vector<std::unique_ptr<Block>> result;
         result.reserve(BlockDataTable::getCount() + 1);
-        result.push_back(Block(BlockTypeIds::AIR, "minecraft:air", "Air"));
+        result.push_back(std::make_unique<Block>((int32_t) BlockTypeIds::AIR, "minecraft:air", "Air"));
 
         for (size_t index = 0; index < BlockDataTable::getCount(); ++index) {
             const BlockData &data = BlockDataTable::getEntries()[index];
             if (data.mTypeId == BlockTypeIds::AIR)
                 continue;
 
-            result.push_back(fromData(data));
+            result.push_back(makeBlock(data));
         }
 
         return result;
@@ -5574,18 +5595,18 @@ const std::vector<Block> &VanillaBlocks::getAll() {
 }
 
 const Block *VanillaBlocks::fromIdentifier(const std::string &identifier) {
-    for (const Block &block: getAll()) {
-        if (block.getIdentifier() == identifier)
-            return &block;
+    for (const std::unique_ptr<Block> &block: getAll()) {
+        if (block->getIdentifier() == identifier)
+            return block.get();
     }
 
     return nullptr;
 }
 
 const Block *VanillaBlocks::fromTypeId(int32_t typeId) {
-    for (const Block &block: getAll()) {
-        if (block.getTypeId() == typeId)
-            return &block;
+    for (const std::unique_ptr<Block> &block: getAll()) {
+        if (block->getTypeId() == typeId)
+            return block.get();
     }
 
     return nullptr;

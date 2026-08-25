@@ -87,7 +87,11 @@ public:
 
     float getHealth() const;
 
+    void setHealth(float health);
+
     float getMaxHealth() const;
+
+    void setMaxHealth(float maxHealth);
 
     bool isAlive() const;
 

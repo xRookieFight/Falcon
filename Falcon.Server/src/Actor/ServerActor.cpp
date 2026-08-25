@@ -1,6 +1,33 @@
 #include "Actor/ServerActor.h"
 
 #include "Actor/DynamicPropertyStore.h"
+#include "Actor/MobLootTable.h"
+#include "Actor/ServerPlayer.h"
+#include "Level/Level.h"
+#include "Network/Handler/ServerNetworkHandler.h"
+#include "Protocol/Packets/ActorEventPacket.h"
+#include "Protocol/Packets/LevelSoundEventPacket.h"
+
+#include <cmath>
+
+namespace {
+    const float LIVING_GRAVITY = 0.08f;
+    const float LIVING_DRAG = 0.98f;
+    const float GROUND_FRICTION = 0.6f;
+    const float AIR_FRICTION = 0.91f;
+    const float MOTION_EPSILON = 0.003f;
+    const int32_t INVULNERABILITY_TICKS = 10;
+    const float ATTACK_KNOCKBACK = 0.4f;
+
+    bool isFlyingActor(const std::string &identifier) {
+        return identifier == "minecraft:allay" || identifier == "minecraft:bat" ||
+               identifier == "minecraft:bee" || identifier == "minecraft:blaze" ||
+               identifier == "minecraft:ender_dragon" || identifier == "minecraft:ghast" ||
+               identifier == "minecraft:happy_ghast" || identifier == "minecraft:parrot" ||
+               identifier == "minecraft:phantom" || identifier == "minecraft:shulker_bullet" ||
+               identifier == "minecraft:vex" || identifier == "minecraft:wither";
+    }
+}
 
 namespace {
     Tag floatList3(float x, float y, float z) {
@@ -27,6 +54,107 @@ namespace {
 ServerActor::ServerActor(uint64_t runtimeId, const std::string &identifier)
         : Actor(runtimeId), mIdentifier(identifier) {}
 
+void ServerActor::tick(ServerNetworkHandler &owner) {
+    Vector3f motion = getMotion();
+    if (std::fabs(motion.x) < MOTION_EPSILON && std::fabs(motion.y) < MOTION_EPSILON &&
+        std::fabs(motion.z) < MOTION_EPSILON)
+        return;
+
+    Level &level = owner.getLevel();
+    const Vector3f position = getPosition();
+    const int32_t footX = (int32_t) std::floor(position.x);
+    const int32_t footZ = (int32_t) std::floor(position.z);
+    const bool onGround = level.isSolidAt(footX, (int32_t) std::floor(position.y - 0.1f), footZ);
+
+    if (!onGround || motion.y > 0.0f) {
+        motion.y -= LIVING_GRAVITY;
+        motion.y *= LIVING_DRAG;
+    }
+
+    Vector3f target = position;
+    target.x += motion.x;
+    target.y += motion.y;
+    target.z += motion.z;
+
+    if (level.isSolidAt((int32_t) std::floor(target.x), (int32_t) std::floor(position.y), footZ)) {
+        target.x = position.x;
+        motion.x = 0.0f;
+    }
+
+    if (level.isSolidAt(footX, (int32_t) std::floor(position.y), (int32_t) std::floor(target.z))) {
+        target.z = position.z;
+        motion.z = 0.0f;
+    }
+
+    bool landed = false;
+    if (motion.y < 0.0f && level.isSolidAt((int32_t) std::floor(target.x), (int32_t) std::floor(target.y),
+                                           (int32_t) std::floor(target.z))) {
+        target.y = std::floor(target.y) + 1.0f;
+        motion.y = 0.0f;
+        landed = true;
+    }
+
+    const float friction = onGround ? GROUND_FRICTION : AIR_FRICTION;
+    motion.x *= friction;
+    motion.z *= friction;
+
+    setMotion(motion);
+    setPosition(target);
+    setOnGround(onGround || landed);
+
+    float pendingFallDamage = 0.0f;
+    if (!isFlyingActor(mIdentifier)) {
+        if (target.y > getHighestPosition())
+            setHighestPosition(target.y);
+
+        updateFallDistance();
+
+        if (landed || onGround) {
+            pendingFallDamage = computeFallDamage();
+            resetFallDistance();
+        }
+    }
+
+    owner.broadcastActorMove(*this);
+
+    if (pendingFallDamage > 0.0f)
+        hurt(owner, pendingFallDamage, nullptr);
+}
+
+bool ServerActor::hurt(ServerNetworkHandler &owner, float amount, ServerPlayer *source) {
+    if (!isAlive() || amount < 0.0f)
+        return false;
+
+    if (getNoDamageTicks() > 0 && amount <= getLastDamageAmount())
+        return false;
+
+    setHealth(getHealth() - amount);
+    setNoDamageTicks(INVULNERABILITY_TICKS);
+    setLastDamageAmount(amount);
+
+    owner.broadcastActorEvent(*this, EntityEventType::HurtAnimation);
+    owner.playLevelSound(LevelSoundEvent::HIT, getPosition(), mIdentifier);
+
+    if (source != nullptr) {
+        const Vector3f sourcePosition = source->getPosition();
+        owner.knockBack(*this, getPosition().x - sourcePosition.x, getPosition().z - sourcePosition.z,
+                        ATTACK_KNOCKBACK);
+    }
+
+    if (getHealth() <= 0.0f) {
+        owner.broadcastActorEvent(*this, EntityEventType::DeathAnimation);
+
+        const Vector3f dropPosition = getPosition();
+        for (const MobDrop &drop: MobLootTable::getMobDrops(mIdentifier, isOnFire()))
+            owner.spawnItemActor(drop.mItemIdentifier, drop.mCount, dropPosition);
+
+        setDead(true);
+        setMotion(Vector3f(0.0f, 0.0f, 0.0f));
+    }
+
+    return true;
+}
+
 int32_t ServerActor::getIntProperty(const std::string &name, int32_t fallback) const {
     const auto it = mIntProperties.find(name);
     return it == mIntProperties.end() ? fallback : it->second;
@@ -45,8 +173,8 @@ Tag ServerActor::saveNbt() const {
     data.put("Rotation", floatList3(mRotation.x, mRotation.y, mRotation.z));
     data.put("Motion", floatList3(mMotion.x, mMotion.y, mMotion.z));
 
-    data.putFloat("Health", mHealth);
-    data.putFloat("MaxHealth", mMaxHealth);
+    data.putFloat("Health", getHealth());
+    data.putFloat("MaxHealth", getMaxHealth());
     data.putString("NameTag", mNameTag);
     data.putLong("OwnerUniqueId", mOwnerUniqueId);
 
@@ -86,8 +214,8 @@ void ServerActor::loadNbt(const Tag &data) {
                        listValue(data, "Motion", 1, 0.0f),
                        listValue(data, "Motion", 2, 0.0f));
 
-    mHealth = data.getFloat("Health", mHealth);
-    mMaxHealth = data.getFloat("MaxHealth", mMaxHealth);
+    setMaxHealth(data.getFloat("MaxHealth", getMaxHealth()));
+    setHealth(data.getFloat("Health", getHealth()));
     mNameTag = data.getString("NameTag", mNameTag);
     mOwnerUniqueId = data.getLong("OwnerUniqueId", mOwnerUniqueId);
 

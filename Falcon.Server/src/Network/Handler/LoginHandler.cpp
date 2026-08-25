@@ -80,9 +80,9 @@ namespace {
 }
 
 void LoginHandler::registerVanillaDefinitions(ServerNetworkHandler &owner) {
-    for (const Block &block: VanillaBlocks::getAll()) {
+    for (const std::unique_ptr<Block> &block: VanillaBlocks::getAll()) {
         owner.getBlockDefinitions().registerDefinition(std::make_shared<BlockDefinition>(
-                block.getIdentifier(), block.getNetworkHash(), block.getStates()));
+                block->getIdentifier(), block->getNetworkHash(), block->getStates()));
     }
 
     for (size_t index = 0; index < ItemNetworkIdTable::getCount(); ++index) {
@@ -957,6 +957,7 @@ void LoginHandler::handleSetLocalPlayerAsInitialized(ServerNetworkHandler &owner
     owner._sendInventory(player);
     owner._sendHealth(player);
     ItemActorHandler::sendItemActorsTo(owner, player);
+    owner.sendActorsTo(player);
 
     owner.broadcastTranslation("multiplayer.player.joined", {player.getName()});
 }

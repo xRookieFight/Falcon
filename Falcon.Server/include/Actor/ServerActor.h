@@ -12,10 +12,16 @@
 #include <vector>
 
 struct CustomActorDefinition;
+class ServerNetworkHandler;
+class ServerPlayer;
 
 class ServerActor : public Actor {
 public:
     ServerActor(uint64_t runtimeId, const std::string &identifier);
+
+    void tick(ServerNetworkHandler &owner);
+
+    bool hurt(ServerNetworkHandler &owner, float amount, ServerPlayer *source);
 
     const char *getIdentifier() const override { return mIdentifier.c_str(); }
 
@@ -24,10 +30,6 @@ public:
     void setDefinition(const CustomActorDefinition *definition) { mDefinition = definition; }
 
     const CustomActorDefinition *getDefinition() const { return mDefinition; }
-
-    bool isAlive() const { return mAlive; }
-
-    void markRemoved() { mAlive = false; }
 
     void addTag(const std::string &tag) { mTags.insert(tag); }
 
@@ -73,19 +75,15 @@ public:
 
     void addLifetimeTick() { mLifetimeTicks++; }
 
-    float getHealth() const { return mHealth; }
+    int32_t getDeathTicks() const { return mDeathTicks; }
 
-    void setHealth(float health) { mHealth = health < 0.0f ? 0.0f : health; }
-
-    float getMaxHealth() const { return mMaxHealth; }
-
-    void setMaxHealth(float maxHealth) { mMaxHealth = maxHealth; }
+    void addDeathTick() { mDeathTicks++; }
 
     const std::string &getNameTag() const { return mNameTag; }
 
     void setNameTag(const std::string &nameTag) { mNameTag = nameTag; }
 
-    bool shouldSave() const { return mAlive && !mIsProjectile && !hasOwnerPlayer(); }
+    bool shouldSave() const { return isAlive() && !mIsProjectile && !hasOwnerPlayer(); }
 
     Tag saveNbt() const;
 
@@ -94,13 +92,11 @@ public:
 private:
     std::string mIdentifier;
     const CustomActorDefinition *mDefinition = nullptr;
-    bool mAlive = true;
     bool mIsProjectile = false;
     int64_t mOwnerUniqueId = -1;
     uint32_t mOwnerPlayerHandle = 0xFFFFFFFF;
     int32_t mLifetimeTicks = 0;
-    float mHealth = 20.0f;
-    float mMaxHealth = 20.0f;
+    int32_t mDeathTicks = 0;
     std::string mNameTag;
 
     std::unordered_set<std::string> mTags;

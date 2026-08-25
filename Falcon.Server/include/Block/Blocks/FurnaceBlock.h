@@ -15,11 +15,15 @@ public:
     FurnaceBlock()
           : Block(BlockTypeIds::FURNACE, "minecraft:furnace", "Furnace") {}
 
+    explicit FurnaceBlock(const Block &block) : Block(block) {}
+
     static bool matches(const BlockState &state);
+    static bool matches(const std::string &identifier);
     static FurnaceKind kind(const BlockState &state);
     static ContainerType containerType(const BlockState &state);
-    static bool onInteract(ServerNetworkHandler &owner, ServerPlayer &player,
-                           const Vector3i &position, const BlockState &state);
+
+    bool onInteract(ServerNetworkHandler &owner, ServerPlayer &player, const Vector3i &position,
+                    const BlockState &state) const override;
 
     int getFuelTime() const { return 0; }
 };

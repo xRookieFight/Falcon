@@ -1,21 +1,34 @@
 #pragma once
 
-#include "Item/ItemBehavior.h"
+#include "Item/Item.h"
 
 #include <string>
 
-class ThrowableItem : public ItemBehavior {
+class ThrowableItem : public Item {
 public:
-    ThrowableItem(std::string entityIdentifier, float throwForce, int32_t cooldownTicks);
+    ThrowableItem(const Item &base, std::string entityIdentifier, float throwForce, int32_t cooldownTicks);
 
-    bool onUse(ServerNetworkHandler &owner, ServerPlayer &player, const ItemStack &item) override;
+    bool onUse(ServerNetworkHandler &owner, ServerPlayer &player, const ItemStack &item) const override;
 
-private:
+protected:
     std::string mEntityIdentifier;
     float mThrowForce;
     int32_t mCooldownTicks;
 };
 
-void registerThrowableItems(ItemBehaviorRegistry &registry);
+class ThrownPotionItem : public ThrowableItem {
+public:
+    ThrownPotionItem(const Item &base, std::string entityIdentifier);
+
+    bool onUse(ServerNetworkHandler &owner, ServerPlayer &player, const ItemStack &item) const override;
+};
+
+class SpawnEggItem : public Item {
+public:
+    explicit SpawnEggItem(const Item &base);
+
+    bool onUseOnBlock(ServerNetworkHandler &owner, ServerPlayer &player, const ItemStack &item,
+                      const Vector3i &blockPosition, int32_t face, const Vector3f &clickPosition) const override;
+};
 
 bool isThrownProjectile(const std::string &identifier);

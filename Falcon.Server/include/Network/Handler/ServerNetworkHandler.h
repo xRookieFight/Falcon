@@ -25,6 +25,7 @@
 #include "Actor/ServerPlayer.h"
 #include "Protocol/Types/ContainerSlotType.h"
 #include "Protocol/Types/EntityDataMap.h"
+#include "Protocol/Packets/ActorEventPacket.h"
 #include "Protocol/Packets/CraftingDataPacket.h"
 #include "Protocol/Packets/CreativeContentPacket.h"
 
@@ -46,6 +47,7 @@ class ItemUseTransaction;
 class CommandOrigin;
 class Block;
 class CraftingEventPacket;
+class CommandBlockUpdatePacket;
 
 class ServerNetworkHandler : public NetworkHandler::Listener,
                              public NetworkPacketHandler,
@@ -134,11 +136,15 @@ public:
 
     void sendActorMetadata(ServerActor &actor, const EntityDataMap &metadata);
 
+    void broadcastActorEvent(ServerActor &actor, EntityEventType eventType);
+
     bool damageActor(ServerActor &actor, float amount, ServerPlayer *source);
 
     void sendActorMotion(Actor &actor);
 
     void knockBack(Actor &actor, float deltaX, float deltaZ, float force, float verticalLimit = 0.4f);
+
+    void pushFrom(Actor &actor, const Vector3f &origin, float strength, float lift);
 
     void playActorAnimation(ServerActor &actor, const std::string &animation);
 
@@ -395,6 +401,8 @@ private:
 
     void handle(const NetworkIdentifier &id, const BlockActorDataPacket &packet) override;
 
+    void handle(const NetworkIdentifier &id, const CommandBlockUpdatePacket &packet) override;
+
     void handle(const NetworkIdentifier &id, const BlockPickRequestPacket &packet) override;
 
     void handle(const NetworkIdentifier &id, const ActorPickRequestPacket &packet) override;
@@ -468,8 +476,14 @@ private:
 
     struct LingeringCloud {
         int32_t mPotionId;
-        int32_t mTicksRemaining;
-        int32_t mReapplyTimer;
+        int32_t mAge;
+        int32_t mWaitTime;
+        int32_t mDuration;
+        int32_t mNextApply;
+        int32_t mReapplicationDelay;
+        float mRadius;
+        float mRadiusPerTick;
+        float mRadiusOnUse;
         Vector3f mPosition;
     };
 

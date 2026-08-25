@@ -1,11 +1,16 @@
 #include "Block/Blocks/FurnaceBlock.h"
 
+#include "Inventory/Container/FurnaceContainerManagerModel.h"
 #include "Actor/ServerPlayer.h"
 
 bool FurnaceBlock::matches(const BlockState &state) {
-    return state.mName == "minecraft:furnace" || state.mName == "minecraft:lit_furnace"
-           || state.mName == "minecraft:blast_furnace" || state.mName == "minecraft:lit_blast_furnace"
-           || state.mName == "minecraft:smoker" || state.mName == "minecraft:lit_smoker";
+    return matches(state.mName);
+}
+
+bool FurnaceBlock::matches(const std::string &identifier) {
+    return identifier == "minecraft:furnace" || identifier == "minecraft:lit_furnace"
+           || identifier == "minecraft:blast_furnace" || identifier == "minecraft:lit_blast_furnace"
+           || identifier == "minecraft:smoker" || identifier == "minecraft:lit_smoker";
 }
 
 FurnaceKind FurnaceBlock::kind(const BlockState &state) {
@@ -29,8 +34,8 @@ ContainerType FurnaceBlock::containerType(const BlockState &state) {
     }
 }
 
-bool FurnaceBlock::onInteract(ServerNetworkHandler &owner, ServerPlayer &player,
-                               const Vector3i &position, const BlockState &state) {
-    (void) owner;
-    return player.getInventoryManager().onClientOpenFurnace(position, kind(state), containerType(state));
+bool FurnaceBlock::onInteract(ServerNetworkHandler &owner, ServerPlayer &player, const Vector3i &position,
+                              const BlockState &state) const {
+    FurnaceContainerManagerModel model(state);
+    return model.open(owner, player, position);
 }

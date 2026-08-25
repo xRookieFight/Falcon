@@ -4,14 +4,15 @@
 #include "Actor/ServerPlayer.h"
 #include "Network/Handler/ServerNetworkHandler.h"
 #include "Protocol/Packets/LevelSoundEventPacket.h"
+#include "Protocol/Types/ItemDefinition.h"
 #include "Protocol/Types/StartGameTypes.h"
 
-#include <memory>
 #include <utility>
 
 namespace {
-    void consumeHeldOne(ServerNetworkHandler &owner, ServerPlayer &player) {
-        (void) owner;
+    const std::string SPAWN_EGG_SUFFIX = "_spawn_egg";
+
+    void consumeHeldOne(ServerPlayer &player) {
         if (player.getGameType() == (int32_t) GameType::Creative)
             return;
 
@@ -28,12 +29,22 @@ namespace {
 
         player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, inventory.getSelectedSlot());
     }
+
+    std::string resolveSpawnedActor(const std::string &identifier) {
+        if (identifier == "minecraft:villager")
+            return "minecraft:villager_v2";
+        if (identifier == "minecraft:zombie_villager")
+            return "minecraft:zombie_villager_v2";
+        return identifier;
+    }
 }
 
-ThrowableItem::ThrowableItem(std::string entityIdentifier, float throwForce, int32_t cooldownTicks)
-        : mEntityIdentifier(std::move(entityIdentifier)), mThrowForce(throwForce), mCooldownTicks(cooldownTicks) {}
+ThrowableItem::ThrowableItem(const Item &base, std::string entityIdentifier, float throwForce,
+                             int32_t cooldownTicks)
+        : Item(base), mEntityIdentifier(std::move(entityIdentifier)), mThrowForce(throwForce),
+          mCooldownTicks(cooldownTicks) {}
 
-bool ThrowableItem::onUse(ServerNetworkHandler &owner, ServerPlayer &player, const ItemStack &item) {
+bool ThrowableItem::onUse(ServerNetworkHandler &owner, ServerPlayer &player, const ItemStack &item) const {
     if (player.hasItemCooldown(item, owner.getCurrentTick()))
         return true;
 
@@ -46,7 +57,74 @@ bool ThrowableItem::onUse(ServerNetworkHandler &owner, ServerPlayer &player, con
     if (mCooldownTicks > 0)
         player.startItemCooldown(item, owner.getCurrentTick(), mCooldownTicks);
 
-    consumeHeldOne(owner, player);
+    consumeHeldOne(player);
+    return true;
+}
+
+ThrownPotionItem::ThrownPotionItem(const Item &base, std::string entityIdentifier)
+        : ThrowableItem(base, std::move(entityIdentifier), 1.5f, 0) {}
+
+bool ThrownPotionItem::onUse(ServerNetworkHandler &owner, ServerPlayer &player, const ItemStack &item) const {
+    ServerActor *projectile = owner.spawnProjectile(player, mEntityIdentifier, mThrowForce);
+    if (projectile == nullptr)
+        return false;
+
+    owner.setProjectilePotionData(projectile->getUniqueId(), item.mDamage);
+    owner.playLevelSound(LevelSoundEvent::THROW, player.getPosition(), "minecraft:player");
+
+    consumeHeldOne(player);
+    return true;
+}
+
+SpawnEggItem::SpawnEggItem(const Item &base) : Item(base) {}
+
+bool SpawnEggItem::onUseOnBlock(ServerNetworkHandler &owner, ServerPlayer &player, const ItemStack &item,
+                                const Vector3i &blockPosition, int32_t face,
+                                const Vector3f &clickPosition) const {
+    (void) clickPosition;
+
+    if (item.mDefinition == nullptr)
+        return false;
+
+    const std::string &identifier = item.mDefinition->getIdentifier();
+    if (identifier.size() <= SPAWN_EGG_SUFFIX.size() ||
+        identifier.compare(identifier.size() - SPAWN_EGG_SUFFIX.size(), SPAWN_EGG_SUFFIX.size(),
+                           SPAWN_EGG_SUFFIX) != 0)
+        return false;
+
+    const std::string entityIdentifier =
+            resolveSpawnedActor(identifier.substr(0, identifier.size() - SPAWN_EGG_SUFFIX.size()));
+
+    Vector3f spawnPosition((float) blockPosition.x + 0.5f, (float) blockPosition.y,
+                           (float) blockPosition.z + 0.5f);
+    switch (face) {
+        case 0:
+            spawnPosition.y -= 1.0f;
+            break;
+        case 1:
+            spawnPosition.y += 1.0f;
+            break;
+        case 2:
+            spawnPosition.z -= 1.0f;
+            break;
+        case 3:
+            spawnPosition.z += 1.0f;
+            break;
+        case 4:
+            spawnPosition.x -= 1.0f;
+            break;
+        case 5:
+            spawnPosition.x += 1.0f;
+            break;
+        default:
+            spawnPosition.y += 1.0f;
+            break;
+    }
+
+    if (owner.spawnActor(entityIdentifier, spawnPosition) == nullptr)
+        return false;
+
+    consumeHeldOne(player);
     return true;
 }
 
@@ -55,23 +133,4 @@ bool isThrownProjectile(const std::string &identifier) {
            identifier == "minecraft:ender_pearl" || identifier == "minecraft:xp_bottle" ||
            identifier == "minecraft:splash_potion" || identifier == "minecraft:lingering_potion" ||
            identifier == "minecraft:wind_charge_projectile" || identifier == "minecraft:eye_of_ender_signal";
-}
-
-void registerThrowableItems(ItemBehaviorRegistry &registry) {
-    registry.registerBehavior("minecraft:snowball",
-                              std::make_unique<ThrowableItem>("minecraft:snowball", 1.5f, 0));
-    registry.registerBehavior("minecraft:egg",
-                              std::make_unique<ThrowableItem>("minecraft:egg", 1.5f, 0));
-    registry.registerBehavior("minecraft:ender_pearl",
-                              std::make_unique<ThrowableItem>("minecraft:ender_pearl", 1.5f, 20));
-    registry.registerBehavior("minecraft:experience_bottle",
-                              std::make_unique<ThrowableItem>("minecraft:xp_bottle", 1.0f, 0));
-    registry.registerBehavior("minecraft:splash_potion",
-                              std::make_unique<ThrowableItem>("minecraft:splash_potion", 1.5f, 0));
-    registry.registerBehavior("minecraft:lingering_potion",
-                              std::make_unique<ThrowableItem>("minecraft:lingering_potion", 1.5f, 0));
-    registry.registerBehavior("minecraft:wind_charge",
-                              std::make_unique<ThrowableItem>("minecraft:wind_charge_projectile", 1.5f, 10));
-    registry.registerBehavior("minecraft:ender_eye",
-                              std::make_unique<ThrowableItem>("minecraft:eye_of_ender_signal", 1.2f, 0));
 }

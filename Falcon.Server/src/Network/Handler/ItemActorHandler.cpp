@@ -16,7 +16,31 @@
 #include "Protocol/Types/StartGameTypes.h"
 
 #include <cmath>
+#include <random>
 #include <string>
+
+namespace {
+    std::mt19937 &dropRandom() {
+        static std::mt19937 generator(0x5F3759DFu);
+        return generator;
+    }
+
+    float randomUnitFloat() {
+        std::uniform_real_distribution<float> distribution(0.0f, 1.0f);
+        return distribution(dropRandom());
+    }
+}
+
+Vector3f ItemActorHandler::randomDropMotion() {
+    return Vector3f(randomUnitFloat() * 0.2f - 0.1f, 0.2f, randomUnitFloat() * 0.2f - 0.1f);
+}
+
+Vector3f ItemActorHandler::randomDropAroundMotion() {
+    const float radius = randomUnitFloat() * 0.5f;
+    const float angle = randomUnitFloat() * 6.28318530717958647692f;
+
+    return Vector3f(-std::sin(angle) * radius, 0.2f, std::cos(angle) * radius);
+}
 
 namespace {
     const float ITEM_GRAVITY = 0.04f;

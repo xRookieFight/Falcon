@@ -4,9 +4,10 @@
 #include "Block/Components/BlockPlacementComponent.h"
 #include "Block/Blocks/CraftingTableBlock.h"
 #include "Block/Blocks/FurnaceBlock.h"
+#include "Block/Blocks/VanillaBlocks.h"
 #include "Actor/ServerPlayer.h"
 #include "Item/ItemData.h"
-#include "Item/ItemBehavior.h"
+#include "Item/VanillaItems.h"
 #include "Scripting/Content/CustomContentRegistry.h"
 #include "Item/ItemEnchantments.h"
 #include "Item/Items/BucketItem.h"
@@ -14,6 +15,7 @@
 #include "Inventory/InventoryManager.h"
 #include "Level/Level.h"
 #include "Network/Handler/InventoryHandler.h"
+#include "Network/Handler/ItemActorHandler.h"
 #include "Network/Handler/NetworkHandler.h"
 #include "Network/Handler/ServerNetworkHandler.h"
 #include "Protocol/BlockStateHasher.h"
@@ -39,13 +41,6 @@ namespace {
     const float REACH_MAX_DIFF = 6.0f;
     const uint64_t RIGHT_CLICK_DEDUP_MICROSECONDS = 100000;
 
-    float randomUnitFloat() {
-        return (float) (rand() % 1000) / 1000.0f;
-    }
-
-    Vector3f randomDropMotion() {
-        return Vector3f(randomUnitFloat() * 0.2f - 0.1f, 0.2f, randomUnitFloat() * 0.2f - 0.1f);
-    }
 
     float toolSpeedMultiplier(BlockToolTier tier) {
         switch (tier) {
@@ -379,7 +374,8 @@ void BlockActionHandler::breakBlock(ServerNetworkHandler &owner, ServerPlayer &p
 
                 const Vector3f dropPosition((float) position.x + 0.5f, (float) position.y + 0.5f,
                                             (float) position.z + 0.5f);
-                owner.dropItem(dropPosition, drop, randomDropMotion(), ItemActor::DEFAULT_PICKUP_DELAY);
+                owner.dropItem(dropPosition, drop, ItemActorHandler::randomDropMotion(),
+                               ItemActorHandler::DROP_PICKUP_DELAY);
             }
         }
     }
@@ -618,8 +614,8 @@ void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &p
 
     const ItemStack &interactItem = inventory.getItemInHand();
     if (!interactItem.isAir() && interactItem.mDefinition != nullptr) {
-        ItemBehavior *behavior = ItemBehaviorRegistry::getInstance().find(interactItem.mDefinition->getIdentifier());
-        if (behavior != nullptr && behavior->onUseOnBlock(owner, player, interactItem, transaction.mBlockPosition,
+        const Item *itemType = VanillaItems::fromIdentifier(interactItem.mDefinition->getIdentifier());
+        if (itemType != nullptr && itemType->onUseOnBlock(owner, player, interactItem, transaction.mBlockPosition,
                                                           transaction.mBlockFace, transaction.mClickPosition))
             return;
     }
@@ -629,15 +625,10 @@ void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &p
                                                         transaction.mBlockPosition.y,
                                                         transaction.mBlockPosition.z);
 
-    if (CraftingTableBlock::matches(clickedState)) {
-        CraftingTableBlock::onInteract(owner, player, transaction.mBlockPosition);
+    const Block *clickedBlock = VanillaBlocks::fromIdentifier(clickedState.mName);
+    if (clickedBlock != nullptr &&
+        clickedBlock->onInteract(owner, player, transaction.mBlockPosition, clickedState))
         return;
-    }
-
-    if (FurnaceBlock::matches(clickedState)) {
-        FurnaceBlock::onInteract(owner, player, transaction.mBlockPosition, clickedState);
-        return;
-    }
 
     const ItemStack &heldItem = inventory.getItemInHand();
     const bool bucket = BucketItem::isBucket(heldItem);

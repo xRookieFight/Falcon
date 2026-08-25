@@ -10,6 +10,8 @@ public:
 
     static ActorAttributes createPlayerDefaults();
 
+    static ActorAttributes createActorDefaults();
+
     void set(const std::string &name, float value);
 
     void addMaximum(const std::string &name, float amount);

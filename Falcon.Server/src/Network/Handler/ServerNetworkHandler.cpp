@@ -95,11 +95,13 @@
 #include "Block/Components/CreativeContentTable.h"
 #include "Block/Block.h"
 #include "Block/Systems/FurnaceSystem.h"
+#include "Block/Systems/CommandBlockSystem.h"
+#include "Protocol/Packets/CommandBlockUpdatePacket.h"
 #include "Block/Blocks/VanillaBlocks.h"
 #include "Item/CraftingRecipeTable.h"
 #include "Item/ItemNetworkIdTable.h"
 #include "Item/ItemData.h"
-#include "Item/ItemBehavior.h"
+#include "Item/VanillaItems.h"
 #include "Item/ItemEnchantments.h"
 #include "Item/Items/ChorusFruitItem.h"
 #include "Core/NBT/NbtIo.h"
@@ -199,14 +201,6 @@ namespace {
         }
 
         return amount;
-    }
-
-    float randomUnitFloat() {
-        return (float) (rand() % 1000) / 1000.0f;
-    }
-
-    Vector3f randomDropMotion() {
-        return Vector3f(randomUnitFloat() * 0.2f - 0.1f, 0.2f, randomUnitFloat() * 0.2f - 0.1f);
     }
 
     const FoodItemComponent *findFoodComponent(const ItemStack &item);
@@ -485,7 +479,6 @@ void ServerNetworkHandler::setProtocolVersion(int protocolVersion, const std::st
 
 void ServerNetworkHandler::setProperties(const PropertiesSettings &properties) {
     mProperties = properties;
-    ItemBehaviorRegistry::getInstance().registerVanilla();
     mLevel = Level(properties.getLevelName(), _getServerViewDistance());
     mLevel.openStorage("worlds");
     mLevel.startWorkers(_getChunkWorkerThreadCount());
@@ -846,6 +839,8 @@ void ServerNetworkHandler::tick() {
 
     tickActors();
 
+    CommandBlockSystem::tickCommandBlocks(*this);
+
     mProfiler.beginSection(ProfilerSection::Announcement);
     _updateServerAnnouncement();
     mProfiler.endSection(ProfilerSection::Announcement);
@@ -1003,6 +998,7 @@ void ServerNetworkHandler::loadActorsForChunk(int32_t chunkX, int32_t chunkZ) {
         const int64_t uniqueId = (int64_t) runtimeId;
 
         std::unique_ptr<ServerActor> actor(new ServerActor(runtimeId, identifier));
+        actor->getAttributes() = ActorAttributes::createActorDefaults();
 
         const CustomActorDefinition *definition = CustomContentRegistry::getInstance().getActorDefinition(identifier);
         if (definition != nullptr) {
@@ -1419,24 +1415,24 @@ void ServerNetworkHandler::_dropInventoryOnDeath(ServerPlayer &player) {
     const Vector3f dropPosition(position.x, position.y + ITEM_DROP_HEIGHT, position.z);
 
     for (int slot = 0; slot < PlayerInventory::CONTAINER_SIZE; slot++) {
-        dropItem(dropPosition, inventory.getItem(slot), randomDropMotion(), ItemActor::DEFAULT_PICKUP_DELAY);
+        dropItem(dropPosition, inventory.getItem(slot), ItemActorHandler::randomDropAroundMotion(), ItemActorHandler::DEATH_DROP_PICKUP_DELAY);
     }
 
     for (int slot = 0; slot < PlayerInventory::ARMOR_SIZE; slot++) {
-        dropItem(dropPosition, inventory.getArmor(slot), randomDropMotion(), ItemActor::DEFAULT_PICKUP_DELAY);
+        dropItem(dropPosition, inventory.getArmor(slot), ItemActorHandler::randomDropAroundMotion(), ItemActorHandler::DEATH_DROP_PICKUP_DELAY);
     }
 
-    dropItem(dropPosition, inventory.getOffhand(), randomDropMotion(), ItemActor::DEFAULT_PICKUP_DELAY);
-    dropItem(dropPosition, inventory.getCursor(), randomDropMotion(), ItemActor::DEFAULT_PICKUP_DELAY);
+    dropItem(dropPosition, inventory.getOffhand(), ItemActorHandler::randomDropAroundMotion(), ItemActorHandler::DEATH_DROP_PICKUP_DELAY);
+    dropItem(dropPosition, inventory.getCursor(), ItemActorHandler::randomDropAroundMotion(), ItemActorHandler::DEATH_DROP_PICKUP_DELAY);
 
     for (int slot = 0; slot < PlayerInventory::CRAFTING_SIZE; ++slot)
-        dropItem(dropPosition, inventory.getCraftingItem(slot), randomDropMotion(), ItemActor::DEFAULT_PICKUP_DELAY);
+        dropItem(dropPosition, inventory.getCraftingItem(slot), ItemActorHandler::randomDropAroundMotion(), ItemActorHandler::DEATH_DROP_PICKUP_DELAY);
 
     for (int slot = 0; slot < PlayerInventory::CRAFTING_TABLE_SIZE; ++slot)
-        dropItem(dropPosition, inventory.getCraftingTableItem(slot), randomDropMotion(), ItemActor::DEFAULT_PICKUP_DELAY);
+        dropItem(dropPosition, inventory.getCraftingTableItem(slot), ItemActorHandler::randomDropAroundMotion(), ItemActorHandler::DEATH_DROP_PICKUP_DELAY);
 
     for (int slot = 0; slot < PlayerInventory::FURNACE_SIZE; ++slot)
-        dropItem(dropPosition, inventory.getFurnaceItem(slot), randomDropMotion(), ItemActor::DEFAULT_PICKUP_DELAY);
+        dropItem(dropPosition, inventory.getFurnaceItem(slot), ItemActorHandler::randomDropAroundMotion(), ItemActorHandler::DEATH_DROP_PICKUP_DELAY);
 
     inventory.clear();
     inventory.setSelectedSlot(0);
@@ -1657,6 +1653,14 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const BlockActorD
         if (entry.second.isSpawned())
             mNetworkHandler->send(entry.second.getNetworkIdentifier(), packet, mCodecContext);
     }
+}
+
+void ServerNetworkHandler::handle(const NetworkIdentifier &id, const CommandBlockUpdatePacket &packet) {
+    ServerPlayer *player = _getPlayer(id);
+    if (player == nullptr || !player->isSpawned())
+        return;
+
+    CommandBlockSystem::onCommandBlockUpdate(*this, *player, packet);
 }
 
 void ServerNetworkHandler::handle(const NetworkIdentifier &id, const BlockPickRequestPacket &packet) {
@@ -1955,8 +1959,8 @@ void ServerNetworkHandler::_useHeldItem(ServerPlayer &player) {
     emitItemUse(player);
 
     if (!heldItem.isAir() && heldItem.mDefinition != nullptr) {
-        ItemBehavior *behavior = ItemBehaviorRegistry::getInstance().find(heldItem.mDefinition->getIdentifier());
-        if (behavior != nullptr && behavior->onUse(*this, player, heldItem))
+        const Item *itemType = VanillaItems::fromIdentifier(heldItem.mDefinition->getIdentifier());
+        if (itemType != nullptr && itemType->onUse(*this, player, heldItem))
             return;
     }
 

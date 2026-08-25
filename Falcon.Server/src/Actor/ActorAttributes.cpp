@@ -35,6 +35,17 @@ ActorAttributes ActorAttributes::createPlayerDefaults() {
     return attributes;
 }
 
+ActorAttributes ActorAttributes::createActorDefaults() {
+    const float unbounded = std::numeric_limits<float>::max();
+
+    ActorAttributes attributes;
+    attributes._add("minecraft:health", 0.0f, 20.0f, 20.0f);
+    attributes._add("minecraft:movement", 0.0f, unbounded, 0.1f);
+    attributes._add("minecraft:knockback_resistance", 0.0f, 1.0f, 0.0f);
+    attributes._add("minecraft:absorption", 0.0f, unbounded, 0.0f);
+    return attributes;
+}
+
 void ActorAttributes::set(const std::string &name, float value) {
     for (AttributeData &attribute: mAttributes) {
         if (attribute.mName == name) {

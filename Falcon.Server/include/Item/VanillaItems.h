@@ -2,6 +2,7 @@
 
 #include "Item/Item.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -615,7 +616,7 @@ public:
     static Item ZOMBIE_SPAWN_EGG();
     static Item ZOMBIE_VILLAGER_SPAWN_EGG();
 
-    static std::vector<Item> getAll();
+    static const std::vector<std::unique_ptr<Item>> &getAll();
 
     static const Item *fromIdentifier(const std::string &identifier);
 };

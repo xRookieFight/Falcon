@@ -1,5 +1,7 @@
 #include "Item/VanillaItems.h"
 
+#include "Item/Items/ThrowableItems.h"
+
 #include "Item/ItemData.h"
 #include "Item/ItemTypeIds.h"
 
@@ -2427,23 +2429,54 @@ Item VanillaItems::ZOMBIE_VILLAGER_SPAWN_EGG() {
     return Item(ItemDataTable::at(604));
 }
 
-std::vector<Item> VanillaItems::getAll() {
-    std::vector<Item> items;
-    items.reserve(ItemDataTable::getCount() + 1);
-    items.push_back(AIR());
+namespace {
+    std::unique_ptr<Item> makeItem(const Item &base) {
+        const std::string &identifier = base.getIdentifier();
 
-    for (size_t i = 0; i < ItemDataTable::getCount(); ++i)
-        items.push_back(Item(ItemDataTable::at(i)));
+        if (identifier == "minecraft:snowball")
+            return std::make_unique<ThrowableItem>(base, "minecraft:snowball", 1.5f, 0);
+        if (identifier == "minecraft:egg")
+            return std::make_unique<ThrowableItem>(base, "minecraft:egg", 1.5f, 0);
+        if (identifier == "minecraft:ender_pearl")
+            return std::make_unique<ThrowableItem>(base, "minecraft:ender_pearl", 1.5f, 20);
+        if (identifier == "minecraft:experience_bottle")
+            return std::make_unique<ThrowableItem>(base, "minecraft:xp_bottle", 1.0f, 0);
+        if (identifier == "minecraft:wind_charge")
+            return std::make_unique<ThrowableItem>(base, "minecraft:wind_charge_projectile", 1.5f, 10);
+        if (identifier == "minecraft:ender_eye")
+            return std::make_unique<ThrowableItem>(base, "minecraft:eye_of_ender_signal", 1.2f, 0);
+
+        if (identifier == "minecraft:splash_potion")
+            return std::make_unique<ThrownPotionItem>(base, "minecraft:splash_potion");
+        if (identifier == "minecraft:lingering_potion")
+            return std::make_unique<ThrownPotionItem>(base, "minecraft:lingering_potion");
+
+        if (identifier.size() > 10 && identifier.compare(identifier.size() - 10, 10, "_spawn_egg") == 0)
+            return std::make_unique<SpawnEggItem>(base);
+
+        return std::make_unique<Item>(base);
+    }
+}
+
+const std::vector<std::unique_ptr<Item>> &VanillaItems::getAll() {
+    static const std::vector<std::unique_ptr<Item>> items = []() {
+        std::vector<std::unique_ptr<Item>> result;
+        result.reserve(ItemDataTable::getCount() + 1);
+        result.push_back(makeItem(AIR()));
+
+        for (size_t i = 0; i < ItemDataTable::getCount(); ++i)
+            result.push_back(makeItem(Item(ItemDataTable::at(i))));
+
+        return result;
+    }();
 
     return items;
 }
 
 const Item *VanillaItems::fromIdentifier(const std::string &identifier) {
-    static const std::vector<Item> items = getAll();
-
-    for (const Item &item: items) {
-        if (item.getIdentifier() == identifier)
-            return &item;
+    for (const std::unique_ptr<Item> &item: getAll()) {
+        if (item->getIdentifier() == identifier)
+            return item.get();
     }
 
     return nullptr;

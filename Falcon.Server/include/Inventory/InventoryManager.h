@@ -56,6 +56,8 @@ public:
 
     bool onClientOpenFurnace(const Vector3i &position, FurnaceKind kind, ContainerType type);
 
+    bool openContainer(ContainerType type, const Vector3i &position);
+
     bool isCraftingTableOpen() const { return mCraftingTableWindowId != CONTAINER_ID_NONE; }
 
     bool isFurnaceOpen() const { return mFurnaceWindowId != CONTAINER_ID_NONE; }

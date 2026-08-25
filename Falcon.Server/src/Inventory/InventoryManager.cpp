@@ -754,6 +754,20 @@ bool InventoryManager::onClientOpenCraftingTable(const Vector3i &position) {
     return true;
 }
 
+bool InventoryManager::openContainer(ContainerType type, const Vector3i &position) {
+    if (mPlayer == nullptr || mSender == nullptr) {
+        return false;
+    }
+
+    ContainerOpenPacket open;
+    open.mWindowId = (int8_t) _getNewWindowId();
+    open.mType = type;
+    open.mBlockPosition = position;
+    open.mUniqueActorId = -1;
+    mSender->sendPacketTo(mPlayer->getNetworkIdentifier(), open);
+    return true;
+}
+
 bool InventoryManager::onClientOpenFurnace(const Vector3i &position, FurnaceKind kind, ContainerType type) {
     if (mPlayer == nullptr || mSender == nullptr) {
         return false;

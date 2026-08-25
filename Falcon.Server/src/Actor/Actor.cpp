@@ -80,8 +80,16 @@ float Actor::getHealth() const {
     return mAttributes.get(ATTRIBUTE_HEALTH);
 }
 
+void Actor::setHealth(float health) {
+    mAttributes.setClamped(ATTRIBUTE_HEALTH, health);
+}
+
 float Actor::getMaxHealth() const {
     return mAttributes.getMaximum(ATTRIBUTE_HEALTH);
+}
+
+void Actor::setMaxHealth(float maxHealth) {
+    mAttributes.addMaximum(ATTRIBUTE_HEALTH, maxHealth - mAttributes.getMaximum(ATTRIBUTE_HEALTH));
 }
 
 bool Actor::isAlive() const {
@@ -104,14 +112,15 @@ void Actor::knockBack(float x, float z, float force, float verticalLimit) {
         return;
 
     const float resistance = std::clamp(getAttributes().get("minecraft:knockback_resistance"), 0.0f, 1.0f);
-    if ((float) std::rand() / (float) RAND_MAX <= resistance)
+    const float base = force * (1.0f - resistance);
+    if (base <= 0.0f)
         return;
 
     const float inverse = 1.0f / length;
     Vector3f motion = getMotion();
-    motion.x = motion.x * 0.5f + x * inverse * force;
-    motion.y = std::min(motion.y * 0.5f + force, verticalLimit);
-    motion.z = motion.z * 0.5f + z * inverse * force;
+    motion.x = motion.x * 0.5f + x * inverse * base;
+    motion.y = std::min(motion.y * 0.5f + base, verticalLimit);
+    motion.z = motion.z * 0.5f + z * inverse * base;
     setMotion(motion);
 }
 

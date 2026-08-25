@@ -11,8 +11,58 @@
 #include <string>
 #include <utility>
 
+class ServerNetworkHandler;
+class ServerPlayer;
+class ItemStack;
+struct Vector3f;
+struct Vector3i;
+
 class Item {
 public:
+    virtual ~Item() = default;
+
+    virtual bool onUse(ServerNetworkHandler &owner, ServerPlayer &player, const ItemStack &item) const {
+        (void) owner;
+        (void) player;
+        (void) item;
+        return false;
+    }
+
+    virtual bool onUseOnBlock(ServerNetworkHandler &owner, ServerPlayer &player, const ItemStack &item,
+                              const Vector3i &blockPosition, int32_t face, const Vector3f &clickPosition) const {
+        (void) owner;
+        (void) player;
+        (void) item;
+        (void) blockPosition;
+        (void) face;
+        (void) clickPosition;
+        return false;
+    }
+
+    virtual bool onStartUsing(ServerNetworkHandler &owner, ServerPlayer &player, const ItemStack &item) const {
+        (void) owner;
+        (void) player;
+        (void) item;
+        return false;
+    }
+
+    virtual void onUsingTick(ServerNetworkHandler &owner, ServerPlayer &player, const ItemStack &item,
+                             int32_t elapsedTicks) const {
+        (void) owner;
+        (void) player;
+        (void) item;
+        (void) elapsedTicks;
+    }
+
+    virtual bool onStopUsing(ServerNetworkHandler &owner, ServerPlayer &player, const ItemStack &item,
+                             int32_t elapsedTicks) const {
+        (void) owner;
+        (void) player;
+        (void) item;
+        (void) elapsedTicks;
+        return false;
+    }
+
     Item() : mTypeId(0), mIdentifier("minecraft:air"), mName("Air"), mMaxStackSize(64), mIsBlock(false) {
         initializeComponents();
     }

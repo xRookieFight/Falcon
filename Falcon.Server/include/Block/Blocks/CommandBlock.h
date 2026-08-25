@@ -8,19 +8,17 @@
 class ServerNetworkHandler;
 class ServerPlayer;
 
-class CraftingTableBlock final : public Block {
+class CommandBlock final : public Block {
 public:
-    CraftingTableBlock()
-          : Block(BlockTypeIds::CRAFTING_TABLE, "minecraft:crafting_table", "Crafting Table") {}
+    CommandBlock()
+          : Block(BlockTypeIds::COMMAND_BLOCK, "minecraft:command_block", "Command Block") {}
 
-    explicit CraftingTableBlock(const Block &block) : Block(block) {}
+    explicit CommandBlock(const Block &block) : Block(block) {}
 
     bool onInteract(ServerNetworkHandler &owner, ServerPlayer &player, const Vector3i &position,
                     const BlockState &state) const override;
 
     static bool matches(const BlockState &state) { return matches(state.mName); }
 
-    static bool matches(const std::string &identifier) { return identifier == "minecraft:crafting_table"; }
-
-    int getFuelTime() const { return 300; }
+    static bool matches(const std::string &identifier);
 };

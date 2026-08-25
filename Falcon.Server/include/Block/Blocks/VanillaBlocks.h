@@ -4,6 +4,7 @@
 #include "Block/BlockData.h"
 
 #include <string>
+#include <memory>
 #include <vector>
 
 class VanillaBlocks {
@@ -2768,7 +2769,7 @@ public:
 
     static Block fromData(const BlockData &data);
 
-    static const std::vector<Block> &getAll();
+    static const std::vector<std::unique_ptr<Block>> &getAll();
 
     static const Block *fromIdentifier(const std::string &identifier);
 
