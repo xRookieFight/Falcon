@@ -52,7 +52,7 @@ find_package(OpenSSL REQUIRED)
 target_include_directories(FalconServer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${FALCON_GENERATED_DIR} ${ZLIB_INCLUDE_DIRS}
         ${OPENSSL_INCLUDE_DIR})
-target_link_libraries(FalconServer PRIVATE FalconNetwork FalconProtocol leveldb qjs)
+target_link_libraries(FalconServer PRIVATE FalconNetwork FalconProtocol leveldb qjs LibDataChannel::LibDataChannelStatic)
 
 if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_link_options(FalconServer PRIVATE -static -fuse-ld=lld)

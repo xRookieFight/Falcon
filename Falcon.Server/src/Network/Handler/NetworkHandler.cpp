@@ -14,23 +14,42 @@ NetworkHandler::Connection::Connection(const NetworkIdentifier &id, std::shared_
 }
 
 NetworkHandler::NetworkHandler(std::unique_ptr<Connector> connector)
-        : mConnector(std::move(connector)), mIoRunning(false), mConnectionCount(0) {
-    mConnector->setCallbacks(this);
+        : mIoRunning(false), mConnectionCount(0) {
+    addConnector(std::move(connector));
 }
 
 NetworkHandler::~NetworkHandler() {
     disconnect();
-    mConnector->setCallbacks(nullptr);
+
+    for (std::unique_ptr<Connector> &connector: mConnectors)
+        connector->setCallbacks(nullptr);
+}
+
+void NetworkHandler::addConnector(std::unique_ptr<Connector> connector) {
+    if (connector == nullptr)
+        return;
+
+    connector->setCallbacks(this);
+    mConnectors.push_back(std::move(connector));
 }
 
 bool NetworkHandler::host(const ConnectionDefinition &definition) {
-    return mConnector->host(definition);
+    bool hosted = false;
+
+    for (std::unique_ptr<Connector> &connector: mConnectors) {
+        if (connector->host(definition))
+            hosted = true;
+    }
+
+    return hosted;
 }
 
 void NetworkHandler::disconnect() {
     stopIoThread();
 
-    mConnector->disconnect();
+    for (std::unique_ptr<Connector> &connector: mConnectors)
+        connector->disconnect();
+
     mConnections.clear();
     mConnectionCount.store(0);
 }
@@ -178,7 +197,8 @@ void NetworkHandler::_applyOutbound(OutboundCommand &command) {
 }
 
 void NetworkHandler::_pumpIo() {
-    mConnector->runEvents();
+    for (std::unique_ptr<Connector> &connector: mConnectors)
+        connector->runEvents();
 
     std::vector<OutboundCommand> commands = mOutbound.drain();
     for (OutboundCommand &command: commands)
@@ -203,22 +223,34 @@ void NetworkHandler::_pumpIo() {
 }
 
 void NetworkHandler::runEvents() {
-    if (!mIoRunning.load())
-        _pumpIo();
+    const bool profiling = mProfiler != nullptr;
 
-    std::vector<InboundEvent> events = mInbound.drain();
+    if (!mIoRunning.load()) {
+        ProfilerScopedSection pumpSection(*mProfiler, ProfilerSection::NetworkPumpIo, profiling);
+        _pumpIo();
+    }
+
+    std::vector<InboundEvent> events;
+    {
+        ProfilerScopedSection drainSection(*mProfiler, ProfilerSection::NetworkDrain, profiling);
+        events = mInbound.drain();
+    }
 
     for (InboundEvent &event: events) {
         switch (event.mKind) {
-            case InboundEvent::Kind::Opened:
+            case InboundEvent::Kind::Opened: {
+                ProfilerScopedSection section(*mProfiler, ProfilerSection::NetworkConnection, profiling);
                 for (Listener *listener: mListeners)
                     listener->onNewIncomingConnection(event.mId);
                 break;
+            }
 
-            case InboundEvent::Kind::Closed:
+            case InboundEvent::Kind::Closed: {
+                ProfilerScopedSection section(*mProfiler, ProfilerSection::NetworkConnection, profiling);
                 for (Listener *listener: mListeners)
                     listener->onConnectionClosed(event.mId, event.mReason, event.mData);
                 break;
+            }
 
             default:
                 for (Listener *listener: mListeners)

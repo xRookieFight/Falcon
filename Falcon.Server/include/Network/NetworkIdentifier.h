@@ -21,7 +21,13 @@ public:
 
     NetworkIdentifier(const RakNet::RakNetGUID &guid, const RakNet::SystemAddress &systemAddress);
 
+    NetworkIdentifier(const std::string &networkID, unsigned long long connectionID);
+
     Type getType() const { return mType; }
+
+    const std::string &getNetworkID() const { return mNetworkID; }
+
+    unsigned long long getConnectionID() const { return mConnectionID; }
 
     const RakNet::RakNetGUID &getGuid() const { return mGuid; }
 
@@ -40,6 +46,8 @@ public:
 private:
     RakNet::RakNetGUID mGuid;
     RakNet::SystemAddress mSystemAddress;
+    std::string mNetworkID;
+    unsigned long long mConnectionID;
     Type mType;
 };
 

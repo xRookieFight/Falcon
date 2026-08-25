@@ -4,6 +4,7 @@
 #include "Network/BatchedNetworkPeer.h"
 #include "Network/CompressedNetworkPeer.h"
 #include "Network/Connector.h"
+#include "Server/Profiler.h"
 
 #include <atomic>
 #include <cstddef>
@@ -120,7 +121,11 @@ public:
 
     size_t getConnectionCount() const { return mConnectionCount.load(); }
 
-    Connector &getConnector() { return *mConnector; }
+    Connector &getConnector() { return *mConnectors.front(); }
+
+    void addConnector(std::unique_ptr<Connector> connector);
+
+    void setProfiler(Profiler *profiler) { mProfiler = profiler; }
 
     void addListener(Listener *listener);
 
@@ -146,7 +151,8 @@ private:
 
     void _applyOutbound(OutboundCommand &command);
 
-    std::unique_ptr<Connector> mConnector;
+    Profiler *mProfiler = nullptr;
+    std::vector<std::unique_ptr<Connector>> mConnectors;
     std::unordered_map<NetworkIdentifier, std::unique_ptr<Connection>, NetworkIdentifier::Hasher> mConnections;
     std::vector<Listener *> mListeners;
 
