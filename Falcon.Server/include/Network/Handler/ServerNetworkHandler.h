@@ -48,6 +48,8 @@ class CommandOrigin;
 class Block;
 class CraftingEventPacket;
 class CommandBlockUpdatePacket;
+class Item;
+class NetherNetInstance;
 
 class ServerNetworkHandler : public NetworkHandler::Listener,
                              public NetworkPacketHandler,
@@ -56,7 +58,10 @@ class ServerNetworkHandler : public NetworkHandler::Listener,
 public:
     using ModalFormCallback = std::function<void(ServerPlayer &, const std::string &, bool)>;
 
-    ServerNetworkHandler(const std::string &serverName, const std::string &subName, int maxPlayers);
+    ServerNetworkHandler(const std::string &serverName, const std::string &subName, int maxPlayers,
+                         TransportLayer transport = TransportLayer::RakNet);
+
+    bool isTransportReady() const { return mNetworkHandler != nullptr; }
 
     ~ServerNetworkHandler() override;
 
@@ -116,6 +121,26 @@ public:
 
     bool onThrownProjectileHitActor(ServerActor &projectile, const Vector3f &hitPosition, ServerActor &hitActor);
 
+    bool onArrowProjectileHitTarget(ServerActor &projectile, const Vector3f &hitPosition, Actor &target);
+
+    static float computeProjectileDamage(ServerActor &projectile);
+
+    void returnProjectileToOwner(ServerPlayer &player, ServerActor &projectile);
+
+    void dropProjectileItem(ServerActor &projectile, const Vector3f &position);
+
+    void sendWeatherTo(ServerPlayer &player);
+
+    void broadcastWeather();
+
+    void setRaining(bool raining);
+
+    void setThundering(bool thundering);
+
+    void strikeLightning(const Vector3f &position);
+
+    void tickWeather();
+
     void applyPotionEffects(ServerPlayer &player, int32_t potionId, float durationScale);
 
     void setProjectilePotionData(int64_t uniqueId, int32_t potionId);
@@ -133,6 +158,10 @@ public:
     void broadcastActorMove(ServerActor &actor);
 
     void syncActorProperties(ServerActor &actor);
+
+    void syncActorFlags(ServerActor &actor);
+
+    void syncActorFirework(ServerActor &actor);
 
     void sendActorMetadata(ServerActor &actor, const EntityDataMap &metadata);
 
@@ -202,9 +231,13 @@ public:
 
     void saveActorsForChunk(int32_t chunkX, int32_t chunkZ, bool cull);
 
+    void loadBlockActorsForChunk(int32_t chunkX, int32_t chunkZ);
+
+    void saveBlockActorsForChunk(int32_t chunkX, int32_t chunkZ, bool cull);
+
     void saveAllActors();
 
-    void syncActorPersistence(const std::vector<int64_t> &activeColumns);
+    bool syncActorPersistence(const std::vector<int64_t> &activeColumns);
 
     void emitItemUse(ServerPlayer &player);
 
@@ -284,7 +317,13 @@ public:
 
     void _sendHealth(ServerPlayer &player);
 
+    bool _equipHeldArmor(ServerPlayer &player, const Item &itemType);
+
     void _sendEntityData(ServerPlayer &player);
+
+    void _broadcastEntityEvent(const Actor &entity, uint8_t eventId);
+
+    void _broadcastEntityEvent(const Actor &entity, uint8_t eventId, int32_t eventData);
 
     void _sendChunks(ServerPlayer &player);
 
@@ -429,10 +468,6 @@ private:
 
     void _handleVoidDamage(ServerPlayer &player);
 
-    void _broadcastEntityEvent(const Actor &entity, uint8_t eventId);
-
-    void _broadcastEntityEvent(const Actor &entity, uint8_t eventId, int32_t eventData);
-
     void _dropInventoryOnDeath(ServerPlayer &player);
 
     void _respawnPlayer(ServerPlayer &player);
@@ -443,6 +478,7 @@ private:
 
     std::unique_ptr<NetworkHandler> mNetworkHandler;
     RakNetInstance *mRakNetInstance;
+    NetherNetInstance *mNetherNetInstance = nullptr;
     BlockDefinitionRegistry mBlockDefinitions;
     ItemDefinitionRegistry mItemDefinitions;
     PacketCodecContext mCodecContext;
@@ -450,6 +486,10 @@ private:
     PropertiesSettings mProperties;
     static const int DEFAULT_VIEW_DISTANCE = 4;
     static const int MAX_VIEW_DISTANCE = 12;
+public:
+    unsigned getChunksPerTick() const { return CHUNKS_PER_TICK; }
+
+private:
     static const unsigned CHUNKS_PER_TICK = 32;
     static const unsigned CHUNK_REQUESTS_PER_TICK = 64;
     static const size_t SPAWN_CHUNK_THRESHOLD = 56;
@@ -489,6 +529,9 @@ private:
 
     std::unordered_map<int64_t, LingeringCloud> mLingeringClouds;
     std::unordered_set<int64_t> mActorLoadedChunks;
+    std::vector<int64_t> mActiveCenters;
+    int mActiveTickDistance = -1;
+    bool mActorPersistencePending = true;
     std::unordered_map<std::string, DynamicPropertyValue> mWorldDynamicProperties;
     std::unordered_map<std::string, int64_t> mScoreboardIds;
     int64_t mNextScoreboardId = 1;

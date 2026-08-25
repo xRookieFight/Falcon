@@ -54,6 +54,20 @@ void PropertiesSettings::_writeDefault(const std::string &path) {
     file << "client-side-chunk-generation-enabled=false\n";
     file << "block-network-ids-are-hashes=true\n";
     file << "disable-custom-skins=false\n";
+    file << "transport=raknet\n";
+    file << "nethernet-tls-certificate=\n";
+    file << "nethernet-tls-private-key=\n";
+}
+
+TransportLayer PropertiesSettings::getTransportLayer() const {
+    const std::string value = getString("transport", "raknet");
+
+    if (value.empty() || value == "raknet")
+        return TransportLayer::RakNet;
+    if (value == "nethernet")
+        return TransportLayer::NetherNet;
+
+    return TransportLayer::Unknown;
 }
 
 bool PropertiesSettings::load(const std::string &path) {
@@ -105,7 +119,8 @@ bool PropertiesSettings::_isKnownProperty(const std::string &key) {
             "server-authoritative-block-breaking-pick-range-scalar", "server-build-radius-ratio",
             "player-position-acceptance-threshold", "player-movement-action-direction-threshold",
             "allow-inbound-script-debugging", "allow-outbound-script-debugging", "script-debugger-auto-attach",
-            "disable-persona", "transport", "emit-server-telemetry"
+            "disable-persona", "transport", "emit-server-telemetry",
+            "nethernet-tls-certificate", "nethernet-tls-private-key"
     };
 
     return known.find(key) != known.end();

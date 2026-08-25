@@ -958,6 +958,7 @@ void LoginHandler::handleSetLocalPlayerAsInitialized(ServerNetworkHandler &owner
     owner._sendHealth(player);
     ItemActorHandler::sendItemActorsTo(owner, player);
     owner.sendActorsTo(player);
+    owner.sendWeatherTo(player);
 
     owner.broadcastTranslation("multiplayer.player.joined", {player.getName()});
 }

@@ -43,6 +43,28 @@ public:
 
     void tickTime() { ++mTime; }
 
+    bool isRaining() const { return mRaining; }
+
+    bool isThundering() const { return mRaining && mThundering; }
+
+    int32_t getRainTime() const { return mRainTime; }
+
+    int32_t getThunderTime() const { return mThunderTime; }
+
+    void setRainTime(int32_t rainTime) { mRainTime = rainTime; }
+
+    void setThunderTime(int32_t thunderTime) { mThunderTime = thunderTime; }
+
+    void setRainingState(bool raining) { mRaining = raining; }
+
+    void setThunderingState(bool thundering) { mThundering = thundering; }
+
+    void initializeWeather();
+
+    void saveWeather();
+
+    bool canRainAt(int32_t x, int32_t z);
+
     bool openStorage(const std::string &worldsDirectory);
 
     void saveAll();
@@ -55,6 +77,10 @@ public:
 
     std::vector<Tag> loadEntities(int32_t chunkX, int32_t chunkZ);
 
+    void saveBlockEntities(int32_t chunkX, int32_t chunkZ, const std::vector<Tag> &blockEntities);
+
+    std::vector<Tag> loadBlockEntities(int32_t chunkX, int32_t chunkZ);
+
     Vector3i getSpawnPosition() const;
 
     Vector3f getSpawnPositionForPlayer() const;
@@ -64,6 +90,16 @@ public:
     LevelChunk &getChunk(int32_t chunkX, int32_t chunkZ);
 
     bool isChunkResident(int32_t chunkX, int32_t chunkZ) const;
+
+    LevelChunk *peekChunkPtr(int32_t chunkX, int32_t chunkZ);
+
+    int getSkyLightAt(int32_t x, int32_t y, int32_t z);
+
+    int32_t getHeightAt(int32_t x, int32_t z);
+
+    int32_t getSkyLightSubtracted() const { return mSkyLightSubtracted; }
+
+    void updateSkyLightSubtracted();
 
     bool requestChunkAsync(int32_t chunkX, int32_t chunkZ);
 
@@ -140,4 +176,9 @@ private:
     std::deque<ChunkLoadResult> mCompletedChunks;
     std::unique_ptr<ChunkWorker> mChunkWorker;
     int64_t mTime = 0;
+    bool mRaining = false;
+    int32_t mRainTime = 0;
+    bool mThundering = false;
+    int32_t mThunderTime = 0;
+    int32_t mSkyLightSubtracted = 0;
 };

@@ -6,6 +6,54 @@ LevelChunk::LevelChunk(int32_t x, int32_t z) : mX(x), mZ(z), mBiomeId(1), mDirty
         mSubChunks.push_back(SubChunk((int8_t) (LOWEST_SUB_CHUNK_Y + i)));
 }
 
+int LevelChunk::_lightIndex(int x, int32_t y, int z) {
+    return (((y - MIN_Y) << 8) | (z << 4) | x);
+}
+
+int32_t LevelChunk::getHeight(int x, int z) const {
+    if (mHeightmap.empty())
+        return MIN_Y;
+
+    const int16_t height = mHeightmap[(size_t) ((z << 4) | x)];
+    return height == (int16_t) UNKNOWN_HEIGHT ? MIN_Y : height;
+}
+
+bool LevelChunk::hasHeight(int x, int z) const {
+    if (mHeightmap.empty())
+        return false;
+
+    return mHeightmap[(size_t) ((z << 4) | x)] != (int16_t) UNKNOWN_HEIGHT;
+}
+
+void LevelChunk::setHeight(int x, int z, int32_t height) {
+    if (mHeightmap.empty())
+        mHeightmap.assign(256, (int16_t) UNKNOWN_HEIGHT);
+
+    mHeightmap[(size_t) ((z << 4) | x)] = (int16_t) height;
+}
+
+int LevelChunk::getSkyLight(int x, int32_t y, int z) const {
+    if (mSkyLight.empty() || y < MIN_Y || y > MAX_Y)
+        return 0;
+
+    return mSkyLight[(size_t) _lightIndex(x, y, z)];
+}
+
+void LevelChunk::setSkyLight(int x, int32_t y, int z, int value) {
+    if (y < MIN_Y || y > MAX_Y)
+        return;
+
+    if (mSkyLight.empty())
+        mSkyLight.assign((size_t) (SUB_CHUNK_COUNT * 16 * 256), 0);
+
+    mSkyLight[(size_t) _lightIndex(x, y, z)] = (uint8_t) value;
+}
+
+void LevelChunk::clearSkyLight() {
+    mSkyLight.clear();
+    mHeightmap.clear();
+}
+
 const BlockState &LevelChunk::getBlock(int x, int32_t y, int z) const {
     static const BlockState air;
 

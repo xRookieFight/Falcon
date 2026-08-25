@@ -8,7 +8,7 @@
 
 enum class ProfilerSection : int {
     ConsoleCommands = 0,
-    NetworkEvents = 1,
+    NetworkDrain = 1,
     ChunkDrain = 2,
     Fluids = 3,
     Players = 4,
@@ -17,10 +17,35 @@ enum class ProfilerSection : int {
     ItemActors = 7,
     Announcement = 8,
     FluidBroadcast = 9,
-    Count = 10
+    Redstone = 10,
+    ActorPhysics = 11,
+    ActorEnvironment = 12,
+    ActorProjectiles = 13,
+    ActorPersistence = 14,
+    SkyLight = 15,
+    Weather = 16,
+    NetworkPumpIo = 17,
+    NetworkConnection = 18,
+    NetworkDecode = 19,
+    NetworkHandlePacket = 20,
+    Count = 21
 };
 
 const char *getProfilerSectionName(ProfilerSection section);
+
+class Profiler;
+
+class ProfilerScopedSection {
+public:
+    ProfilerScopedSection(Profiler &profiler, ProfilerSection section, bool active);
+
+    ~ProfilerScopedSection();
+
+private:
+    Profiler &mProfiler;
+    ProfilerSection mSection;
+    bool mActive;
+};
 
 struct ProfilerPlayerStats {
     std::string mName;

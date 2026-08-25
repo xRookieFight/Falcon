@@ -6,6 +6,7 @@
 #include "Core/Debug/ContentLogEndPoint.h"
 #include "Core/Debug/FileLogEndPoint.h"
 #include "Network/Handler/ServerNetworkHandler.h"
+#include "Network/TransportFactory.h"
 #include "Server/PropertiesSettings.h"
 
 #include <atomic>
@@ -122,15 +123,15 @@ static void logStartupBanner(const PropertiesSettings &properties) {
     LOG_INFO(LogAreaID::Server, "%s", LOADING_WORLD_BANNER);
 }
 
-static void logTransportNotice() {
-    LOG_INFO(LogAreaID::Server, "================ TRY OUT NETHERNET :)  ===================");
-    LOG_INFO(LogAreaID::Server, "Your current connection type is set to RakNet, which will be deprecated in the future.");
-    LOG_INFO(LogAreaID::Server, "Please consider using our new NetherNet connection system instead.");
-    LOG_INFO(LogAreaID::Server, "%s", "");
-    LOG_INFO(LogAreaID::Server, "To switch, change 'transport=raknet' to 'transport=nethernet' in server.properties.");
-    LOG_INFO(LogAreaID::Server, "%s", "");
-    LOG_INFO(LogAreaID::Server, "For more information, please reference the included bedrock_server_how_to.html file.");
-    LOG_INFO(LogAreaID::Server, "=======================================================");
+static void logTransportNotice(TransportLayer transport) {
+    LOG_INFO(LogAreaID::Server, "==================== TRANSPORT =======================");
+    LOG_INFO(LogAreaID::Server, "Connection type: %s", toString(transport));
+    if (transport == TransportLayer::NetherNet) {
+        LOG_INFO(LogAreaID::Server, "NetherNet serves its signaling endpoint over plain HTTP.");
+    } else {
+        LOG_INFO(LogAreaID::Server, "RakNet transport is active.");
+    }
+    LOG_INFO(LogAreaID::Server, "======================================================");
 }
 
 static void logTelemetryNotice() {
@@ -149,10 +150,25 @@ void startServer(const ServerSettings &settings) {
     PropertiesSettings properties(PROPERTIES_FILE);
     logStartupBanner(properties);
 
+    const TransportLayer transport = properties.getTransportLayer();
+
+    if (transport == TransportLayer::Unknown) {
+        LOG_FATAL(LogAreaID::Server, "Unknown 'transport' value in %s, expected 'raknet' or 'nethernet'",
+                  PROPERTIES_FILE);
+        BedrockLog::flush();
+        return;
+    }
+
+    if (!TransportFactory::isSupported(transport)) {
+        LOG_FATAL(LogAreaID::Server, "Transport %s is not supported by this build", toString(transport));
+        BedrockLog::flush();
+        return;
+    }
+
     const int maxPlayers = properties.isLoaded() ? properties.getMaxPlayers() : settings.maxPlayers;
     const std::string serverName = properties.isLoaded() ? properties.getServerName() : settings.motd;
 
-    ServerNetworkHandler networkHandler(serverName, settings.subMotd, maxPlayers);
+    ServerNetworkHandler networkHandler(serverName, settings.subMotd, maxPlayers, transport);
     networkHandler.setProtocolVersion(settings.protocolVersion, settings.gameVersion);
     networkHandler.setProperties(properties);
 
@@ -172,7 +188,7 @@ void startServer(const ServerSettings &settings) {
     }
 
     LOG_INFO(LogAreaID::Server, "Server started.");
-    logTransportNotice();
+    logTransportNotice(transport);
     logTelemetryNotice();
     BedrockLog::flush();
 

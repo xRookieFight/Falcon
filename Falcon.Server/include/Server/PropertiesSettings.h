@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Network/NetworkEnums.h"
 #include "Protocol/Packets/NetworkSettingsPacket.h"
 #include "Protocol/Types/StartGameTypes.h"
 
@@ -107,6 +108,12 @@ public:
     bool getBlockNetworkIdsAreHashes() const { return getBool("block-network-ids-are-hashes", true); }
 
     bool getDisableCustomSkins() const { return getBool("disable-custom-skins", false); }
+
+    TransportLayer getTransportLayer() const;
+
+    std::string getNetherNetTlsCertificate() const { return getString("nethernet-tls-certificate"); }
+
+    std::string getNetherNetTlsPrivateKey() const { return getString("nethernet-tls-private-key"); }
 
     // Renders the properties this build does not know about, the way BDS reports them at startup.
     std::string getUnknownContents() const;

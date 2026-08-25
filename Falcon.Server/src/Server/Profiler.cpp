@@ -16,7 +16,7 @@
 namespace {
     const char *SECTION_NAMES[(int) ProfilerSection::Count] = {
             "Console commands",
-            "Network events",
+            "Network drain",
             "LevelChunk drain",
             "Fluid physics",
             "Player tick",
@@ -24,7 +24,18 @@ namespace {
             "Furnaces",
             "Item actors",
             "Announcement",
-            "Fluid broadcast"
+            "Fluid broadcast",
+            "Redstone",
+            "Actor physics",
+            "Actor environment",
+            "Actor projectiles",
+            "Actor persistence",
+            "Sky light",
+            "Weather",
+            "Network pump io",
+            "Network connection",
+            "Network decode",
+            "Network handle packet"
     };
 
     const char *SECTION_COLORS[(int) ProfilerSection::Count] = {
@@ -37,7 +48,18 @@ namespace {
             "#f2622e",
             "#e0567c",
             "#9aa4b2",
-            "#c084fc"
+            "#c084fc",
+            "#e02f2f",
+            "#5ed36a",
+            "#37a86b",
+            "#8fd94f",
+            "#d98c00",
+            "#7cc4ff",
+            "#a0a0ff",
+            "#1f6feb",
+            "#79b8ff",
+            "#b392f0",
+            "#f97583"
     };
 
     bool createDirectory(const std::string &path) {
@@ -102,6 +124,17 @@ const char *getProfilerSectionName(ProfilerSection section) {
         return "Unknown";
 
     return SECTION_NAMES[index];
+}
+
+ProfilerScopedSection::ProfilerScopedSection(Profiler &profiler, ProfilerSection section, bool active)
+        : mProfiler(profiler), mSection(section), mActive(active) {
+    if (mActive)
+        mProfiler.beginSection(mSection);
+}
+
+ProfilerScopedSection::~ProfilerScopedSection() {
+    if (mActive)
+        mProfiler.endSection(mSection);
 }
 
 void Profiler::start(int64_t tick) {
@@ -405,16 +438,29 @@ std::string Profiler::_buildReport() const {
         const ProfilerTickSample &sample = *slowest[i];
 
         int dominant = 0;
-        for (int index = 1; index < (int) ProfilerSection::Count; ++index) {
+        double measuredMs = 0.0;
+        for (int index = 0; index < (int) ProfilerSection::Count; ++index) {
+            measuredMs += sample.mSectionMs[index];
             if (sample.mSectionMs[index] > sample.mSectionMs[dominant])
                 dominant = index;
         }
 
+        const double unaccountedMs = sample.mTotalMs - measuredMs;
+        const bool unaccountedDominates = unaccountedMs > sample.mSectionMs[dominant];
+
         out << "<tr><td class=\"n\">" << sample.mTick << "</td>"
-            << "<td class=\"n\">" << formatNumber(sample.mTotalMs, 2) << " ms</td>"
-            << "<td><span class=\"sw\" style=\"background:" << SECTION_COLORS[dominant] << "\"></span>"
-            << escapeHtml(SECTION_NAMES[dominant]) << " ("
-            << formatNumber(sample.mSectionMs[dominant], 2) << " ms)</td>"
+            << "<td class=\"n\">" << formatNumber(sample.mTotalMs, 2) << " ms</td>";
+
+        if (unaccountedDominates) {
+            out << "<td><span class=\"sw\" style=\"background:#ff2d55\"></span>Unaccounted ("
+                << formatNumber(unaccountedMs, 2) << " ms)</td>";
+        } else {
+            out << "<td><span class=\"sw\" style=\"background:" << SECTION_COLORS[dominant] << "\"></span>"
+                << escapeHtml(SECTION_NAMES[dominant]) << " ("
+                << formatNumber(sample.mSectionMs[dominant], 2) << " ms)</td>";
+        }
+
+        out
             << "<td class=\"n\">" << sample.mPlayerCount << "</td>"
             << "<td class=\"n\">" << sample.mLoadedChunks << "</td>"
             << "<td class=\"n\">" << sample.mPendingChunkTasks << "</td>"

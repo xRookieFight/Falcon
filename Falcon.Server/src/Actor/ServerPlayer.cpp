@@ -1,11 +1,13 @@
 #include "Actor/ServerPlayer.h"
 
 #include "Actor/DynamicPropertyStore.h"
+#include "Actor/ActorSizeTable.h"
 #include "Actor/ServerActor.h"
 #include "Inventory/ItemStackNbt.h"
 #include "Inventory/InventoryManager.h"
 #include "Item/ItemData.h"
 #include "Item/ItemEnchantments.h"
+#include "Item/VanillaItems.h"
 #include "Network/Handler/InventoryHandler.h"
 #include "Network/Handler/ServerNetworkHandler.h"
 #include "Protocol/Packets/AnimatePacket.h"
@@ -72,6 +74,10 @@ namespace {
     }
 
     constexpr float MAX_REACH = 8.0f;
+    constexpr float SPIN_ATTACK_DAMAGE = 8.0f;
+    constexpr float SPIN_ATTACK_REACH = 1.0f;
+    constexpr float PLAYER_WIDTH = 0.6f;
+    constexpr float PLAYER_HEIGHT = 1.8f;
     constexpr int ATTACK_COOLDOWN_TICKS = 10;
 
     int protectionFactor(int level) {
@@ -160,9 +166,9 @@ namespace {
         }
     }
 
-    float armorReducedDamage(const ServerPlayer &victim, float amount) {
-        int armorPoints = 0;
-        int epf = 0;
+    float armorReducedDamage(const ServerPlayer &victim, float amount, float armorEfficiency = 1.0f) {
+        float armorPoints = 0.0f;
+        float epf = 0.0f;
         for (int slot = 0; slot < PlayerInventory::ARMOR_SIZE; ++slot) {
             const ItemStack &armor = victim.getInventory().getArmor(slot);
             if (armor.isAir() || armor.mDefinition == nullptr)
@@ -170,13 +176,16 @@ namespace {
 
             const ItemData *data = ItemDataTable::find(armor.mDefinition->getIdentifier());
             if (data != nullptr)
-                armorPoints += data->mArmorPoints;
-            epf += protectionFactor(ItemEnchantments::getLevel(armor, EnchantmentIds::PROTECTION));
+                armorPoints += (float) data->mArmorPoints;
+            epf += (float) protectionFactor(ItemEnchantments::getLevel(armor, EnchantmentIds::PROTECTION));
         }
 
-        amount *= std::max(0.0f, 1.0f - std::min(1.0f, (float) armorPoints * 0.04f));
-        if (epf > 0) {
-            const int scaled = std::min((int) std::ceil(std::min(epf, 25) *
+        armorPoints *= armorEfficiency;
+        epf *= armorEfficiency;
+
+        amount *= std::max(0.0f, 1.0f - std::min(1.0f, armorPoints * 0.04f));
+        if (epf > 0.0f) {
+            const int scaled = std::min((int) std::ceil(std::min(epf, 25.0f) *
                                                         (50.0f + (float) (std::rand() % 51)) / 100.0f), 20);
             amount *= std::max(0.0f, 1.0f - (float) scaled * 0.04f);
         }
@@ -250,11 +259,18 @@ bool ServerPlayer::attackActor(ServerNetworkHandler &owner, uint64_t targetRunti
             const ItemData *weaponData = weapon.isAir() || weapon.mDefinition == nullptr
                                                  ? nullptr
                                                  : ItemDataTable::find(weapon.mDefinition->getIdentifier());
-            const float attackDamage = weaponData == nullptr || weaponData->mAttackDamage <= 0
-                                               ? 1.0f
-                                               : (float) weaponData->mAttackDamage;
+            const Item *weaponType = weapon.isAir() || weapon.mDefinition == nullptr
+                                             ? nullptr
+                                             : VanillaItems::fromIdentifier(weapon.mDefinition->getIdentifier());
+            float attackDamage = weaponData == nullptr || weaponData->mAttackDamage <= 0
+                                         ? 1.0f
+                                         : (float) weaponData->mAttackDamage;
+            if (weaponType != nullptr)
+                attackDamage = std::max(0.0f, attackDamage + weaponType->getAttackDamageBonus(weapon, *this));
 
             owner.damageActor(target, attackDamage, this);
+            if (weaponType != nullptr)
+                weaponType->onPostAttack(owner, *this, target, attackDamage, weapon);
 
             const int32_t weaponWear = (weaponData != nullptr && weaponData->mToolType == ToolType::Sword) ? 1 : 2;
             owner.damagePlayerHeldItem(*this, weaponWear);
@@ -276,8 +292,13 @@ bool ServerPlayer::attackActor(ServerNetworkHandler &owner, uint64_t targetRunti
     const ItemStack &held = getInventory().getItemInHand();
     const ItemData *data = held.isAir() || held.mDefinition == nullptr
                            ? nullptr : ItemDataTable::find(held.mDefinition->getIdentifier());
+    const Item *heldType = held.isAir() || held.mDefinition == nullptr
+                                   ? nullptr : VanillaItems::fromIdentifier(held.mDefinition->getIdentifier());
     const float baseDamage = data == nullptr || data->mAttackDamage <= 0 ? 1.0f : (float) data->mAttackDamage;
     float damage = baseDamage;
+
+    if (heldType != nullptr)
+        damage = std::max(0.0f, damage + heldType->getAttackDamageBonus(held, *this));
 
     const int sharpness = ItemEnchantments::getLevel(held, EnchantmentIds::SHARPNESS);
     damage += sharpness > 0 ? 0.5f * (float) (sharpness + 1) : 0.0f;
@@ -302,11 +323,14 @@ bool ServerPlayer::attackActor(ServerNetworkHandler &owner, uint64_t targetRunti
         damage -= victim->getLastDamageAmount();
     }
 
-    const float finalDamage = armorReducedDamage(*victim, damage);
+    const float armorEfficiency = heldType == nullptr ? 1.0f : heldType->getArmorEfficiency(held);
+    const float finalDamage = armorReducedDamage(*victim, damage, armorEfficiency);
     if (finalDamage <= 0.0f)
         return false;
 
     owner.applyDamage(*victim, finalDamage, "death.attack.player", {victim->getName(), getName()}, false, false);
+    if (heldType != nullptr)
+        heldType->onPostAttack(owner, *this, *victim, damage, held);
 
     const int32_t weaponWear = (data != nullptr && data->mToolType == ToolType::Sword) ? 1 : 2;
     owner.damagePlayerHeldItem(*this, weaponWear);
@@ -368,6 +392,65 @@ bool ServerPlayer::attackActor(ServerNetworkHandler &owner, uint64_t targetRunti
     return true;
 }
 
+void ServerPlayer::startSpinAttack(ServerNetworkHandler &owner, int32_t ticks) {
+    mSpinAttackTicks = ticks;
+    getFlags().set(ActorFlag::SpinAttack, true);
+    resetFallDistance();
+    owner._sendEntityData(*this);
+}
+
+void ServerPlayer::tickSpinAttack(ServerNetworkHandler &owner) {
+    if (mSpinAttackTicks <= 0)
+        return;
+
+    resetFallDistance();
+
+    if (isDead()) {
+        mSpinAttackTicks = 0;
+        getFlags().set(ActorFlag::SpinAttack, false);
+        owner._sendEntityData(*this);
+        return;
+    }
+
+    const Vector3f position = getPosition();
+
+    const auto reaches = [&position](const Vector3f &target, float width, float height) {
+        const float halfWidth = width * 0.5f + PLAYER_WIDTH * 0.5f + SPIN_ATTACK_REACH;
+        if (std::fabs(target.x - position.x) > halfWidth || std::fabs(target.z - position.z) > halfWidth)
+            return false;
+        return target.y + height >= position.y && target.y <= position.y + PLAYER_HEIGHT;
+    };
+
+    for (auto &entry: owner.getActors()) {
+        ServerActor &target = *entry.second;
+        if (!target.isAlive() || target.isDead() || target.isProjectile() || target.getNoDamageTicks() > 0)
+            continue;
+
+        const ActorSize size = ActorSizeTable::getSize(target.getTypeId());
+        if (reaches(target.getPosition(), size.mWidth, size.mHeight))
+            owner.damageActor(target, SPIN_ATTACK_DAMAGE, this);
+    }
+
+    for (auto &entry: owner.getPlayers()) {
+        ServerPlayer &target = entry.second;
+        if (&target == this || !target.isSpawned() || target.isDead() || target.getNoDamageTicks() > 0)
+            continue;
+        if (target.getGameType() == (int32_t) GameType::Creative
+            || target.getGameType() == (int32_t) GameType::Spectator)
+            continue;
+
+        if (reaches(target.getPosition(), PLAYER_WIDTH, PLAYER_HEIGHT))
+            owner.applyDamage(target, SPIN_ATTACK_DAMAGE, "death.attack.player",
+                              {target.getName(), getName()}, false, false);
+    }
+
+    --mSpinAttackTicks;
+    if (mSpinAttackTicks <= 0) {
+        getFlags().set(ActorFlag::SpinAttack, false);
+        owner._sendEntityData(*this);
+    }
+}
+
 void ServerPlayer::teleport(ServerNetworkHandler &owner, const Vector3f &position,
                              MovePlayerTeleportationCause cause) {
     Actor::teleport(position);
@@ -382,6 +465,8 @@ void ServerPlayer::teleport(ServerNetworkHandler &owner, const Vector3f &positio
     packet.mActorType = 0;
     packet.mTick = owner.getCurrentTick();
     owner.getNetworkHandler().send(getNetworkIdentifier(), packet, owner.getCodecContext());
+
+    ChunkStreamHandler::handleTeleport(owner, *this);
 }
 
 void ServerPlayer::syncEffects() {

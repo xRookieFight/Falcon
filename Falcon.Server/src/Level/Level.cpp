@@ -1,10 +1,14 @@
 #include "Level/Level.h"
 
+#include "Level/BiomeRegistry.h"
+#include "Level/SkyLightSystem.h"
+
 #include "Block/BlockData.h"
 #include "Block/Blocks/VanillaBlocks.h"
 #include "Core/Debug/BedrockLog.h"
 
 #include <algorithm>
+#include <random>
 #include <utility>
 
 Level::Level(const std::string &name, int viewDistance)
@@ -49,6 +53,8 @@ void Level::saveAll() {
     if (!mStorage.isOpen())
         return;
 
+    saveWeather();
+
     const bool async = mChunkWorker != nullptr && mChunkWorker->isRunning();
 
     size_t saved = 0;
@@ -85,6 +91,20 @@ std::vector<Tag> Level::loadEntities(int32_t chunkX, int32_t chunkZ) {
         return std::vector<Tag>();
 
     return mStorage.loadEntities(chunkX, chunkZ);
+}
+
+void Level::saveBlockEntities(int32_t chunkX, int32_t chunkZ, const std::vector<Tag> &blockEntities) {
+    if (!mStorage.isOpen())
+        return;
+
+    mStorage.saveBlockEntities(chunkX, chunkZ, blockEntities);
+}
+
+std::vector<Tag> Level::loadBlockEntities(int32_t chunkX, int32_t chunkZ) {
+    if (!mStorage.isOpen())
+        return std::vector<Tag>();
+
+    return mStorage.loadBlockEntities(chunkX, chunkZ);
 }
 
 void Level::closeStorage() {
@@ -133,6 +153,43 @@ LevelChunk &Level::getChunk(int32_t chunkX, int32_t chunkZ) {
 
 bool Level::isChunkResident(int32_t chunkX, int32_t chunkZ) const {
     return mChunks.find(_packChunk(chunkX, chunkZ)) != mChunks.end();
+}
+
+LevelChunk *Level::peekChunkPtr(int32_t chunkX, int32_t chunkZ) {
+    auto it = mChunks.find(_packChunk(chunkX, chunkZ));
+    return it == mChunks.end() ? nullptr : &it->second;
+}
+
+int Level::getSkyLightAt(int32_t x, int32_t y, int32_t z) {
+    LevelChunk *chunk = peekChunkPtr(x >> 4, z >> 4);
+    if (chunk == nullptr)
+        return 0;
+
+    if (!chunk->hasHeightmap())
+        SkyLightSystem::computeHeightmap(*chunk);
+
+    if (!chunk->hasSkyLight())
+        SkyLightSystem::computeChunk(*chunk);
+
+    return chunk->getSkyLight(x & 15, y, z & 15);
+}
+
+int32_t Level::getHeightAt(int32_t x, int32_t z) {
+    LevelChunk *chunk = peekChunkPtr(x >> 4, z >> 4);
+    if (chunk == nullptr)
+        return LevelChunk::MIN_Y;
+
+    const int localX = x & 15;
+    const int localZ = z & 15;
+
+    if (!chunk->hasHeight(localX, localZ))
+        SkyLightSystem::updateHeightAt(*chunk, localX, localZ);
+
+    return chunk->getHeight(localX, localZ);
+}
+
+void Level::updateSkyLightSubtracted() {
+    mSkyLightSubtracted = SkyLightSystem::calculateSkyLightSubtracted(*this);
 }
 
 bool Level::isColumnActive(int32_t chunkX, int32_t chunkZ) const {
@@ -274,6 +331,10 @@ void Level::setBlockState(int32_t x, int32_t y, int32_t z, const BlockState &sta
         return;
 
     chunk.setBlock(x & 15, y, z & 15, state);
+    chunk.clearSkyLightOnly();
+
+    if (chunk.hasHeight(x & 15, z & 15))
+        SkyLightSystem::updateHeightAt(chunk, x & 15, z & 15);
     mChunkNetworkCache.erase(_packChunk(x >> 4, z >> 4));
     mLiquidPhysics.onBlockChanged(x, y, z);
 }
@@ -301,6 +362,34 @@ void Level::scheduleFluidTick(const Vector3i &position, int64_t delay) {
 
 void Level::tickFluids() {
     mLiquidPhysics.tick();
+}
+
+bool Level::canRainAt(int32_t x, int32_t z) {
+    static const BiomeRegistry registry;
+    const std::vector<BiomeDefinitionData> &biomes = registry.getBiomes();
+
+    const uint32_t biomeId = getChunk(x >> 4, z >> 4).getBiome();
+    if (biomeId >= biomes.size())
+        return true;
+
+    const BiomeDefinitionData &biome = biomes[biomeId];
+    return biome.mRain && biome.mDownfall > 0.0f;
+}
+
+void Level::initializeWeather() {
+    static std::mt19937 generator{std::random_device{}()};
+    std::uniform_int_distribution<int32_t> clearDuration(0, 167999);
+
+    mStorage.loadWeather(mRaining, mRainTime, mThundering, mThunderTime);
+
+    if (mRainTime <= 0)
+        mRainTime = clearDuration(generator) + 12000;
+    if (mThunderTime <= 0)
+        mThunderTime = clearDuration(generator) + 12000;
+}
+
+void Level::saveWeather() {
+    mStorage.saveWeather(mRaining, mRainTime, mThundering, mThunderTime);
 }
 
 std::vector<Level::FluidChange> Level::consumeFluidChanges() {

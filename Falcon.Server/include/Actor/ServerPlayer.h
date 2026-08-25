@@ -6,6 +6,7 @@
 #include "Core/NBT/Tag.h"
 #include "Inventory/InventoryManager.h"
 #include "Inventory/PlayerInventory.h"
+#include "Network/Handler/ChunkStreamHandler.h"
 #include "Network/NetworkIdentifier.h"
 #include "Network/PacketSender.h"
 #include "Protocol/PacketCodecContext.h"
@@ -150,6 +151,14 @@ public:
 
     void setItemUseStartTick(int64_t tick) { mItemUseStartTick = tick; }
 
+    ChunkStreamState &getChunkStreamState() { return mChunkStreamState; }
+
+    bool isSpinAttacking() const { return mSpinAttackTicks > 0; }
+
+    void startSpinAttack(ServerNetworkHandler &owner, int32_t ticks);
+
+    void tickSpinAttack(ServerNetworkHandler &owner);
+
     bool isAwaitingConsumableRelease() const { return mAwaitingConsumableRelease; }
 
     void setAwaitingConsumableRelease() { mAwaitingConsumableRelease = true; }
@@ -281,6 +290,8 @@ private:
     std::string mXuid;
     int mBuildPlatform = -1;
     int64_t mItemUseStartTick = 0;
+    int32_t mSpinAttackTicks = 0;
+    ChunkStreamState mChunkStreamState;
     bool mAwaitingConsumableRelease = false;
     int64_t mLastEarlyConsumableReleaseTick = 0;
     bool mHasLastRightClick = false;

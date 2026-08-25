@@ -28,6 +28,9 @@
 #include "Item/ItemData.h"
 #include "Item/ItemEnchantments.h"
 #include "Item/EnchantmentData.h"
+#include "Block/Systems/LiquidBlocksFetch.h"
+#include "Item/Items/FireworkRocketItem.h"
+#include "Item/Items/RangedWeaponItems.h"
 #include "Item/Items/ThrowableItems.h"
 #include "Item/PotionEffects.h"
 #include "Item/StringToItemParser.h"
@@ -42,6 +45,15 @@
 
 namespace {
     const float ACTOR_GRAVITY = 0.05f;
+    const float ARROW_GRAVITY = 0.05f;
+    const float ARROW_KNOCKBACK = 0.3f;
+    const float PUNCH_KNOCKBACK_PER_LEVEL = 0.5f;
+    const float IMPALING_DAMAGE_PER_LEVEL = 2.5f;
+    const float TRIDENT_RETURN_SPEED = 0.6f;
+    const float TRIDENT_RETURN_REACH = 1.5f;
+    const float FIREWORK_HORIZONTAL_ACCELERATION = 1.15f;
+    const float FIREWORK_VERTICAL_ACCELERATION = 0.04f;
+    const int32_t FIREWORK_ITEM_DATA_ID = 16;
     const int32_t PROJECTILE_MAX_LIFETIME = 1200;
     const float WIND_CHARGE_KNOCKBACK_STRENGTH = 0.2f;
     const float WIND_CHARGE_LIFT = 0.6f;
@@ -54,6 +66,7 @@ namespace {
     const float LINGERING_CLOUD_MIN_RADIUS = 1.5f;
     const float PLAYER_WIDTH = 0.6f;
     const float PLAYER_HEIGHT = 1.8f;
+    const float PLAYER_EYE_HEIGHT = 1.62f;
     const float PROJECTILE_HIT_GROW = 0.3f;
 
     bool intersectsActorBox(const Vector3f &actorPosition, float width, float height, const Vector3f &point) {
@@ -153,6 +166,24 @@ ServerActor *ServerNetworkHandler::spawnProjectile(ServerPlayer &player, const s
 bool ServerNetworkHandler::onThrownProjectileHit(ServerActor &projectile, const Vector3f &hitPosition,
                                                  ServerPlayer *hitPlayer) {
     const std::string identifier = projectile.getIdentifier();
+
+    if (isArrowProjectile(identifier)) {
+        if (hitPlayer != nullptr)
+            return onArrowProjectileHitTarget(projectile, hitPosition, *hitPlayer);
+
+        ProjectileData &data = projectile.getProjectileData();
+        const bool isTrident = identifier == "minecraft:thrown_trident";
+        playLevelSound(isTrident ? LevelSoundEvent::TRIDENT_HIT_GROUND : LevelSoundEvent::BOW_HIT, hitPosition);
+
+        if (isTrident && data.mLoyaltyLevel > 0) {
+            data.mReturning = true;
+            playLevelSound(LevelSoundEvent::TRIDENT_RETURN, hitPosition);
+            return false;
+        }
+
+        dropProjectileItem(projectile, hitPosition);
+        return true;
+    }
 
     if (identifier == "minecraft:ender_pearl") {
         const int64_t ownerId = projectile.getOwnerUniqueId();
@@ -321,9 +352,126 @@ bool ServerNetworkHandler::onThrownProjectileHit(ServerActor &projectile, const 
     return isThrownProjectile(identifier);
 }
 
+void ServerNetworkHandler::dropProjectileItem(ServerActor &projectile, const Vector3f &position) {
+    const ProjectileData &data = projectile.getProjectileData();
+    if (data.mPickupItem.isAir())
+        return;
+
+    ItemActorHandler::dropItem(*this, position, data.mPickupItem, ItemActorHandler::randomDropMotion(),
+                               ItemActorHandler::DROP_PICKUP_DELAY);
+}
+
+void ServerNetworkHandler::returnProjectileToOwner(ServerPlayer &player, ServerActor &projectile) {
+    const ProjectileData &data = projectile.getProjectileData();
+    if (data.mPickupItem.isAir())
+        return;
+
+    PlayerInventory &inventory = player.getInventory();
+    const int slot = data.mFavoredSlot;
+    if (slot >= 0 && slot < PlayerInventory::CONTAINER_SIZE && inventory.getItem(slot).isAir()) {
+        inventory.setItem(slot, data.mPickupItem);
+        player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, slot);
+        return;
+    }
+
+    std::vector<int> touched;
+    if (!inventory.addItem(data.mPickupItem, touched)) {
+        dropProjectileItem(projectile, player.getPosition());
+        return;
+    }
+
+    for (int touchedSlot: touched)
+        player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, touchedSlot);
+}
+
+float ServerNetworkHandler::computeProjectileDamage(ServerActor &projectile) {
+    const ProjectileData &data = projectile.getProjectileData();
+    const Vector3f motion = projectile.getMotion();
+    const float speed = std::sqrt(motion.x * motion.x + motion.y * motion.y + motion.z * motion.z);
+
+    int32_t damage = (int32_t) std::ceil(speed * data.mBaseDamage);
+    if (data.mCritical && damage > 0) {
+        static std::mt19937 generator{std::random_device{}()};
+        std::uniform_int_distribution<int32_t> bonus(0, damage / 2 + 1);
+        damage += bonus(generator);
+    }
+
+    return (float) damage;
+}
+
+bool ServerNetworkHandler::onArrowProjectileHitTarget(ServerActor &projectile, const Vector3f &hitPosition,
+                                                      Actor &target) {
+    ProjectileData &data = projectile.getProjectileData();
+    const bool isTrident = std::string(projectile.getIdentifier()) == "minecraft:thrown_trident";
+
+    float damage = computeProjectileDamage(projectile);
+    if (isTrident && data.mImpalingLevel > 0 && LiquidBlocksFetch::at(mLevel, target.getPosition()).water)
+        damage += IMPALING_DAMAGE_PER_LEVEL * (float) data.mImpalingLevel;
+
+    ServerPlayer *shooter = nullptr;
+    for (auto &entry: mPlayers) {
+        if ((int64_t) entry.second.getRuntimeId() == projectile.getOwnerUniqueId())
+            shooter = &entry.second;
+    }
+
+    ServerPlayer *victimPlayer = dynamic_cast<ServerPlayer *>(&target);
+    if (victimPlayer != nullptr) {
+        applyDamage(*victimPlayer, damage, "death.attack.arrow",
+                    {victimPlayer->getName(), shooter == nullptr ? std::string() : shooter->getName()},
+                    false, false);
+    } else {
+        ServerActor *victimActor = dynamic_cast<ServerActor *>(&target);
+        if (victimActor != nullptr)
+            damageActor(*victimActor, damage, shooter);
+    }
+
+    const Vector3f targetPosition = target.getPosition();
+    const float knockback = ARROW_KNOCKBACK + PUNCH_KNOCKBACK_PER_LEVEL * (float) data.mPunchLevel;
+    knockBack(target, targetPosition.x - hitPosition.x, targetPosition.z - hitPosition.z, knockback);
+
+    if (data.mFlameTicks > 0 && !target.hasEffect(MobEffectId::FireResistance)) {
+        target.setFireTicks(data.mFlameTicks);
+        target.setOnFire(true);
+
+        ServerActor *burningActor = dynamic_cast<ServerActor *>(&target);
+        if (burningActor != nullptr)
+            syncActorFlags(*burningActor);
+        else if (victimPlayer != nullptr)
+            _sendEntityData(*victimPlayer);
+    }
+
+    playLevelSound(isTrident ? LevelSoundEvent::TRIDENT_HIT : LevelSoundEvent::BOW_HIT, hitPosition);
+
+    if (isTrident) {
+        data.mHadCollision = true;
+
+        if (data.mChanneling && mLevel.isThundering())
+            strikeLightning(targetPosition);
+
+        if (data.mLoyaltyLevel > 0 && shooter != nullptr) {
+            data.mReturning = true;
+            playLevelSound(LevelSoundEvent::TRIDENT_RETURN, hitPosition);
+            return false;
+        }
+
+        dropProjectileItem(projectile, hitPosition);
+        return true;
+    }
+
+    if (data.mPiercingLevel > 0) {
+        data.mPiercingLevel -= 1;
+        return false;
+    }
+
+    return true;
+}
+
 bool ServerNetworkHandler::onThrownProjectileHitActor(ServerActor &projectile, const Vector3f &hitPosition,
                                                       ServerActor &hitActor) {
     const std::string identifier = projectile.getIdentifier();
+
+    if (isArrowProjectile(identifier))
+        return onArrowProjectileHitTarget(projectile, hitPosition, hitActor);
 
     if (hitActor.isProjectile()) {
         const bool handled = onThrownProjectileHit(projectile, hitPosition, nullptr);
@@ -423,6 +571,48 @@ void ServerNetworkHandler::sendActorsTo(ServerPlayer &player) {
 void ServerNetworkHandler::broadcastActorRemove(ServerActor &actor) {
     RemoveActorPacket packet;
     packet.mUniqueActorId = actor.getUniqueId();
+
+    for (auto &entry: mPlayers) {
+        if (entry.second.isSpawned())
+            mNetworkHandler->send(entry.first, packet, mCodecContext);
+    }
+}
+
+void ServerNetworkHandler::syncActorFlags(ServerActor &actor) {
+    SetActorDataPacket packet;
+    packet.mRuntimeActorId = (int64_t) actor.getRuntimeId();
+    packet.mTick = 0;
+
+    EntityDataEntry flags;
+    flags.mId = ActorFlags::FLAGS_DATA_ID;
+    flags.mFormat = EntityDataFormat::Long;
+    flags.mLongValue = actor.getFlags().getLowBits();
+    packet.mMetadata.mEntries.push_back(flags);
+
+    EntityDataEntry flags2;
+    flags2.mId = ActorFlags::FLAGS_2_DATA_ID;
+    flags2.mFormat = EntityDataFormat::Long;
+    flags2.mLongValue = actor.getFlags().getHighBits();
+    packet.mMetadata.mEntries.push_back(flags2);
+
+    packet.mProperties = buildActorProperties(actor);
+
+    for (auto &entry: mPlayers) {
+        if (entry.second.isSpawned())
+            mNetworkHandler->send(entry.first, packet, mCodecContext);
+    }
+}
+
+void ServerNetworkHandler::syncActorFirework(ServerActor &actor) {
+    SetActorDataPacket packet;
+    packet.mRuntimeActorId = (int64_t) actor.getRuntimeId();
+    packet.mTick = 0;
+
+    EntityDataEntry firework;
+    firework.mId = FIREWORK_ITEM_DATA_ID;
+    firework.mFormat = EntityDataFormat::Nbt;
+    firework.mNbtValue = actor.getProjectileData().mFireworkData;
+    packet.mMetadata.mEntries.push_back(firework);
 
     for (auto &entry: mPlayers) {
         if (entry.second.isSpawned())
@@ -783,14 +973,98 @@ void ServerNetworkHandler::tickActors() {
             continue;
         }
 
+        ProfilerScopedSection projectileSection(mProfiler, ProfilerSection::ActorProjectiles,
+                                                actor.isProjectile());
+
+        if (actor.isProjectile() && isFireworkRocketActor(actor.getIdentifier())) {
+            ProjectileData &firework = actor.getProjectileData();
+
+            ServerPlayer *rider = nullptr;
+            if (firework.mFireworkAttached) {
+                for (auto &playerEntry: mPlayers) {
+                    if ((int64_t) playerEntry.second.getRuntimeId() == actor.getOwnerUniqueId() &&
+                        playerEntry.second.isSpawned())
+                        rider = &playerEntry.second;
+                }
+            }
+
+            if (rider != nullptr) {
+                actor.setPosition(rider->getPosition());
+            } else {
+                Vector3f motion = actor.getMotion();
+                motion.x *= FIREWORK_HORIZONTAL_ACCELERATION;
+                motion.z *= FIREWORK_HORIZONTAL_ACCELERATION;
+                motion.y += FIREWORK_VERTICAL_ACCELERATION;
+
+                Vector3f position = actor.getPosition();
+                position.x += motion.x;
+                position.y += motion.y;
+                position.z += motion.z;
+
+                actor.setMotion(motion);
+                actor.setPosition(position);
+            }
+
+            broadcastActorMove(actor);
+            actor.addLifetimeTick();
+            ++firework.mFireworkAge;
+
+            if (firework.mFireworkAge >= firework.mFireworkLifetime) {
+                broadcastActorEvent(actor, EntityEventType::FireworkParticles);
+                playLevelSound(LevelSoundEvent::LARGE_BLAST, actor.getPosition());
+
+                if (rider != nullptr && rider->getFlags().get(ActorFlag::Gliding))
+                    rider->getFlags().set(ActorFlag::Gliding, true);
+
+                expired.push_back(actorId);
+            }
+
+            continue;
+        }
+
         if (actor.isProjectile()) {
             Vector3f motion = actor.getMotion();
             const bool thrown = isThrownProjectile(actor.getIdentifier());
-            motion.y -= thrown ? 0.03f : ACTOR_GRAVITY;
-            if (thrown) {
-                motion.x *= 0.99f;
-                motion.y *= 0.99f;
-                motion.z *= 0.99f;
+            const bool arrowLike = isArrowProjectile(actor.getIdentifier());
+
+            if (arrowLike && actor.getProjectileData().mReturning) {
+                ServerPlayer *shooter = nullptr;
+                for (auto &playerEntry: mPlayers) {
+                    if ((int64_t) playerEntry.second.getRuntimeId() == actor.getOwnerUniqueId() &&
+                        playerEntry.second.isSpawned() && !playerEntry.second.isDead())
+                        shooter = &playerEntry.second;
+                }
+
+                if (shooter == nullptr) {
+                    dropProjectileItem(actor, actor.getPosition());
+                    expired.push_back(actorId);
+                    continue;
+                }
+
+                const Vector3f shooterPosition = shooter->getPosition();
+                const Vector3f actorPosition = actor.getPosition();
+                const float toX = shooterPosition.x - actorPosition.x;
+                const float toY = shooterPosition.y + PLAYER_EYE_HEIGHT - actorPosition.y;
+                const float toZ = shooterPosition.z - actorPosition.z;
+                const float toLength = std::sqrt(toX * toX + toY * toY + toZ * toZ);
+
+                if (toLength <= TRIDENT_RETURN_REACH) {
+                    returnProjectileToOwner(*shooter, actor);
+                    expired.push_back(actorId);
+                    continue;
+                }
+
+                const float speed = TRIDENT_RETURN_SPEED * (float) actor.getProjectileData().mLoyaltyLevel;
+                motion.x = toX / toLength * speed;
+                motion.y = toY / toLength * speed;
+                motion.z = toZ / toLength * speed;
+            } else {
+                motion.y -= thrown ? 0.03f : (arrowLike ? ARROW_GRAVITY : ACTOR_GRAVITY);
+                if (thrown || arrowLike) {
+                    motion.x *= 0.99f;
+                    motion.y *= 0.99f;
+                    motion.z *= 0.99f;
+                }
             }
 
             const Vector3f previousPosition = actor.getPosition();
@@ -807,11 +1081,25 @@ void ServerNetworkHandler::tickActors() {
             const int32_t blockY = (int32_t) std::floor(position.y);
             const int32_t blockZ = (int32_t) std::floor(position.z);
 
+            if (arrowLike && actor.getProjectileData().mReturning) {
+                actor.addLifetimeTick();
+                broadcastActorMove(actor);
+                continue;
+            }
+
             if (actor.getLifetimeTicks() > 1 && mLevel.isSolidAt(blockX, blockY, blockZ)) {
                 const Vector3f hitPosition((float) blockX + 0.5f, (float) blockY + 0.5f, (float) blockZ + 0.5f);
                 if (!onThrownProjectileHit(actor, hitPosition, nullptr))
                     mScriptEngine.onProjectileHitBlock(actor, blockX, blockY, blockZ);
-                expired.push_back(actorId);
+
+                if (!actor.getProjectileData().mReturning) {
+                    expired.push_back(actorId);
+                    continue;
+                }
+
+                actor.setPosition(previousPosition);
+                actor.addLifetimeTick();
+                broadcastActorMove(actor);
                 continue;
             }
 

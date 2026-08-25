@@ -10,6 +10,13 @@
 #include "Command/GiveCommand.h"
 #include "Command/KillCommand.h"
 #include "Command/TimeCommand.h"
+#include "Command/ProfilerCommand.h"
+#include "Command/WeatherCommand.h"
+#include "Block/BlockActorStore.h"
+#include "Block/Systems/PistonSystem.h"
+#include "Network/Handler/ChunkStreamHandler.h"
+#include "Item/Items/ElytraItem.h"
+#include "Item/Items/TotemItem.h"
 #include "Command/CameraCommand.h"
 #include "Command/ClearCommand.h"
 #include "Command/OpCommand.h"
@@ -17,6 +24,8 @@
 #include "Core/Debug/BedrockLog.h"
 #include "Network/ConnectionRequest.h"
 #include "Network/AuthKeyProvider.h"
+#include "Network/TransportFactory.h"
+#include "Network/NetherNet/NetherNetInstance.h"
 #include "Network/Handler/BadPacketHandler.h"
 #include "Network/Handler/BlockActionHandler.h"
 #include "Network/Handler/ChatHandler.h"
@@ -96,6 +105,7 @@
 #include "Block/Block.h"
 #include "Block/Systems/FurnaceSystem.h"
 #include "Block/Systems/CommandBlockSystem.h"
+#include "Block/Systems/RedstoneSystem.h"
 #include "Protocol/Packets/CommandBlockUpdatePacket.h"
 #include "Block/Blocks/VanillaBlocks.h"
 #include "Item/CraftingRecipeTable.h"
@@ -392,16 +402,31 @@ namespace {
     }
 }
 
-ServerNetworkHandler::ServerNetworkHandler(const std::string &serverName, const std::string &subName, int maxPlayers)
+ServerNetworkHandler::ServerNetworkHandler(const std::string &serverName, const std::string &subName, int maxPlayers,
+                                           TransportLayer transport)
         : mRakNetInstance(nullptr), mCodecContext(mBlockDefinitions, mItemDefinitions), mMaxPlayers(maxPlayers),
           mIsListening(false), mKeepInventory(false), mNextRuntimeId(1),
           mLevel("Bedrock level", DEFAULT_VIEW_DISTANCE),
           mPlayerData("players"), mOps("ops.txt") {
-    std::unique_ptr<RakNetInstance> instance(new RakNetInstance(*this, true));
-    mRakNetInstance = instance.get();
+    std::unique_ptr<Connector> rakNet = TransportFactory::createConnector(TransportLayer::RakNet, *this, true);
 
-    mNetworkHandler.reset(new NetworkHandler(std::move(instance)));
-    mNetworkHandler->addListener(this);
+    if (rakNet != nullptr) {
+        mRakNetInstance = dynamic_cast<RakNetInstance *>(rakNet.get());
+
+        mNetworkHandler.reset(new NetworkHandler(std::move(rakNet)));
+        mNetworkHandler->setProfiler(&mProfiler);
+        mNetworkHandler->addListener(this);
+
+        if (transport == TransportLayer::NetherNet) {
+            std::unique_ptr<Connector> netherNet =
+                    TransportFactory::createConnector(TransportLayer::NetherNet, *this, true);
+
+            if (netherNet != nullptr) {
+                mNetherNetInstance = dynamic_cast<NetherNetInstance *>(netherNet.get());
+                mNetworkHandler->addConnector(std::move(netherNet));
+            }
+        }
+    }
 
     mAnnouncement.mServerName = serverName;
     mAnnouncement.mSubName = subName;
@@ -417,6 +442,8 @@ ServerNetworkHandler::ServerNetworkHandler(const std::string &serverName, const 
     mCommands.registerCommand(std::make_shared<EffectCommand>(*this));
     mCommands.registerCommand(std::make_shared<KillCommand>(*this));
     mCommands.registerCommand(std::make_shared<TimeCommand>(*this));
+    mCommands.registerCommand(std::make_shared<WeatherCommand>(*this));
+    mCommands.registerCommand(std::make_shared<ProfilerCommand>(*this));
     mCommands.registerCommand(std::make_shared<CameraCommand>(*this));
     mCommands.registerCommand(std::make_shared<ClearCommand>(*this));
 
@@ -458,7 +485,9 @@ void ServerNetworkHandler::_registerVanillaDefinitions() {
 
 ServerNetworkHandler::~ServerNetworkHandler() {
     stopServerListening();
-    mNetworkHandler->removeListener(this);
+
+    if (mNetworkHandler != nullptr)
+        mNetworkHandler->removeListener(this);
 }
 
 void ServerNetworkHandler::setMotd(const std::string &serverName, const std::string &subName) {
@@ -479,8 +508,15 @@ void ServerNetworkHandler::setProtocolVersion(int protocolVersion, const std::st
 
 void ServerNetworkHandler::setProperties(const PropertiesSettings &properties) {
     mProperties = properties;
+
+    if (mNetherNetInstance != nullptr) {
+        mNetherNetInstance->setTlsCertificate(properties.getNetherNetTlsCertificate(),
+                                              properties.getNetherNetTlsPrivateKey());
+    }
+
     mLevel = Level(properties.getLevelName(), _getServerViewDistance());
     mLevel.openStorage("worlds");
+    mLevel.initializeWeather();
     mLevel.startWorkers(_getChunkWorkerThreadCount());
 
     _logPackStack();
@@ -528,6 +564,11 @@ void ServerNetworkHandler::_logPackStack() const {
 bool ServerNetworkHandler::startServerListening(const ConnectionDefinition &definition) {
     if (mIsListening)
         return false;
+
+    if (mNetworkHandler == nullptr) {
+        LOG_ERROR(LogAreaID::Network, "No transport was created, cannot start listening");
+        return false;
+    }
 
     if (!mNetworkHandler->host(definition)) {
         LOG_ERROR(LogAreaID::Network, "Failed to bind UDP port %u", definition.mPort);
@@ -664,6 +705,11 @@ void ServerNetworkHandler::tick() {
     mLevel.tickTime();
     mProfiler.beginTick(mCurrentTick);
 
+    mProfiler.beginSection(ProfilerSection::Weather);
+    mLevel.updateSkyLightSubtracted();
+    tickWeather();
+    mProfiler.endSection(ProfilerSection::Weather);
+
     mProfiler.beginSection(ProfilerSection::ConsoleCommands);
     {
         std::lock_guard<std::mutex> lock(mConsoleQueueMutex);
@@ -675,9 +721,7 @@ void ServerNetworkHandler::tick() {
     }
     mProfiler.endSection(ProfilerSection::ConsoleCommands);
 
-    mProfiler.beginSection(ProfilerSection::NetworkEvents);
     mNetworkHandler->runEvents();
-    mProfiler.endSection(ProfilerSection::NetworkEvents);
 
     mProfiler.beginSection(ProfilerSection::ChunkDrain);
     mLevel.drainCompletedChunks();
@@ -685,25 +729,45 @@ void ServerNetworkHandler::tick() {
 
     {
         const int tickDistance = mProperties.getTickDistance();
-        std::vector<int64_t> activeColumns;
+        std::vector<int64_t> centers;
 
         for (auto &entry: mPlayers) {
             ServerPlayer &player = entry.second;
             if (player.getLoginState() < ServerPlayer::LoginState::StartGameSent)
                 continue;
 
-            const Vector3f position = player.getPosition();
-            const int32_t centerX = (int32_t) std::floor(position.x) >> 4;
-            const int32_t centerZ = (int32_t) std::floor(position.z) >> 4;
-
-            for (int32_t dx = -tickDistance; dx <= tickDistance; ++dx) {
-                for (int32_t dz = -tickDistance; dz <= tickDistance; ++dz)
-                    activeColumns.push_back(((int64_t) (centerX + dx) << 32) | (uint32_t) (centerZ + dz));
-            }
+            const int32_t centerX = (int32_t) std::floor(player.getPosition().x) >> 4;
+            const int32_t centerZ = (int32_t) std::floor(player.getPosition().z) >> 4;
+            centers.push_back(((int64_t) centerX << 32) | (uint32_t) centerZ);
         }
 
-        mLevel.setActiveColumns(activeColumns);
-        syncActorPersistence(activeColumns);
+        std::sort(centers.begin(), centers.end());
+        centers.erase(std::unique(centers.begin(), centers.end()), centers.end());
+
+        if (mActorPersistencePending || tickDistance != mActiveTickDistance || centers != mActiveCenters) {
+            mActiveCenters = centers;
+            mActiveTickDistance = tickDistance;
+
+            const size_t span = (size_t) (2 * tickDistance + 1);
+            std::vector<int64_t> activeColumns;
+            activeColumns.reserve(centers.size() * span * span);
+
+            for (const int64_t center: centers) {
+                const int32_t centerX = (int32_t) (center >> 32);
+                const int32_t centerZ = (int32_t) (center & 0xffffffff);
+
+                for (int32_t dx = -tickDistance; dx <= tickDistance; ++dx) {
+                    for (int32_t dz = -tickDistance; dz <= tickDistance; ++dz)
+                        activeColumns.push_back(((int64_t) (centerX + dx) << 32) | (uint32_t) (centerZ + dz));
+                }
+            }
+
+            mLevel.setActiveColumns(activeColumns);
+
+            mProfiler.beginSection(ProfilerSection::ActorPersistence);
+            mActorPersistencePending = syncActorPersistence(activeColumns);
+            mProfiler.endSection(ProfilerSection::ActorPersistence);
+        }
     }
 
     mProfiler.beginSection(ProfilerSection::Fluids);
@@ -737,6 +801,8 @@ void ServerNetworkHandler::tick() {
         const bool wasOnFire = player.isOnFire();
         player.tickCombat(1);
         player.tickItemCooldowns(mCurrentTick);
+        player.tickSpinAttack(*this);
+        ElytraItem::tickGliding(*this, player);
         FurnaceSystem::tick(*this, player);
 
         if (player.hasPendingMove()) {
@@ -780,6 +846,10 @@ void ServerNetworkHandler::tick() {
                 const int32_t eventData = (int32_t) (((item.mDefinition->getRuntimeId() & 0xffff) << 16)
                                                      | (item.mDamage & 0xffff));
                 _broadcastEntityEvent(player, (uint8_t) EntityEventType::EatingItem, eventData);
+            } else if (!consumable && item.mDefinition != nullptr) {
+                const Item *itemType = VanillaItems::fromIdentifier(item.mDefinition->getIdentifier());
+                if (itemType != nullptr)
+                    itemType->onUsingTick(*this, player, item, (int32_t) itemUseTicks);
             }
         }
 
@@ -839,7 +909,11 @@ void ServerNetworkHandler::tick() {
 
     tickActors();
 
+    mProfiler.beginSection(ProfilerSection::Redstone);
+    RedstoneSystem::tick(*this);
+    PistonSystem::tick(*this);
     CommandBlockSystem::tickCommandBlocks(*this);
+    mProfiler.endSection(ProfilerSection::Redstone);
 
     mProfiler.beginSection(ProfilerSection::Announcement);
     _updateServerAnnouncement();
@@ -863,7 +937,9 @@ void ServerNetworkHandler::tick() {
 
 void ServerNetworkHandler::_updateServerAnnouncement() {
     mAnnouncement.mCurrentPlayers = getActivePlayerCount();
-    mRakNetInstance->announceServer(mAnnouncement);
+
+    if (mRakNetInstance != nullptr)
+        mRakNetInstance->announceServer(mAnnouncement);
 }
 
 bool ServerNetworkHandler::onValidateIncomingConnection(const NetworkIdentifier &id) {
@@ -1015,6 +1091,17 @@ void ServerNetworkHandler::loadActorsForChunk(int32_t chunkX, int32_t chunkZ) {
     }
 }
 
+void ServerNetworkHandler::loadBlockActorsForChunk(int32_t chunkX, int32_t chunkZ) {
+    BlockActorStore::getInstance().loadChunk(mLevel.loadBlockEntities(chunkX, chunkZ), mCodecContext);
+}
+
+void ServerNetworkHandler::saveBlockActorsForChunk(int32_t chunkX, int32_t chunkZ, bool cull) {
+    mLevel.saveBlockEntities(chunkX, chunkZ, BlockActorStore::getInstance().saveChunk(chunkX, chunkZ));
+
+    if (cull)
+        BlockActorStore::getInstance().unloadChunk(chunkX, chunkZ);
+}
+
 void ServerNetworkHandler::saveActorsForChunk(int32_t chunkX, int32_t chunkZ, bool cull) {
     std::vector<Tag> entities;
     std::vector<int64_t> culled;
@@ -1055,11 +1142,12 @@ void ServerNetworkHandler::saveAllActors() {
     }
 }
 
-void ServerNetworkHandler::syncActorPersistence(const std::vector<int64_t> &activeColumns) {
+bool ServerNetworkHandler::syncActorPersistence(const std::vector<int64_t> &activeColumns) {
     if (!mLevel.isStorageOpen())
-        return;
+        return false;
 
     const std::unordered_set<int64_t> active(activeColumns.begin(), activeColumns.end());
+    bool deferred = false;
 
     for (const int64_t column: active) {
         if (mActorLoadedChunks.count(column) != 0)
@@ -1067,10 +1155,13 @@ void ServerNetworkHandler::syncActorPersistence(const std::vector<int64_t> &acti
 
         const int32_t chunkX = (int32_t) (column >> 32);
         const int32_t chunkZ = (int32_t) (column & 0xffffffff);
-        if (!mLevel.isChunkResident(chunkX, chunkZ))
+        if (!mLevel.isChunkResident(chunkX, chunkZ)) {
+            deferred = true;
             continue;
+        }
 
         loadActorsForChunk(chunkX, chunkZ);
+        loadBlockActorsForChunk(chunkX, chunkZ);
         mActorLoadedChunks.insert(column);
     }
 
@@ -1084,8 +1175,11 @@ void ServerNetworkHandler::syncActorPersistence(const std::vector<int64_t> &acti
         const int32_t chunkX = (int32_t) (column >> 32);
         const int32_t chunkZ = (int32_t) (column & 0xffffffff);
         saveActorsForChunk(chunkX, chunkZ, true);
+        saveBlockActorsForChunk(chunkX, chunkZ, true);
         mActorLoadedChunks.erase(column);
     }
+
+    return deferred;
 }
 
 void ServerNetworkHandler::onDataReceived(const NetworkIdentifier &id, const std::string &data) {
@@ -1104,9 +1198,16 @@ void ServerNetworkHandler::onDataReceived(const NetworkIdentifier &id, const std
 
         packet->mSenderSubId = senderSubId;
         packet->mClientSubId = clientSubId;
-        packet->read(stream, mCodecContext);
 
-        packet->handle(id, *this);
+        {
+            ProfilerScopedSection decodeSection(mProfiler, ProfilerSection::NetworkDecode, true);
+            packet->read(stream, mCodecContext);
+        }
+
+        {
+            ProfilerScopedSection handleSection(mProfiler, ProfilerSection::NetworkHandlePacket, true);
+            packet->handle(id, *this);
+        }
     } catch (const BinaryDataException &exception) {
         LOG_WARN(LogAreaID::Network, "Malformed packet from %s: %s", id.getAddress().c_str(), exception.what());
         _disconnect(id, "Malformed packet");
@@ -1335,6 +1436,10 @@ void ServerNetworkHandler::applyDamage(ServerPlayer &player, float amount, const
     }
 
     if (amount <= 0.0f)
+        return;
+
+    if (player.getHealth() - amount < 1.0f && deathMessageKey != "death.attack.outOfWorld" &&
+        deathMessageKey != "death.attack.suicide" && TotemItem::consume(*this, player))
         return;
 
     const float health = player.reduceHealth(amount);
@@ -1720,54 +1825,7 @@ ItemActor *ServerNetworkHandler::dropItem(const Vector3f &position, const ItemSt
 }
 
 void ServerNetworkHandler::_sendChunks(ServerPlayer &player) {
-    const NetworkIdentifier &id = player.getNetworkIdentifier();
-    const Vector3f position = player.getPosition();
-    const int32_t centerChunkX = (int32_t) std::floor(position.x) >> 4;
-    const int32_t centerChunkZ = (int32_t) std::floor(position.z) >> 4;
-
-    const std::vector<Level::ChunkPosition> chunks = mLevel.getChunksAround(centerChunkX, centerChunkZ);
-    std::unordered_set<int64_t> &sent = player.getSentChunks();
-
-    NetworkChunkPublisherUpdatePacket publisher;
-    publisher.mPosition = Vector3i((int32_t) position.x, (int32_t) position.y, (int32_t) position.z);
-    publisher.mRadius = (uint32_t) (mLevel.getViewDistance() * 16);
-    mNetworkHandler->send(id, publisher, mCodecContext);
-
-    unsigned added = 0;
-    unsigned requested = 0;
-    for (const Level::ChunkPosition &chunkPosition: chunks) {
-        if (added >= CHUNKS_PER_TICK)
-            break;
-
-        const int64_t key = ((int64_t) chunkPosition.mX << 32) | (uint32_t) chunkPosition.mZ;
-        if (sent.count(key) != 0)
-            continue;
-
-        if (!mLevel.isChunkResident(chunkPosition.mX, chunkPosition.mZ)) {
-            if (requested < CHUNK_REQUESTS_PER_TICK) {
-                mLevel.requestChunkAsync(chunkPosition.mX, chunkPosition.mZ);
-                requested++;
-            }
-            continue;
-        }
-
-        sent.insert(key);
-
-        LevelChunkPacket chunk;
-        chunk.mChunkX = chunkPosition.mX;
-        chunk.mChunkZ = chunkPosition.mZ;
-        chunk.mDimension = mLevel.getDimensionId();
-        chunk.mSubChunksLength = (uint32_t) mLevel.getChunkSubChunkCount(chunkPosition.mX, chunkPosition.mZ);
-        chunk.mCachingEnabled = false;
-        chunk.mRequestSubChunks = false;
-        chunk.mData = mLevel.getChunkData(chunkPosition.mX, chunkPosition.mZ);
-
-        mNetworkHandler->send(id, chunk, mCodecContext);
-        added++;
-    }
-
-    player.setLastChunkPosition(centerChunkX, centerChunkZ);
-    player.addSentChunkCount(added);
+    ChunkStreamHandler::tick(*this, player);
 }
 
 void ServerNetworkHandler::handle(const NetworkIdentifier &id, const SetLocalPlayerAsInitializedPacket &packet) {
@@ -1953,6 +2011,47 @@ void ServerNetworkHandler::emitItemUse(ServerPlayer &player) {
     mEventBus.after().mItemUse.emit(useEvent);
 }
 
+bool ServerNetworkHandler::_equipHeldArmor(ServerPlayer &player, const Item &itemType) {
+    const ArmorSlot slot = itemType.getArmorSlot();
+    if (slot == ArmorSlot::None)
+        return false;
+
+    int armorSlot = PlayerInventory::ARMOR_HEAD;
+    switch (slot) {
+        case ArmorSlot::Head:
+            armorSlot = PlayerInventory::ARMOR_HEAD;
+            break;
+        case ArmorSlot::Chest:
+            armorSlot = PlayerInventory::ARMOR_TORSO;
+            break;
+        case ArmorSlot::Legs:
+            armorSlot = PlayerInventory::ARMOR_LEGS;
+            break;
+        case ArmorSlot::Feet:
+            armorSlot = PlayerInventory::ARMOR_FEET;
+            break;
+        default:
+            return false;
+    }
+
+    PlayerInventory &inventory = player.getInventory();
+
+    ItemStack worn = inventory.getArmor(armorSlot);
+    ItemStack held = inventory.getItemInHand();
+
+    inventory.setArmor(armorSlot, held);
+    inventory.setItemInHand(std::move(worn));
+
+    player.getInventoryManager().syncContents(InventoryManager::InventoryId::Armor);
+    player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory,
+                                          inventory.getSelectedSlot());
+    InventoryHandler::sendArmorContent(*this, player);
+    InventoryHandler::sendHeldItem(*this, player);
+
+    playLevelSound(LevelSoundEvent::ARMOR_EQUIP_GENERIC, player.getPosition(), "minecraft:player");
+    return true;
+}
+
 void ServerNetworkHandler::_useHeldItem(ServerPlayer &player) {
     const ItemStack &heldItem = player.getInventory().getItemInHand();
 
@@ -1960,8 +2059,19 @@ void ServerNetworkHandler::_useHeldItem(ServerPlayer &player) {
 
     if (!heldItem.isAir() && heldItem.mDefinition != nullptr) {
         const Item *itemType = VanillaItems::fromIdentifier(heldItem.mDefinition->getIdentifier());
+        if (itemType != nullptr && _equipHeldArmor(player, *itemType))
+            return;
+
         if (itemType != nullptr && itemType->onUse(*this, player, heldItem))
             return;
+
+        if (itemType != nullptr && !player.getFlags().get(ActorFlag::UsingItem)
+            && itemType->onStartUsing(*this, player, heldItem)) {
+            player.getFlags().set(ActorFlag::UsingItem, true);
+            player.setItemUseStartTick(mCurrentTick);
+            _sendEntityData(player);
+            return;
+        }
     }
 
     const bool isMilk = !heldItem.isAir() && heldItem.mDefinition != nullptr
@@ -2286,6 +2396,7 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const RequestChun
     mNetworkHandler->send(id, radius, mCodecContext);
 
 
+    ChunkStreamHandler::handleViewDistanceChange(*this, *player);
     _sendChunks(*player);
     _checkTerrainReady(*player);
 }
@@ -2419,6 +2530,9 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const CommandRequ
 }
 
 void ServerNetworkHandler::onReceiveIPSupport(RakPeerHelper::IPSupport support) {
+    if (mRakNetInstance == nullptr)
+        return;
+
     const ConnectionDefinition &definition = mRakNetInstance->getConnectionDefinition();
 
     if (support == RakPeerHelper::IPSupport::IPv4 || support == RakPeerHelper::IPSupport::Both)
