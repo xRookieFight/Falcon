@@ -35,6 +35,8 @@ public:
 
     static void sendActorIdentifiers(ServerNetworkHandler &owner, ServerPlayer &player);
 
+    static void sendCameraPresets(ServerNetworkHandler &owner, ServerPlayer &player);
+
     static void buildCraftingData(ServerNetworkHandler &owner);
 
     static void sendCraftingData(ServerNetworkHandler &owner, ServerPlayer &player);

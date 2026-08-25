@@ -411,8 +411,8 @@ void CustomContentRegistry::_loadPackActors(const std::string &packPath) {
         if (duplicate)
             continue;
 
-        LOG_INFO(LogAreaID::Server, "Custom actor %s registered (%zu properties)", definition.mIdentifier.c_str(),
-                 definition.mProperties.size());
+        LOG_TRACE(LogAreaID::Server, "Custom actor %s registered (%zu properties)", definition.mIdentifier.c_str(),
+                  definition.mProperties.size());
         mActors.push_back(definition);
     }
 }
@@ -526,8 +526,8 @@ void CustomContentRegistry::_registerItem(const CustomItemDefinition &item, Item
     });
 
     mItems.push_back(stored);
-    LOG_INFO(LogAreaID::Server, "Custom item %s registered (network id %d)", stored.mIdentifier.c_str(),
-             stored.mNetworkId);
+    LOG_TRACE(LogAreaID::Server, "Custom item %s registered (network id %d)", stored.mIdentifier.c_str(),
+              stored.mNetworkId);
 }
 
 Tag CustomContentRegistry::_buildItemComponentData(const CustomItemDefinition &item, ItemDefinitionRegistry &items) {
@@ -747,8 +747,8 @@ void CustomContentRegistry::_registerBlock(const CustomBlockDefinition &block, I
     });
 
     mBlocks.push_back(stored);
-    LOG_INFO(LogAreaID::Server, "Custom block %s registered (network hash %d)", stored.mIdentifier.c_str(),
-             stored.mNetworkHash);
+    LOG_TRACE(LogAreaID::Server, "Custom block %s registered (network hash %d)", stored.mIdentifier.c_str(),
+              stored.mNetworkHash);
 }
 
 namespace {

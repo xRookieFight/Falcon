@@ -3015,7 +3015,15 @@ namespace {
             JS_FreeValue(ctx, tags);
         }
 
-        if (typeAllowsPlayer && !familiesRequired && !tagsRequired) {
+        if (typeAllowsPlayer && !familiesRequired) {
+            JSValue requiredTags = tagsRequired ? JS_GetPropertyStr(ctx, argv[0], "tags") : JS_UNDEFINED;
+            uint32_t requiredTagCount = 0;
+            if (tagsRequired) {
+                JSValue lengthValue = JS_GetPropertyStr(ctx, requiredTags, "length");
+                JS_ToUint32(ctx, &requiredTagCount, lengthValue);
+                JS_FreeValue(ctx, lengthValue);
+            }
+
             for (auto &entry: api->host().getPlayers()) {
                 ServerPlayer &player = entry.second;
                 if (!player.isSpawned())
@@ -3030,8 +3038,26 @@ namespace {
                         continue;
                 }
 
+                if (tagsRequired) {
+                    bool hasAllTags = true;
+                    for (uint32_t i = 0; i < requiredTagCount; ++i) {
+                        JSValue element = JS_GetPropertyUint32(ctx, requiredTags, i);
+                        const std::string tag = toStdString(ctx, element);
+                        JS_FreeValue(ctx, element);
+                        if (player.getTags().count(tag) == 0) {
+                            hasAllTags = false;
+                            break;
+                        }
+                    }
+                    if (!hasAllTags)
+                        continue;
+                }
+
                 JS_SetPropertyUint32(ctx, array, index++, api->makePlayer(player));
             }
+
+            if (tagsRequired)
+                JS_FreeValue(ctx, requiredTags);
         }
 
         return array;

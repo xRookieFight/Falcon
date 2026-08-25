@@ -25,6 +25,8 @@
 #include "protocol/packets/AvailableActorIdentifiersPacket.h"
 #include "protocol/packets/BiomeDefinitionListPacket.h"
 #include "protocol/packets/CreativeContentPacket.h"
+#include "protocol/packets/CameraPresetsPacket.h"
+#include "protocol/types/CameraPresets.h"
 #include "protocol/packets/ItemRegistryPacket.h"
 #include "protocol/packets/LoginPacket.h"
 #include "protocol/packets/PlayerListPacket.h"
@@ -342,6 +344,7 @@ void LoginHandler::sendStartGame(ServerNetworkHandler &owner, ServerPlayer &play
 
     sendItemComponents(owner, player);
     sendActorIdentifiers(owner, player);
+    sendCameraPresets(owner, player);
     sendBiomeDefinitions(owner, player);
     sendAttributes(owner, player);
     sendAvailableCommands(owner, player);
@@ -429,6 +432,13 @@ void LoginHandler::sendBiomeDefinitions(ServerNetworkHandler &owner, ServerPlaye
     biomes.mBiomes = owner.getBiomes().getBiomes();
 
     owner.getNetworkHandler().send(player.getNetworkIdentifier(), biomes, owner.getCodecContext());
+}
+
+void LoginHandler::sendCameraPresets(ServerNetworkHandler &owner, ServerPlayer &player) {
+    CameraPresetsPacket presets;
+    presets.mPresets = standardCameraPresets();
+
+    owner.getNetworkHandler().send(player.getNetworkIdentifier(), presets, owner.getCodecContext());
 }
 
 void LoginHandler::sendItemComponents(ServerNetworkHandler &owner, ServerPlayer &player) {

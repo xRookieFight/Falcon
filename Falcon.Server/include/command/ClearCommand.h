@@ -4,9 +4,11 @@
 
 class ServerNetworkHandler;
 
-class ProfilerCommand : public Command {
+class ClearCommand final : public Command {
 public:
-    explicit ProfilerCommand(ServerNetworkHandler &handler);
+    explicit ClearCommand(ServerNetworkHandler &handler);
+
+    CommandPermission getRequiredPermission() const override;
 
     bool execute(CommandOrigin &sender, const std::vector<std::string> &arguments) override;
 

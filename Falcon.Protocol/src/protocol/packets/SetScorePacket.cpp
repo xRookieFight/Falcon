@@ -24,7 +24,6 @@ namespace {
 SetScorePacket::SetScorePacket() = default;
 
 void SetScorePacket::write(BinaryStream &stream, const PacketCodecContext &context) const {
-    stream.putByte((uint8_t) mAction);
     stream.putArrayLength((uint32_t) mInfos.size());
     for (const ScoreInfoEntry &info: mInfos) {
         stream.putUnsignedVarInt((uint32_t) info.mType);
@@ -33,6 +32,7 @@ void SetScorePacket::write(BinaryStream &stream, const PacketCodecContext &conte
 
         switch (info.mType) {
             case ScorerType::Invalid:
+                stream.putByte(1);
                 stream.putOptionalPresent(!info.mObjectiveId.empty());
                 if (!info.mObjectiveId.empty())
                     stream.putString(info.mObjectiveId);
@@ -54,7 +54,6 @@ void SetScorePacket::write(BinaryStream &stream, const PacketCodecContext &conte
 
 void SetScorePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext &context) {
     mInfos.clear();
-    mAction = (Action) stream.getByte();
     uint32_t count = stream.getArrayLength();
     for (uint32_t i = 0; i < count; i++) {
         ScoreInfoEntry info;
@@ -64,6 +63,7 @@ void SetScorePacket::read(ReadOnlyBinaryStream &stream, const PacketCodecContext
 
         switch (info.mType) {
             case ScorerType::Invalid:
+                stream.getByte();
                 if (stream.getOptionalPresent())
                     info.mObjectiveId = stream.getString();
                 break;

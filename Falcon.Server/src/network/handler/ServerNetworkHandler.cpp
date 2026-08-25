@@ -9,9 +9,9 @@
 #include "command/GameModeCommand.h"
 #include "command/GiveCommand.h"
 #include "command/KillCommand.h"
-#include "command/ProfilerCommand.h"
-#include "command/StatusCommand.h"
 #include "command/TimeCommand.h"
+#include "command/CameraCommand.h"
+#include "command/ClearCommand.h"
 #include "command/OpCommand.h"
 #include "command/PlayerCommandOrigin.h"
 #include "core/debug/BedrockLog.h"
@@ -421,9 +421,9 @@ ServerNetworkHandler::ServerNetworkHandler(const std::string &serverName, const 
     mCommands.registerCommand(std::make_shared<EnchantCommand>(*this));
     mCommands.registerCommand(std::make_shared<EffectCommand>(*this));
     mCommands.registerCommand(std::make_shared<KillCommand>(*this));
-    mCommands.registerCommand(std::make_shared<StatusCommand>(*this));
-    mCommands.registerCommand(std::make_shared<ProfilerCommand>(*this));
     mCommands.registerCommand(std::make_shared<TimeCommand>(*this));
+    mCommands.registerCommand(std::make_shared<CameraCommand>(*this));
+    mCommands.registerCommand(std::make_shared<ClearCommand>(*this));
 
     mResourcePacks.loadFromDirectory("resource_packs");
     mResourcePacks.loadBundledAddonsFrom("behavior_packs");

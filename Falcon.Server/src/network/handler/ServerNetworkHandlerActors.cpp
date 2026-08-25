@@ -343,11 +343,10 @@ void ServerNetworkHandler::removeScoreboardScore(const std::string &objectiveId,
     ScoreInfoEntry info;
     info.mScoreboardId = it->second;
     info.mObjectiveId = objectiveId;
-    info.mType = ScorerType::Fake;
+    info.mType = ScorerType::Invalid;
     info.mName = participant;
 
     SetScorePacket packet;
-    packet.mAction = SetScorePacket::Action::Remove;
     packet.mInfos.push_back(info);
 
     for (auto &entry: mPlayers) {
