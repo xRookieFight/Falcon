@@ -106,7 +106,12 @@ public:
 
     bool getDisableCustomSkins() const { return getBool("disable-custom-skins", false); }
 
+    // Renders the properties this build does not know about, the way BDS reports them at startup.
+    std::string getUnknownContents() const;
+
 private:
+    static bool _isKnownProperty(const std::string &key);
+
     static std::string _trim(const std::string &value);
 
     static void _writeDefault(const std::string &path);

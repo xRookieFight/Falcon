@@ -2,6 +2,8 @@
 
 #include <cstdlib>
 #include <fstream>
+#include <map>
+#include <set>
 
 PropertiesSettings::PropertiesSettings() : mLoaded(false) {}
 
@@ -87,6 +89,48 @@ bool PropertiesSettings::load(const std::string &path) {
 
     mLoaded = true;
     return true;
+}
+
+bool PropertiesSettings::_isKnownProperty(const std::string &key) {
+    static const std::set<std::string> known = {
+            "server-name", "gamemode", "force-gamemode", "difficulty", "allow-cheats", "max-players",
+            "online-mode", "xbox-auth-required", "allow-list", "server-port", "server-portv6",
+            "enable-lan-visibility", "view-distance", "tick-distance", "player-idle-timeout", "max-threads",
+            "level-name", "level-seed", "default-player-permission-level", "texturepack-required",
+            "content-log-file-enabled", "content-log-console-output-enabled", "content-log-level",
+            "compression-threshold", "compression-algorithm", "chat-restriction", "disable-player-interaction",
+            "client-side-chunk-generation-enabled", "block-network-ids-are-hashes", "disable-custom-skins",
+            "server-authoritative-movement", "server-authoritative-movement-strict",
+            "server-authoritative-dismount-strict", "server-authoritative-entity-interactions-strict",
+            "server-authoritative-block-breaking-pick-range-scalar", "server-build-radius-ratio",
+            "player-position-acceptance-threshold", "player-movement-action-direction-threshold",
+            "allow-inbound-script-debugging", "allow-outbound-script-debugging", "script-debugger-auto-attach",
+            "disable-persona", "transport", "emit-server-telemetry"
+    };
+
+    return known.find(key) != known.end();
+}
+
+std::string PropertiesSettings::getUnknownContents() const {
+    std::map<std::string, std::string> unknown;
+
+    for (const auto &entry: mProperties) {
+        if (!_isKnownProperty(entry.first))
+            unknown.insert(entry);
+    }
+
+    std::string contents("{");
+    for (const auto &entry: unknown) {
+        if (contents.size() > 1)
+            contents += ", ";
+
+        contents += entry.first;
+        contents += "=";
+        contents += entry.second;
+    }
+
+    contents += "}";
+    return contents;
 }
 
 bool PropertiesSettings::hasProperty(const std::string &key) const {

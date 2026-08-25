@@ -262,6 +262,8 @@ private:
 
     int _getServerViewDistance() const;
 
+    void _logPackStack() const;
+
     void _savePlayerData(const ServerPlayer &player);
 
     void _handleVoidDamage(ServerPlayer &player);

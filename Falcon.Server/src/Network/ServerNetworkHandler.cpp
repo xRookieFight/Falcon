@@ -392,6 +392,8 @@ void ServerNetworkHandler::setProperties(const PropertiesSettings &properties) {
     mLevel = Level(properties.getLevelName(), _getServerViewDistance());
     mLevel.openStorage("worlds");
 
+    _logPackStack();
+
     switch (properties.getGameType()) {
         case GameType::Creative:
             mAnnouncement.mGameMode = "Creative";
@@ -408,6 +410,25 @@ void ServerNetworkHandler::setProperties(const PropertiesSettings &properties) {
 
     if (mIsListening)
         _updateServerAnnouncement();
+}
+
+void ServerNetworkHandler::_logPackStack() const {
+    const std::vector<ResourcePack> &packs = mResourcePacks.getPacks();
+
+    if (packs.empty()) {
+        LOG_INFO(LogAreaID::Server, "Pack Stack - None");
+        return;
+    }
+
+    std::string names;
+    for (const ResourcePack &pack: packs) {
+        if (!names.empty())
+            names += ", ";
+
+        names += pack.mName;
+    }
+
+    LOG_INFO(LogAreaID::Server, "Pack Stack - %s", names.c_str());
 }
 
 bool ServerNetworkHandler::startServerListening(const ConnectionDefinition &definition) {
@@ -1790,8 +1811,8 @@ void ServerNetworkHandler::onReceiveIPSupport(RakPeerHelper::IPSupport support) 
     const ConnectionDefinition &definition = mRakNetInstance->getConnectionDefinition();
 
     if (support == RakPeerHelper::IPSupport::IPv4 || support == RakPeerHelper::IPSupport::Both)
-        LOG_INFO(LogAreaID::Network, "IPv4 supported, port: %u", definition.mPort);
+        LOG_INFO(LogAreaID::Network, "IPv4 supported, port: %u: Used for gameplay", definition.mPort);
 
     if (support == RakPeerHelper::IPSupport::IPv6 || support == RakPeerHelper::IPSupport::Both)
-        LOG_INFO(LogAreaID::Network, "IPv6 supported, port: %u", definition.mPortV6);
+        LOG_INFO(LogAreaID::Network, "IPv6 supported, port: %u: Used for gameplay", definition.mPortV6);
 }

@@ -76,6 +76,8 @@ bool LevelStorage::open(const std::string &worldsDirectory, const std::string &l
 
     mPath = (root / "db").string();
 
+    LOG_INFO(LogAreaID::Server, "Opening level '%s'", mPath.c_str());
+
     leveldb::Options options;
     options.create_if_missing = true;
     options.compression = leveldb::kZlibRawCompression;
@@ -102,7 +104,6 @@ bool LevelStorage::open(const std::string &worldsDirectory, const std::string &l
             file << levelName;
     }
 
-    LOG_INFO(LogAreaID::Server, "Opened level database %s", mPath.c_str());
     return true;
 }
 

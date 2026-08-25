@@ -291,7 +291,7 @@ void ResourcePackManager::loadFromDirectory(const std::string &directory) {
         _loadPackFile(entry.path().string(), entry.path().filename().string());
     }
 
-    LOG_INFO(LogAreaID::Server, "Resource pack manager loaded %zu pack(s)", mPacks.size());
+    LOG_TRACE(LogAreaID::Server, "Resource pack manager loaded %zu pack(s)", mPacks.size());
 }
 
 const ResourcePack *ResourcePackManager::findById(const std::string &uuid) const {

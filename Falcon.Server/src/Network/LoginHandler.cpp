@@ -89,7 +89,7 @@ void LoginHandler::registerVanillaDefinitions(ServerNetworkHandler &owner) {
                 entry.mIdentifier, entry.mNetworkId, entry.mComponentBased, components));
     }
 
-    LOG_INFO(LogAreaID::Server, "Registered %zu block(s) and %zu item definition(s)",
+    LOG_TRACE(LogAreaID::Server, "Registered %zu block(s) and %zu item definition(s)",
              VanillaBlocks::getAll().size(), owner.getItemDefinitions().size());
 }
 

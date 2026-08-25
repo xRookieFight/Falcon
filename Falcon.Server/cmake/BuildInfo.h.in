@@ -1,0 +1,9 @@
+#pragma once
+
+namespace FalconBuildInfo {
+    inline constexpr const char kVersion[] = "@FALCON_BUILD_VERSION@";
+    inline constexpr const char kBuildId[] = "@FALCON_BUILD_ID@";
+    inline constexpr const char kBranch[] = "@FALCON_BUILD_BRANCH@";
+    inline constexpr const char kCommitId[] = "@FALCON_BUILD_COMMIT@";
+    inline constexpr const char kConfiguration[] = "@FALCON_BUILD_CONFIGURATION@";
+}
