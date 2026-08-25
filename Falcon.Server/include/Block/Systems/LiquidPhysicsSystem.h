@@ -2,7 +2,7 @@
 
 #include "Core/Math/Vector3f.h"
 #include "Core/Math/Vector3i.h"
-#include "Level/Chunk.h"
+#include "Level/LevelChunk.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -36,7 +36,7 @@ public:
 
     void moveStateFrom(LiquidPhysicsSystem &&other);
 
-    void onChunkLoaded(Chunk &chunk);
+    void onChunkLoaded(LevelChunk &chunk);
     void onBlockChanged(int32_t x, int32_t y, int32_t z);
 
     LiquidInfo getLiquidInfo(int32_t x, int32_t y, int32_t z);
@@ -70,7 +70,7 @@ private:
     bool isSameFluid(const BlockState &left, const BlockState &right) const;
     bool isFlowable(const BlockState &state) const;
     void scheduleNeighbors(int32_t x, int32_t y, int32_t z);
-    void scheduleLoaded(Chunk &chunk);
+    void scheduleLoaded(LevelChunk &chunk);
     void process(const Vector3i &position);
     void processBubbleColumn(const Vector3i &position);
     void setFluidState(const Vector3i &position, const BlockState &state);

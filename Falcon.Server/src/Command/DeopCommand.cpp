@@ -5,7 +5,7 @@
 DeopCommand::DeopCommand(ServerNetworkHandler &handler)
         : Command("deop", "commands.deop.description", "/deop <player>"), mHandler(handler) {}
 
-bool DeopCommand::execute(CommandSender &sender, const std::vector<std::string> &arguments) {
+bool DeopCommand::execute(CommandOrigin &sender, const std::vector<std::string> &arguments) {
     if (arguments.empty()) {
         sender.sendTranslation("commands.generic.usage", {getUsage()});
         return false;

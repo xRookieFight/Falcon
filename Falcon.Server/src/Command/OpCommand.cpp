@@ -5,7 +5,7 @@
 OpCommand::OpCommand(ServerNetworkHandler &handler)
         : Command("op", "commands.op.description", "/op <player>"), mHandler(handler) {}
 
-bool OpCommand::execute(CommandSender &sender, const std::vector<std::string> &arguments) {
+bool OpCommand::execute(CommandOrigin &sender, const std::vector<std::string> &arguments) {
     if (arguments.empty()) {
         sender.sendTranslation("commands.generic.usage", {getUsage()});
         return false;

@@ -8,7 +8,7 @@ class GameModeCommand : public Command {
 public:
     explicit GameModeCommand(ServerNetworkHandler &handler);
 
-    bool execute(CommandSender &sender, const std::vector<std::string> &arguments) override;
+    bool execute(CommandOrigin &sender, const std::vector<std::string> &arguments) override;
 
     static int parseGameMode(const std::string &value);
 

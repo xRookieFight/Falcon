@@ -8,10 +8,10 @@
 #include "Level/Level.h"
 #include "Network/NetworkHandler.h"
 #include "Network/ServerNetworkHandler.h"
-#include "Protocol/Packets/AddItemEntityPacket.h"
-#include "Protocol/Packets/MoveEntityAbsolutePacket.h"
-#include "Protocol/Packets/RemoveEntityPacket.h"
-#include "Protocol/Packets/TakeItemEntityPacket.h"
+#include "Protocol/Packets/AddItemActorPacket.h"
+#include "Protocol/Packets/MoveActorAbsolutePacket.h"
+#include "Protocol/Packets/RemoveActorPacket.h"
+#include "Protocol/Packets/TakeItemActorPacket.h"
 #include "Protocol/Types/StartGameTypes.h"
 
 #include <cmath>
@@ -41,7 +41,7 @@ namespace {
     }
 
     void spawnItemActorTo(ServerNetworkHandler &owner, ServerPlayer &player, const ItemActor &actor) {
-        AddItemEntityPacket add;
+        AddItemActorPacket add;
     add.mUniqueActorId = actor.getUniqueId();
     add.mRuntimeActorId = actor.getRuntimeId();
         add.mItemInHand = actor.getItem();
@@ -72,7 +72,7 @@ namespace {
     }
 
     void broadcastItemActorMove(ServerNetworkHandler &owner, const ItemActor &actor) {
-        MoveEntityAbsolutePacket move;
+        MoveActorAbsolutePacket move;
     move.mRuntimeActorId = (int64_t) actor.getRuntimeId();
         move.mPosition = actor.getPosition();
         move.mRotation = actor.getRotation();
@@ -87,7 +87,7 @@ namespace {
     }
 
     void broadcastItemActorRemove(ServerNetworkHandler &owner, const ItemActor &actor) {
-        RemoveEntityPacket remove;
+        RemoveActorPacket remove;
     remove.mUniqueActorId = actor.getUniqueId();
 
         for (auto &entry: owner.getPlayers()) {
@@ -157,7 +157,7 @@ namespace {
             if (!inventory.addItem(actor.getItem(), touchedSlots))
                 continue;
 
-            TakeItemEntityPacket take;
+            TakeItemActorPacket take;
     take.mItemRuntimeActorId = actor.getRuntimeId();
     take.mRuntimeActorId = player.getRuntimeId();
 

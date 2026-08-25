@@ -10,7 +10,7 @@ class TimeCommand : public Command {
 public:
     explicit TimeCommand(ServerNetworkHandler &handler);
 
-    bool execute(CommandSender &sender, const std::vector<std::string> &arguments) override;
+    bool execute(CommandOrigin &sender, const std::vector<std::string> &arguments) override;
 
     std::vector<CommandOverloadData> getOverloads() const override;
 

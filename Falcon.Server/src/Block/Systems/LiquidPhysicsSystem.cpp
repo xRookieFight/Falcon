@@ -19,7 +19,7 @@ void LiquidPhysicsSystem::moveStateFrom(LiquidPhysicsSystem &&other) {
     mChanges = std::move(other.mChanges);
 }
 
-void LiquidPhysicsSystem::onChunkLoaded(Chunk &chunk) {
+void LiquidPhysicsSystem::onChunkLoaded(LevelChunk &chunk) {
     scheduleLoaded(chunk);
 }
 
@@ -29,7 +29,7 @@ void LiquidPhysicsSystem::onBlockChanged(int32_t x, int32_t y, int32_t z) {
 
 LiquidInfo LiquidPhysicsSystem::getLiquidInfo(int32_t x, int32_t y, int32_t z) {
     LiquidInfo result;
-    if (y < Chunk::MIN_Y || y > Chunk::MAX_Y)
+    if (y < LevelChunk::MIN_Y || y > LevelChunk::MAX_Y)
         return result;
 
     const LiquidBlock block(mLevel.getBlockState(x, y, z));
@@ -104,7 +104,7 @@ Vector3f LiquidPhysicsSystem::getFlowVector(const Vector3i &position) {
 }
 
 void LiquidPhysicsSystem::schedule(const Vector3i &position, int64_t delay) {
-    if (position.y < Chunk::MIN_Y || position.y > Chunk::MAX_Y)
+    if (position.y < LevelChunk::MIN_Y || position.y > LevelChunk::MAX_Y)
         return;
 
     const Position key{position.x, position.y, position.z};
@@ -152,7 +152,7 @@ void LiquidPhysicsSystem::scheduleNeighbors(int32_t x, int32_t y, int32_t z) {
         schedule(Vector3i(x + offset[0], y + offset[1], z + offset[2]));
 }
 
-void LiquidPhysicsSystem::scheduleLoaded(Chunk &chunk) {
+void LiquidPhysicsSystem::scheduleLoaded(LevelChunk &chunk) {
     chunk.forEachBlock([this](int32_t x, int32_t y, int32_t z, const BlockState &state) {
         if (isFluidState(state))
             schedule(Vector3i(x, y, z), 1);

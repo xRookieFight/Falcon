@@ -19,10 +19,10 @@
 #include "Network/NetworkHandler.h"
 #include "Network/ServerNetworkHandler.h"
 #include "Protocol/Packets/AvailableCommandsPacket.h"
-#include "Protocol/Packets/AvailableEntityIdentifiersPacket.h"
+#include "Protocol/Packets/AvailableActorIdentifiersPacket.h"
 #include "Protocol/Packets/BiomeDefinitionListPacket.h"
 #include "Protocol/Packets/CreativeContentPacket.h"
-#include "Protocol/Packets/ItemComponentPacket.h"
+#include "Protocol/Packets/ItemRegistryPacket.h"
 #include "Protocol/Packets/LoginPacket.h"
 #include "Protocol/Packets/PlayerListPacket.h"
 #include "Protocol/Packets/PlayStatusPacket.h"
@@ -429,7 +429,7 @@ void LoginHandler::sendBiomeDefinitions(ServerNetworkHandler &owner, ServerPlaye
 }
 
 void LoginHandler::sendItemComponents(ServerNetworkHandler &owner, ServerPlayer &player) {
-    ItemComponentPacket components;
+    ItemRegistryPacket components;
 
     for (const std::shared_ptr<ItemDefinition> &definition: owner.getItemDefinitions().getAll()) {
         ItemComponentEntry entry;
@@ -451,7 +451,7 @@ void LoginHandler::sendItemComponents(ServerNetworkHandler &owner, ServerPlayer 
 }
 
 void LoginHandler::sendActorIdentifiers(ServerNetworkHandler &owner, ServerPlayer &player) {
-    AvailableEntityIdentifiersPacket identifiers;
+    AvailableActorIdentifiersPacket identifiers;
     identifiers.mIdentifiers = Tag::ofCompound();
     identifiers.mIdentifiers.put("idlist", Tag::ofList(Tag::Type::Compound));
 

@@ -114,20 +114,20 @@ void LevelStorage::close() {
     mDb = nullptr;
 }
 
-bool LevelStorage::saveChunk(const Chunk &chunk) {
+bool LevelStorage::saveChunk(const LevelChunk &chunk) {
     if (mDb == nullptr)
         return false;
 
     leveldb::WriteBatch batch;
 
-    const std::string version(1, (char) Chunk::STORAGE_VERSION);
+    const std::string version(1, (char) LevelChunk::STORAGE_VERSION);
     batch.Put(_makeKey(chunk.getX(), chunk.getZ(), LevelDbTag::Version), version);
 
     std::string finalized;
     _appendLInt(finalized, 2);
     batch.Put(_makeKey(chunk.getX(), chunk.getZ(), LevelDbTag::FinalizedState), finalized);
 
-    for (int i = 0; i < Chunk::SUB_CHUNK_COUNT; i++) {
+    for (int i = 0; i < LevelChunk::SUB_CHUNK_COUNT; i++) {
         const SubChunk &subChunk = chunk.getSubChunk(i);
 
         BinaryStream stream;
@@ -141,7 +141,7 @@ bool LevelStorage::saveChunk(const Chunk &chunk) {
         heightAndBiomes.putByte(0);
         heightAndBiomes.putByte(0);
     }
-    heightAndBiomes.put(chunk.encodeBiomes(Chunk::SUB_CHUNK_COUNT));
+    heightAndBiomes.put(chunk.encodeBiomes(LevelChunk::SUB_CHUNK_COUNT));
     batch.Put(_makeKey(chunk.getX(), chunk.getZ(), LevelDbTag::Data3D), heightAndBiomes.getBuffer());
 
     const leveldb::Status status = mDb->Write(leveldb::WriteOptions(), &batch);
@@ -154,7 +154,7 @@ bool LevelStorage::saveChunk(const Chunk &chunk) {
     return true;
 }
 
-bool LevelStorage::loadChunk(Chunk &chunk) {
+bool LevelStorage::loadChunk(LevelChunk &chunk) {
     if (mDb == nullptr)
         return false;
 
@@ -172,8 +172,8 @@ bool LevelStorage::loadChunk(Chunk &chunk) {
 
     bool loadedAny = false;
 
-    for (int i = 0; i < Chunk::SUB_CHUNK_COUNT; i++) {
-        const int8_t subY = (int8_t) (Chunk::LOWEST_SUB_CHUNK_Y + i);
+    for (int i = 0; i < LevelChunk::SUB_CHUNK_COUNT; i++) {
+        const int8_t subY = (int8_t) (LevelChunk::LOWEST_SUB_CHUNK_Y + i);
 
         std::string data;
         if (!mDb->Get(leveldb::ReadOptions(), _makeSubChunkKey(chunk.getX(), chunk.getZ(), subY), &data).ok())

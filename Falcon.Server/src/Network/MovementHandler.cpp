@@ -13,7 +13,7 @@
 #include "Network/ServerNetworkHandler.h"
 #include "Protocol/Packets/MovePlayerPacket.h"
 #include "Protocol/Packets/PlayerAuthInputPacket.h"
-#include "Protocol/Packets/SetEntityMotionPacket.h"
+#include "Protocol/Packets/SetActorMotionPacket.h"
 #include "Protocol/Types/StartGameTypes.h"
 
 #include <algorithm>
@@ -267,7 +267,7 @@ namespace {
         if (!support.onEntityLand(player, downwardVelocity))
             return false;
 
-        SetEntityMotionPacket motion;
+        SetActorMotionPacket motion;
         motion.mRuntimeActorId = player.getRuntimeId();
         motion.mMotion = player.getMotion();
         motion.mTick = (uint64_t) owner.getCurrentTick();

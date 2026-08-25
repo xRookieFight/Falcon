@@ -26,7 +26,7 @@ bool EnchantCommand::_parseLevel(const std::string &value, int32_t &out) {
     return true;
 }
 
-bool EnchantCommand::execute(CommandSender &sender, const std::vector<std::string> &arguments) {
+bool EnchantCommand::execute(CommandOrigin &sender, const std::vector<std::string> &arguments) {
     if (arguments.size() < 2) {
         sender.sendTranslation("commands.generic.usage", {getUsage()});
         return false;

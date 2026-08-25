@@ -32,7 +32,7 @@
 #include <functional>
 
 class ItemUseTransaction;
-class CommandSender;
+class CommandOrigin;
 class Block;
 
 class ServerNetworkHandler : public NetworkHandler::Listener,
@@ -84,7 +84,7 @@ public:
 
     ServerPlayer *getPlayerByName(const std::string &name);
 
-    std::vector<ServerPlayer *> resolveTargets(CommandSender &sender, const std::string &selector);
+    std::vector<ServerPlayer *> resolveTargets(CommandOrigin &sender, const std::string &selector);
 
     std::vector<std::string> getPlayerNames() const;
 
@@ -246,11 +246,11 @@ private:
 
     void handle(const NetworkIdentifier &id, const SetPlayerGameTypePacket &packet) override;
 
-    void handle(const NetworkIdentifier &id, const BlockEntityDataPacket &packet) override;
+    void handle(const NetworkIdentifier &id, const BlockActorDataPacket &packet) override;
 
     void handle(const NetworkIdentifier &id, const BlockPickRequestPacket &packet) override;
 
-    void handle(const NetworkIdentifier &id, const EntityPickRequestPacket &packet) override;
+    void handle(const NetworkIdentifier &id, const ActorPickRequestPacket &packet) override;
 
     void handle(const NetworkIdentifier &id, const EmotePacket &packet) override;
 

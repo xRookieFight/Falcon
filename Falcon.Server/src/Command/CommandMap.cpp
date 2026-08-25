@@ -40,7 +40,7 @@ std::vector<std::string> CommandMap::_tokenize(const std::string &commandLine) {
     return tokens;
 }
 
-bool CommandMap::dispatch(CommandSender &sender, const std::string &commandLine) {
+bool CommandMap::dispatch(CommandOrigin &sender, const std::string &commandLine) {
     std::string line = commandLine;
     if (!line.empty() && line[0] == '/')
         line.erase(0, 1);

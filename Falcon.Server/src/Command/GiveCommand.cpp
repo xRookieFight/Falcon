@@ -54,7 +54,7 @@ bool GiveCommand::_parseCount(const std::string &value, int &out) {
     return true;
 }
 
-bool GiveCommand::execute(CommandSender &sender, const std::vector<std::string> &arguments) {
+bool GiveCommand::execute(CommandOrigin &sender, const std::vector<std::string> &arguments) {
     if (arguments.size() < 2) {
         sender.sendTranslation("commands.generic.usage", {getUsage()});
         return false;

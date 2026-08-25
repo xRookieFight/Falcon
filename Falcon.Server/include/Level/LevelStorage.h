@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Level/Chunk.h"
+#include "Level/LevelChunk.h"
 
 #include <cstdint>
 #include <string>
@@ -40,9 +40,9 @@ public:
 
     bool isOpen() const { return mDb != nullptr; }
 
-    bool saveChunk(const Chunk &chunk);
+    bool saveChunk(const LevelChunk &chunk);
 
-    bool loadChunk(Chunk &chunk);
+    bool loadChunk(LevelChunk &chunk);
 
     void writeLevelDat(const std::string &levelName, int32_t spawnX, int32_t spawnY, int32_t spawnZ,
                        int32_t gameType, int32_t difficulty, int64_t seed) const;

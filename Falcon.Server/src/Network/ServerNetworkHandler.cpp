@@ -1,6 +1,6 @@
 #include "Network/ServerNetworkHandler.h"
 
-#include "Command/ConsoleCommandSender.h"
+#include "Command/ServerCommandOrigin.h"
 #include "Command/DeopCommand.h"
 #include "Command/EnchantCommand.h"
 #include "Command/EffectCommand.h"
@@ -9,7 +9,7 @@
 #include "Command/KillCommand.h"
 #include "Command/TimeCommand.h"
 #include "Command/OpCommand.h"
-#include "Command/PlayerCommandSender.h"
+#include "Command/PlayerCommandOrigin.h"
 #include "Core/Debug/BedrockLog.h"
 #include "Network/ConnectionRequest.h"
 #include "Network/AuthKeyProvider.h"
@@ -22,7 +22,7 @@
 #include "Network/LoginHandler.h"
 #include "Network/MovementHandler.h"
 #include "Core/Utility/ReadOnlyBinaryStream.h"
-#include "Level/Chunk.h"
+#include "Level/LevelChunk.h"
 #include "Protocol/MinecraftPackets.h"
 #include "Protocol/Packets/DisconnectPacket.h"
 #include "Protocol/Packets/LevelChunkPacket.h"
@@ -48,11 +48,11 @@
 #include "Protocol/Packets/AvailableCommandsPacket.h"
 #include "Protocol/Packets/BiomeDefinitionListPacket.h"
 #include "Protocol/Packets/CreativeContentPacket.h"
-#include "Protocol/Packets/ItemComponentPacket.h"
+#include "Protocol/Packets/ItemRegistryPacket.h"
 #include "Protocol/Types/CreativeItemCategory.h"
 #include "Protocol/Packets/CommandOutputPacket.h"
 #include "Protocol/Packets/CommandRequestPacket.h"
-#include "Protocol/Packets/SetEntityDataPacket.h"
+#include "Protocol/Packets/SetActorDataPacket.h"
 #include "Protocol/Packets/SetPlayerGameTypePacket.h"
 #include "Protocol/Packets/PacketViolationWarningPacket.h"
 #include "Protocol/Packets/PlayerListPacket.h"
@@ -62,14 +62,14 @@
 #include "Actor/PlayerAbility.h"
 #include "Protocol/Packets/StartGamePacket.h"
 #include "Protocol/Packets/SetTimePacket.h"
-#include "Protocol/Packets/AvailableEntityIdentifiersPacket.h"
+#include "Protocol/Packets/AvailableActorIdentifiersPacket.h"
 #include "Protocol/Packets/DeathInfoPacket.h"
-#include "Protocol/Packets/EntityEventPacket.h"
+#include "Protocol/Packets/ActorEventPacket.h"
 #include "Protocol/Packets/PlayerActionPacket.h"
 #include "Protocol/Packets/RespawnPacket.h"
-#include "Protocol/Packets/BlockEntityDataPacket.h"
+#include "Protocol/Packets/BlockActorDataPacket.h"
 #include "Protocol/Packets/BlockPickRequestPacket.h"
-#include "Protocol/Packets/EntityPickRequestPacket.h"
+#include "Protocol/Packets/ActorPickRequestPacket.h"
 #include "Protocol/Packets/EmotePacket.h"
 #include "Protocol/Packets/ModalFormRequestPacket.h"
 #include "Protocol/Packets/ModalFormResponsePacket.h"
@@ -468,7 +468,7 @@ void ServerNetworkHandler::tick() {
     {
         std::lock_guard<std::mutex> lock(mConsoleQueueMutex);
         while (!mConsoleQueue.empty()) {
-            ConsoleCommandSender sender;
+            ServerCommandOrigin sender;
             mCommands.dispatch(sender, mConsoleQueue.front());
             mConsoleQueue.pop();
         }
@@ -711,7 +711,7 @@ void ServerNetworkHandler::_sendStartGame(ServerPlayer &player) {
 }
 
 void ServerNetworkHandler::_sendEntityData(ServerPlayer &player) {
-    SetEntityDataPacket entityData;
+    SetActorDataPacket entityData;
     entityData.mRuntimeActorId = (int64_t) player.getRuntimeId();
     entityData.mTick = 0;
 
@@ -802,7 +802,7 @@ void ServerNetworkHandler::_sendHealth(ServerPlayer &player) {
 }
 
 void ServerNetworkHandler::_broadcastEntityEvent(const Actor &entity, uint8_t eventId) {
-    EntityEventPacket event;
+    ActorEventPacket event;
     event.mRuntimeActorId = entity.getRuntimeId();
     event.mEventId = eventId;
     event.mEventData = 0;
@@ -835,7 +835,7 @@ void ServerNetworkHandler::_handleVoidDamage(ServerPlayer &player) {
     if (!player.isSpawned() || player.isDead())
         return;
 
-    if (player.getPosition().y > (float) (Chunk::MIN_Y - 16))
+    if (player.getPosition().y > (float) (LevelChunk::MIN_Y - 16))
         return;
 
     applyDamage(player, 10.0f, "death.attack.outOfWorld", {player.getName()});
@@ -1110,7 +1110,7 @@ namespace {
     void putPickedItem(ServerPlayer &player, ItemStack item, int hotbarSlot);
 }
 
-void ServerNetworkHandler::handle(const NetworkIdentifier &id, const BlockEntityDataPacket &packet) {
+void ServerNetworkHandler::handle(const NetworkIdentifier &id, const BlockActorDataPacket &packet) {
     ServerPlayer *player = _getPlayer(id);
     if (player == nullptr || !player->isSpawned())
         return;
@@ -1168,7 +1168,7 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const BlockPickRe
     putPickedItem(*player, std::move(picked), packet.mHotbarSlot);
 }
 
-void ServerNetworkHandler::handle(const NetworkIdentifier &id, const EntityPickRequestPacket &packet) {
+void ServerNetworkHandler::handle(const NetworkIdentifier &id, const ActorPickRequestPacket &packet) {
     ServerPlayer *player = _getPlayer(id);
     if (player == nullptr || !player->isSpawned() || player->isDead())
         return;
@@ -1538,7 +1538,7 @@ std::vector<std::string> ServerNetworkHandler::getPlayerNames() const {
     return names;
 }
 
-std::vector<ServerPlayer *> ServerNetworkHandler::resolveTargets(CommandSender &sender,
+std::vector<ServerPlayer *> ServerNetworkHandler::resolveTargets(CommandOrigin &sender,
                                                                  const std::string &selector) {
     std::vector<ServerPlayer *> targets;
 
@@ -1782,7 +1782,7 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const CommandRequ
 
     LOG_INFO(LogAreaID::Server, "%s issued command: %s", player->getName().c_str(), packet.mCommand.c_str());
 
-    PlayerCommandSender sender(*this, *player, packet.mOrigin);
+    PlayerCommandOrigin sender(*this, *player, packet.mOrigin);
     mCommands.dispatch(sender, packet.mCommand);
 }
 

@@ -69,16 +69,16 @@ int64_t Level::_packChunk(int32_t x, int32_t z) {
     return ((int64_t) x << 32) | (uint32_t) z;
 }
 
-void Level::_generate(Chunk &chunk) {
+void Level::_generate(LevelChunk &chunk) {
     const BlockState bedrock = VanillaBlocks::BEDROCK().toBlockState();
     const BlockState stone = VanillaBlocks::STONE().toBlockState();
     const BlockState grass = VanillaBlocks::GRASS().toBlockState();
 
     for (int x = 0; x < 16; x++) {
         for (int z = 0; z < 16; z++) {
-            chunk.setBlock(x, Chunk::MIN_Y, z, bedrock);
+            chunk.setBlock(x, LevelChunk::MIN_Y, z, bedrock);
 
-            for (int32_t y = Chunk::MIN_Y + 1; y <= FlatChunkGenerator::DIRT_TOP_Y; y++)
+            for (int32_t y = LevelChunk::MIN_Y + 1; y <= FlatChunkGenerator::DIRT_TOP_Y; y++)
                 chunk.setBlock(x, y, z, stone);
 
             chunk.setBlock(x, FlatChunkGenerator::SURFACE_Y, z, grass);
@@ -88,14 +88,14 @@ void Level::_generate(Chunk &chunk) {
     chunk.clearDirty();
 }
 
-Chunk &Level::getChunk(int32_t chunkX, int32_t chunkZ) {
+LevelChunk &Level::getChunk(int32_t chunkX, int32_t chunkZ) {
     const int64_t key = _packChunk(chunkX, chunkZ);
 
     auto it = mChunks.find(key);
     if (it != mChunks.end())
         return it->second;
 
-    Chunk chunk(chunkX, chunkZ);
+    LevelChunk chunk(chunkX, chunkZ);
 
     if (!mStorage.isOpen() || !mStorage.loadChunk(chunk))
         _generate(chunk);
@@ -122,7 +122,7 @@ BlockState Level::getBlockState(int32_t x, int32_t y, int32_t z) {
 }
 
 bool Level::isSolidAt(int32_t x, int32_t y, int32_t z) {
-    if (y < Chunk::MIN_Y || y > Chunk::MAX_Y)
+    if (y < LevelChunk::MIN_Y || y > LevelChunk::MAX_Y)
         return false;
 
     const BlockState &state = getChunk(x >> 4, z >> 4).getBlock(x & 15, y, z & 15);
@@ -137,10 +137,10 @@ bool Level::isSolidAt(int32_t x, int32_t y, int32_t z) {
 }
 
 void Level::setBlockState(int32_t x, int32_t y, int32_t z, const BlockState &state) {
-    if (y < Chunk::MIN_Y || y > Chunk::MAX_Y)
+    if (y < LevelChunk::MIN_Y || y > LevelChunk::MAX_Y)
         return;
 
-    Chunk &chunk = getChunk(x >> 4, z >> 4);
+    LevelChunk &chunk = getChunk(x >> 4, z >> 4);
     if (chunk.getBlock(x & 15, y, z & 15) == state)
         return;
 

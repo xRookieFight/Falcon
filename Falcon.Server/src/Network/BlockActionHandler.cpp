@@ -12,7 +12,7 @@
 #include "Network/NetworkHandler.h"
 #include "Network/ServerNetworkHandler.h"
 #include "Protocol/BlockStateHasher.h"
-#include "Protocol/Packets/EntityEventPacket.h"
+#include "Protocol/Packets/ActorEventPacket.h"
 #include "Protocol/Packets/LevelEventPacket.h"
 #include "Protocol/Packets/LevelSoundEventPacket.h"
 #include "Protocol/Packets/UpdateBlockPacket.h"
@@ -181,7 +181,7 @@ namespace {
     }
 
     void sendCurrentBlockState(ServerNetworkHandler &owner, const Vector3i &position) {
-        if (position.y < Chunk::MIN_Y || position.y > Chunk::MAX_Y)
+        if (position.y < LevelChunk::MIN_Y || position.y > LevelChunk::MAX_Y)
             return;
 
         const BlockState state = owner.getLevel().getBlockState(position.x, position.y, position.z);
@@ -199,7 +199,7 @@ namespace {
     }
 
     void broadcastArmSwing(ServerNetworkHandler &owner, ServerPlayer &player, const Vector3f &position) {
-        EntityEventPacket swing;
+        ActorEventPacket swing;
         swing.mRuntimeActorId = player.getRuntimeId();
         swing.mEventId = (uint8_t) EntityEventType::ArmSwing;
         swing.mEventData = 0;
@@ -322,7 +322,7 @@ void BlockActionHandler::breakBlock(ServerNetworkHandler &owner, ServerPlayer &p
 
 void BlockActionHandler::startBreakingBlock(ServerNetworkHandler &owner, ServerPlayer &player,
                                             const Vector3i &position, int32_t face) {
-    if (position.y < Chunk::MIN_Y || position.y > Chunk::MAX_Y)
+    if (position.y < LevelChunk::MIN_Y || position.y > LevelChunk::MAX_Y)
         return;
 
     if (player.isBreakingBlock() && player.getBreakingBlockPosition() == position)
@@ -371,7 +371,7 @@ void BlockActionHandler::continueBreakingBlock(ServerNetworkHandler &owner, Serv
         return;
 
     const Vector3i position = player.getBreakingBlockPosition();
-    if (position.y < Chunk::MIN_Y || position.y > Chunk::MAX_Y) {
+    if (position.y < LevelChunk::MIN_Y || position.y > LevelChunk::MAX_Y) {
         stopBreakingBlock(owner, player);
         return;
     }
@@ -413,7 +413,7 @@ void BlockActionHandler::continueBreakingBlock(ServerNetworkHandler &owner, Serv
 
 void BlockActionHandler::completeBreakingBlock(ServerNetworkHandler &owner, ServerPlayer &player,
                                                const Vector3i &position) {
-    if (position.y < Chunk::MIN_Y || position.y > Chunk::MAX_Y)
+    if (position.y < LevelChunk::MIN_Y || position.y > LevelChunk::MAX_Y)
         return;
 
     if (!canInteractWithBlock(player, position))
@@ -479,7 +479,7 @@ void BlockActionHandler::sendBreakingFx(ServerNetworkHandler &owner, ServerPlaye
     hit.mActorUniqueId = -1;
     broadcastToViewers(owner, center, hit);
 
-    EntityEventPacket swing;
+    ActorEventPacket swing;
     swing.mRuntimeActorId = player.getRuntimeId();
     swing.mEventId = (uint8_t) EntityEventType::ArmSwing;
     swing.mEventData = 0;
@@ -513,7 +513,7 @@ void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &p
         || transaction.mHotbarSlot < 0 || transaction.mHotbarSlot >= PlayerInventory::HOTBAR_SIZE)
         return;
 
-    if (transaction.mBlockPosition.y < Chunk::MIN_Y || transaction.mBlockPosition.y > Chunk::MAX_Y)
+    if (transaction.mBlockPosition.y < LevelChunk::MIN_Y || transaction.mBlockPosition.y > LevelChunk::MAX_Y)
         return;
 
     if (!canInteractWithBlock(player, transaction.mBlockPosition))
@@ -581,7 +581,7 @@ void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &p
                           transaction.mBlockPosition.z + offsets[face][2]);
     }
 
-    if (target.y < Chunk::MIN_Y || target.y > Chunk::MAX_Y) {
+    if (target.y < LevelChunk::MIN_Y || target.y > LevelChunk::MAX_Y) {
         sendCurrentBlockState(owner, target);
         return;
     }

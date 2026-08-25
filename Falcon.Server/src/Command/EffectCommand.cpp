@@ -77,7 +77,7 @@ std::vector<CommandOverloadData> EffectCommand::getOverloads() const {
     return {overload};
 }
 
-bool EffectCommand::execute(CommandSender &sender, const std::vector<std::string> &arguments) {
+bool EffectCommand::execute(CommandOrigin &sender, const std::vector<std::string> &arguments) {
     if (arguments.size() < 2) {
         sender.sendTranslation("commands.generic.usage", {getUsage()});
         return false;

@@ -3,7 +3,7 @@
 #include "Block/Systems/LiquidPhysicsSystem.h"
 #include "Core/Math/Vector3f.h"
 #include "Core/Math/Vector3i.h"
-#include "Level/Chunk.h"
+#include "Level/LevelChunk.h"
 #include "Level/FlatChunkGenerator.h"
 #include "Level/LevelStorage.h"
 
@@ -51,13 +51,13 @@ public:
 
     std::vector<ChunkPosition> getChunksAround(int32_t centerChunkX, int32_t centerChunkZ) const;
 
-    Chunk &getChunk(int32_t chunkX, int32_t chunkZ);
+    LevelChunk &getChunk(int32_t chunkX, int32_t chunkZ);
 
     std::string getChunkData(int32_t chunkX, int32_t chunkZ);
 
     int getChunkSubChunkCount(int32_t chunkX, int32_t chunkZ);
 
-    uint32_t getSubChunkCount() const { return Chunk::SUB_CHUNK_COUNT; }
+    uint32_t getSubChunkCount() const { return LevelChunk::SUB_CHUNK_COUNT; }
 
     int32_t getBlock(int32_t x, int32_t y, int32_t z);
 
@@ -86,13 +86,13 @@ public:
 private:
     static int64_t _packChunk(int32_t x, int32_t z);
 
-    void _generate(Chunk &chunk);
+    void _generate(LevelChunk &chunk);
 
     std::string mName;
     int mViewDistance;
     FlatChunkGenerator mGenerator;
     LevelStorage mStorage;
     LiquidPhysicsSystem mLiquidPhysics;
-    std::unordered_map<int64_t, Chunk> mChunks;
+    std::unordered_map<int64_t, LevelChunk> mChunks;
     int64_t mTime = 0;
 };

@@ -1,8 +1,8 @@
 #include "Protocol/MinecraftPackets.h"
 
 #include "Protocol/Packets/AddBehaviorTreePacket.h"
-#include "Protocol/Packets/AddEntityPacket.h"
-#include "Protocol/Packets/AddItemEntityPacket.h"
+#include "Protocol/Packets/AddActorPacket.h"
+#include "Protocol/Packets/AddItemActorPacket.h"
 #include "Protocol/Packets/AddPaintingPacket.h"
 #include "Protocol/Packets/AddPlayerPacket.h"
 #include "Protocol/Packets/AddVolumeEntityPacket.h"
@@ -15,9 +15,9 @@
 #include "Protocol/Packets/AutomationClientConnectPacket.h"
 #include "Protocol/Packets/AwardAchievementPacket.h"
 #include "Protocol/Packets/AvailableCommandsPacket.h"
-#include "Protocol/Packets/AvailableEntityIdentifiersPacket.h"
+#include "Protocol/Packets/AvailableActorIdentifiersPacket.h"
 #include "Protocol/Packets/BiomeDefinitionListPacket.h"
-#include "Protocol/Packets/BlockEntityDataPacket.h"
+#include "Protocol/Packets/BlockActorDataPacket.h"
 #include "Protocol/Packets/BlockEventPacket.h"
 #include "Protocol/Packets/BlockPickRequestPacket.h"
 #include "Protocol/Packets/BookEditPacket.h"
@@ -25,7 +25,7 @@
 #include "Protocol/Packets/CameraPacket.h"
 #include "Protocol/Packets/CameraAimAssistPacket.h"
 #include "Protocol/Packets/CameraAimAssistActorPriorityPacket.h"
-#include "Protocol/Packets/CameraAimAssistInstructionPacket.h"
+#include "Protocol/Packets/ClientCameraAimAssistPacket.h"
 #include "Protocol/Packets/CameraAimAssistPresetsPacket.h"
 #include "Protocol/Packets/CameraInstructionPacket.h"
 #include "Protocol/Packets/CameraPresetsPacket.h"
@@ -67,7 +67,7 @@
 #include "Protocol/Packets/CreativeContentPacket.h"
 #include "Protocol/Packets/CurrentStructureFeaturePacket.h"
 #include "Protocol/Packets/DeathInfoPacket.h"
-#include "Protocol/Packets/DebugDrawerPacket.h"
+#include "Protocol/Packets/PrimitiveShapesPacket.h"
 #include "Protocol/Packets/DebugInfoPacket.h"
 #include "Protocol/Packets/DimensionDataPacket.h"
 #include "Protocol/Packets/DisconnectPacket.h"
@@ -76,23 +76,23 @@
 #include "Protocol/Packets/EduUriResourcePacket.h"
 #include "Protocol/Packets/EmoteListPacket.h"
 #include "Protocol/Packets/EmotePacket.h"
-#include "Protocol/Packets/EntityEventPacket.h"
+#include "Protocol/Packets/ActorEventPacket.h"
 #include "Protocol/Packets/EntityFallPacket.h"
-#include "Protocol/Packets/EntityPickRequestPacket.h"
-#include "Protocol/Packets/EventPacket.h"
+#include "Protocol/Packets/ActorPickRequestPacket.h"
+#include "Protocol/Packets/LegacyTelemetryEventPacket.h"
 #include "Protocol/Packets/FeatureRegistryPacket.h"
 #include "Protocol/Packets/FilterTextPacket.h"
 #include "Protocol/Packets/GameRulesChangedPacket.h"
 #include "Protocol/Packets/GameTestRequestPacket.h"
 #include "Protocol/Packets/GameTestResultsPacket.h"
-#include "Protocol/Packets/GraphicsParameterOverridePacket.h"
+#include "Protocol/Packets/GraphicsOverrideParameterPacket.h"
 #include "Protocol/Packets/GuiDataPickItemPacket.h"
 #include "Protocol/Packets/HurtArmorPacket.h"
 #include "Protocol/Packets/InteractPacket.h"
 #include "Protocol/Packets/InventoryContentPacket.h"
 #include "Protocol/Packets/InventorySlotPacket.h"
 #include "Protocol/Packets/InventoryTransactionPacket.h"
-#include "Protocol/Packets/ItemComponentPacket.h"
+#include "Protocol/Packets/ItemRegistryPacket.h"
 #include "Protocol/Packets/ItemStackRequestPacket.h"
 #include "Protocol/Packets/ItemStackResponsePacket.h"
 #include "Protocol/Packets/JigsawStructureDataPacket.h"
@@ -111,11 +111,11 @@
 #include "Protocol/Packets/ModalFormRequestPacket.h"
 #include "Protocol/Packets/ModalFormResponsePacket.h"
 #include "Protocol/Packets/MotionPredictionHintsPacket.h"
-#include "Protocol/Packets/MoveEntityAbsolutePacket.h"
-#include "Protocol/Packets/MoveEntityDeltaPacket.h"
+#include "Protocol/Packets/MoveActorAbsolutePacket.h"
+#include "Protocol/Packets/MoveActorDeltaPacket.h"
 #include "Protocol/Packets/MovePlayerPacket.h"
 #include "Protocol/Packets/MovementEffectPacket.h"
-#include "Protocol/Packets/MovementPredictionSyncPacket.h"
+#include "Protocol/Packets/ClientMovementPredictionSyncPacket.h"
 #include "Protocol/Packets/MultiplayerSettingsPacket.h"
 #include "Protocol/Packets/NetworkChunkPublisherUpdatePacket.h"
 #include "Protocol/Packets/NetworkSettingsPacket.h"
@@ -147,7 +147,7 @@
 #include "Protocol/Packets/PositionTrackingDBServerBroadcastPacket.h"
 #include "Protocol/Packets/PurchaseReceiptPacket.h"
 #include "Protocol/Packets/RefreshEntitlementsPacket.h"
-#include "Protocol/Packets/RemoveEntityPacket.h"
+#include "Protocol/Packets/RemoveActorPacket.h"
 #include "Protocol/Packets/RemoveObjectivePacket.h"
 #include "Protocol/Packets/RemoveVolumeEntityPacket.h"
 #include "Protocol/Packets/RequestAbilityPacket.h"
@@ -181,9 +181,9 @@
 #include "Protocol/Packets/SetDefaultGameTypePacket.h"
 #include "Protocol/Packets/SetDifficultyPacket.h"
 #include "Protocol/Packets/SetDisplayObjectivePacket.h"
-#include "Protocol/Packets/SetEntityDataPacket.h"
-#include "Protocol/Packets/SetEntityLinkPacket.h"
-#include "Protocol/Packets/SetEntityMotionPacket.h"
+#include "Protocol/Packets/SetActorDataPacket.h"
+#include "Protocol/Packets/SetActorLinkPacket.h"
+#include "Protocol/Packets/SetActorMotionPacket.h"
 #include "Protocol/Packets/SetHealthPacket.h"
 #include "Protocol/Packets/SetHudPacket.h"
 #include "Protocol/Packets/SetLastHurtByPacket.h"
@@ -212,14 +212,14 @@
 #include "Protocol/Packets/SubChunkPacket.h"
 #include "Protocol/Packets/SubChunkRequestPacket.h"
 #include "Protocol/Packets/SubClientLoginPacket.h"
-#include "Protocol/Packets/SyncEntityPropertyPacket.h"
+#include "Protocol/Packets/SyncActorPropertyPacket.h"
 #include "Protocol/Packets/SyncWorldClocksPacket.h"
-#include "Protocol/Packets/TakeItemEntityPacket.h"
+#include "Protocol/Packets/TakeItemActorPacket.h"
 #include "Protocol/Packets/TextPacket.h"
 #include "Protocol/Packets/TickSyncPacket.h"
 #include "Protocol/Packets/TickingAreasLoadStatusPacket.h"
 #include "Protocol/Packets/ToastRequestPacket.h"
-#include "Protocol/Packets/ToggleCrafterSlotRequestPacket.h"
+#include "Protocol/Packets/PlayerToggleCrafterSlotRequestPacket.h"
 #include "Protocol/Packets/TransferPacket.h"
 #include "Protocol/Packets/TrimDataPacket.h"
 #include "Protocol/Packets/UpdateAbilitiesPacket.h"
@@ -271,8 +271,8 @@ void MinecraftPackets::registerPacket(MinecraftPacketIds id, const PacketFactory
 
 void MinecraftPackets::_registerDefaultPackets() {
     registerPacket<AddBehaviorTreePacket>();
-    registerPacket<AddEntityPacket>();
-    registerPacket<AddItemEntityPacket>();
+    registerPacket<AddActorPacket>();
+    registerPacket<AddItemActorPacket>();
     registerPacket<AddPaintingPacket>();
     registerPacket<AddPlayerPacket>();
     registerPacket<AddVolumeEntityPacket>();
@@ -285,9 +285,9 @@ void MinecraftPackets::_registerDefaultPackets() {
     registerPacket<AutomationClientConnectPacket>();
     registerPacket<AwardAchievementPacket>();
     registerPacket<AvailableCommandsPacket>();
-    registerPacket<AvailableEntityIdentifiersPacket>();
+    registerPacket<AvailableActorIdentifiersPacket>();
     registerPacket<BiomeDefinitionListPacket>();
-    registerPacket<BlockEntityDataPacket>();
+    registerPacket<BlockActorDataPacket>();
     registerPacket<BlockEventPacket>();
     registerPacket<BlockPickRequestPacket>();
     registerPacket<BookEditPacket>();
@@ -295,7 +295,7 @@ void MinecraftPackets::_registerDefaultPackets() {
     registerPacket<CameraPacket>();
     registerPacket<CameraAimAssistPacket>();
     registerPacket<CameraAimAssistActorPriorityPacket>();
-    registerPacket<CameraAimAssistInstructionPacket>();
+    registerPacket<ClientCameraAimAssistPacket>();
     registerPacket<CameraAimAssistPresetsPacket>();
     registerPacket<CameraInstructionPacket>();
     registerPacket<CameraPresetsPacket>();
@@ -337,7 +337,7 @@ void MinecraftPackets::_registerDefaultPackets() {
     registerPacket<CreativeContentPacket>();
     registerPacket<CurrentStructureFeaturePacket>();
     registerPacket<DeathInfoPacket>();
-    registerPacket<DebugDrawerPacket>();
+    registerPacket<PrimitiveShapesPacket>();
     registerPacket<DebugInfoPacket>();
     registerPacket<DimensionDataPacket>();
     registerPacket<DisconnectPacket>();
@@ -346,23 +346,23 @@ void MinecraftPackets::_registerDefaultPackets() {
     registerPacket<EduUriResourcePacket>();
     registerPacket<EmoteListPacket>();
     registerPacket<EmotePacket>();
-    registerPacket<EntityEventPacket>();
+    registerPacket<ActorEventPacket>();
     registerPacket<EntityFallPacket>();
-    registerPacket<EntityPickRequestPacket>();
-    registerPacket<EventPacket>();
+    registerPacket<ActorPickRequestPacket>();
+    registerPacket<LegacyTelemetryEventPacket>();
     registerPacket<FeatureRegistryPacket>();
     registerPacket<FilterTextPacket>();
     registerPacket<GameRulesChangedPacket>();
     registerPacket<GameTestRequestPacket>();
     registerPacket<GameTestResultsPacket>();
-    registerPacket<GraphicsParameterOverridePacket>();
+    registerPacket<GraphicsOverrideParameterPacket>();
     registerPacket<GuiDataPickItemPacket>();
     registerPacket<HurtArmorPacket>();
     registerPacket<InteractPacket>();
     registerPacket<InventoryContentPacket>();
     registerPacket<InventorySlotPacket>();
     registerPacket<InventoryTransactionPacket>();
-    registerPacket<ItemComponentPacket>();
+    registerPacket<ItemRegistryPacket>();
     registerPacket<ItemStackRequestPacket>();
     registerPacket<ItemStackResponsePacket>();
     registerPacket<JigsawStructureDataPacket>();
@@ -381,11 +381,11 @@ void MinecraftPackets::_registerDefaultPackets() {
     registerPacket<ModalFormRequestPacket>();
     registerPacket<ModalFormResponsePacket>();
     registerPacket<MotionPredictionHintsPacket>();
-    registerPacket<MoveEntityAbsolutePacket>();
-    registerPacket<MoveEntityDeltaPacket>();
+    registerPacket<MoveActorAbsolutePacket>();
+    registerPacket<MoveActorDeltaPacket>();
     registerPacket<MovePlayerPacket>();
     registerPacket<MovementEffectPacket>();
-    registerPacket<MovementPredictionSyncPacket>();
+    registerPacket<ClientMovementPredictionSyncPacket>();
     registerPacket<MultiplayerSettingsPacket>();
     registerPacket<NetworkChunkPublisherUpdatePacket>();
     registerPacket<NetworkSettingsPacket>();
@@ -417,7 +417,7 @@ void MinecraftPackets::_registerDefaultPackets() {
     registerPacket<PositionTrackingDBServerBroadcastPacket>();
     registerPacket<PurchaseReceiptPacket>();
     registerPacket<RefreshEntitlementsPacket>();
-    registerPacket<RemoveEntityPacket>();
+    registerPacket<RemoveActorPacket>();
     registerPacket<RemoveObjectivePacket>();
     registerPacket<RemoveVolumeEntityPacket>();
     registerPacket<RequestAbilityPacket>();
@@ -451,9 +451,9 @@ void MinecraftPackets::_registerDefaultPackets() {
     registerPacket<SetDefaultGameTypePacket>();
     registerPacket<SetDifficultyPacket>();
     registerPacket<SetDisplayObjectivePacket>();
-    registerPacket<SetEntityDataPacket>();
-    registerPacket<SetEntityLinkPacket>();
-    registerPacket<SetEntityMotionPacket>();
+    registerPacket<SetActorDataPacket>();
+    registerPacket<SetActorLinkPacket>();
+    registerPacket<SetActorMotionPacket>();
     registerPacket<SetHealthPacket>();
     registerPacket<SetHudPacket>();
     registerPacket<SetLastHurtByPacket>();
@@ -482,14 +482,14 @@ void MinecraftPackets::_registerDefaultPackets() {
     registerPacket<SubChunkPacket>();
     registerPacket<SubChunkRequestPacket>();
     registerPacket<SubClientLoginPacket>();
-    registerPacket<SyncEntityPropertyPacket>();
+    registerPacket<SyncActorPropertyPacket>();
     registerPacket<SyncWorldClocksPacket>();
-    registerPacket<TakeItemEntityPacket>();
+    registerPacket<TakeItemActorPacket>();
     registerPacket<TextPacket>();
     registerPacket<TickSyncPacket>();
     registerPacket<TickingAreasLoadStatusPacket>();
     registerPacket<ToastRequestPacket>();
-    registerPacket<ToggleCrafterSlotRequestPacket>();
+    registerPacket<PlayerToggleCrafterSlotRequestPacket>();
     registerPacket<TransferPacket>();
     registerPacket<TrimDataPacket>();
     registerPacket<UpdateAbilitiesPacket>();

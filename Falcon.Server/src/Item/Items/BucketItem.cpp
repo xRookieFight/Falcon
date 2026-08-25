@@ -9,13 +9,13 @@
 #include "Block/Blocks/WaterBlock.h"
 #include "Inventory/InventoryManager.h"
 #include "Inventory/PlayerInventory.h"
-#include "Level/Chunk.h"
+#include "Level/LevelChunk.h"
 #include "Level/Level.h"
 #include "Network/BlockActionHandler.h"
 #include "Network/InventoryHandler.h"
 #include "Network/ServerNetworkHandler.h"
 #include "Protocol/BlockStateHasher.h"
-#include "Protocol/Packets/EntityEventPacket.h"
+#include "Protocol/Packets/ActorEventPacket.h"
 #include "Protocol/Packets/LevelSoundEventPacket.h"
 #include "Protocol/Packets/UpdateBlockPacket.h"
 #include "Protocol/Types/ItemStack.h"
@@ -137,7 +137,7 @@ bool BucketItem::applyResult(ServerNetworkHandler &owner, ServerPlayer &player, 
 }
 
 void BucketItem::sendBlockState(ServerNetworkHandler &owner, const Vector3i &position) {
-    if (position.y < Chunk::MIN_Y || position.y > Chunk::MAX_Y)
+    if (position.y < LevelChunk::MIN_Y || position.y > LevelChunk::MAX_Y)
         return;
 
     sendBlockUpdate(owner, position, owner.getLevel().getBlockState(position.x, position.y, position.z));
@@ -169,7 +169,7 @@ void BucketItem::sendSound(ServerNetworkHandler &owner, const Vector3i &position
 }
 
 void BucketItem::sendArmSwing(ServerNetworkHandler &owner, ServerPlayer &player, const Vector3i &position) {
-    EntityEventPacket swing;
+    ActorEventPacket swing;
     swing.mRuntimeActorId = player.getRuntimeId();
     swing.mEventId = (uint8_t) EntityEventType::ArmSwing;
     swing.mEventData = 0;
@@ -261,7 +261,7 @@ bool BucketItem::use(ServerNetworkHandler &owner, ServerPlayer &player, const It
     }
 
     const Vector3i target = getPlacementPosition(transaction, clickedState);
-    if (target.y < Chunk::MIN_Y || target.y > Chunk::MAX_Y) {
+    if (target.y < LevelChunk::MIN_Y || target.y > LevelChunk::MAX_Y) {
         sendBlockState(owner, clickedPosition);
         return false;
     }
