@@ -50,6 +50,14 @@ public:
 
     std::vector<Tag> loadEntities(int32_t chunkX, int32_t chunkZ);
 
+    bool saveBlockEntities(int32_t chunkX, int32_t chunkZ, const std::vector<Tag> &blockEntities);
+
+    std::vector<Tag> loadBlockEntities(int32_t chunkX, int32_t chunkZ);
+
+    bool saveWeather(bool raining, int32_t rainTime, bool thundering, int32_t thunderTime);
+
+    bool loadWeather(bool &raining, int32_t &rainTime, bool &thundering, int32_t &thunderTime);
+
     void writeLevelDat(const std::string &levelName, int32_t spawnX, int32_t spawnY, int32_t spawnZ,
                        int32_t gameType, int32_t difficulty, int64_t seed) const;
 

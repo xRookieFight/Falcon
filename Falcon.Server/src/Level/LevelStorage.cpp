@@ -15,6 +15,10 @@
 #include <leveldb/filter_policy.h>
 #include <leveldb/cache.h>
 
+namespace {
+    const char *WEATHER_KEY = "weather";
+}
+
 LevelStorage::LevelStorage() : mDb(nullptr), mDimensionId(0) {}
 
 LevelStorage::~LevelStorage() {
@@ -247,6 +251,103 @@ std::vector<Tag> LevelStorage::loadEntities(int32_t chunkX, int32_t chunkZ) {
     }
 
     return entities;
+}
+
+bool LevelStorage::saveBlockEntities(int32_t chunkX, int32_t chunkZ, const std::vector<Tag> &blockEntities) {
+    if (mDb == nullptr)
+        return false;
+
+    const std::string key = _makeKey(chunkX, chunkZ, LevelDbTag::BlockEntities);
+
+    if (blockEntities.empty()) {
+        const leveldb::Status status = mDb->Delete(leveldb::WriteOptions(), key);
+        return status.ok() || status.IsNotFound();
+    }
+
+    BinaryStream stream;
+    for (const Tag &blockEntity: blockEntities)
+        NbtIo::writeTag(stream, blockEntity, NbtVariant::LittleEndian);
+
+    const leveldb::Status status = mDb->Put(leveldb::WriteOptions(), key, stream.getBuffer());
+    if (!status.ok()) {
+        LOG_WARN(LogAreaID::Server, "Could not save block entities for chunk %d %d: %s", chunkX, chunkZ,
+                 status.ToString().c_str());
+        return false;
+    }
+
+    return true;
+}
+
+std::vector<Tag> LevelStorage::loadBlockEntities(int32_t chunkX, int32_t chunkZ) {
+    std::vector<Tag> blockEntities;
+
+    if (mDb == nullptr)
+        return blockEntities;
+
+    std::string data;
+    const leveldb::Status status = mDb->Get(leveldb::ReadOptions(),
+                                            _makeKey(chunkX, chunkZ, LevelDbTag::BlockEntities), &data);
+
+    if (!status.ok())
+        return blockEntities;
+
+    ReadOnlyBinaryStream stream(data);
+
+    try {
+        while (!stream.feof())
+            blockEntities.push_back(NbtIo::readTag(stream, NbtVariant::LittleEndian));
+    } catch (const std::exception &exception) {
+        LOG_WARN(LogAreaID::Server, "Malformed block entities for chunk %d %d: %s", chunkX, chunkZ,
+                 exception.what());
+    }
+
+    return blockEntities;
+}
+
+bool LevelStorage::saveWeather(bool raining, int32_t rainTime, bool thundering, int32_t thunderTime) {
+    if (mDb == nullptr)
+        return false;
+
+    Tag weather = Tag::ofCompound();
+    weather.putByte("raining", raining ? 1 : 0);
+    weather.putInt("rainTime", rainTime);
+    weather.putByte("thundering", thundering ? 1 : 0);
+    weather.putInt("thunderTime", thunderTime);
+
+    BinaryStream stream;
+    NbtIo::writeTag(stream, weather, NbtVariant::LittleEndian);
+
+    const leveldb::Status status = mDb->Put(leveldb::WriteOptions(), WEATHER_KEY, stream.getBuffer());
+    if (!status.ok()) {
+        LOG_WARN(LogAreaID::Server, "Could not save weather: %s", status.ToString().c_str());
+        return false;
+    }
+
+    return true;
+}
+
+bool LevelStorage::loadWeather(bool &raining, int32_t &rainTime, bool &thundering, int32_t &thunderTime) {
+    if (mDb == nullptr)
+        return false;
+
+    std::string data;
+    if (!mDb->Get(leveldb::ReadOptions(), WEATHER_KEY, &data).ok())
+        return false;
+
+    ReadOnlyBinaryStream stream(data);
+
+    try {
+        const Tag weather = NbtIo::readTag(stream, NbtVariant::LittleEndian);
+        raining = weather.getByte("raining") != 0;
+        rainTime = weather.getInt("rainTime");
+        thundering = weather.getByte("thundering") != 0;
+        thunderTime = weather.getInt("thunderTime");
+    } catch (const std::exception &exception) {
+        LOG_WARN(LogAreaID::Server, "Malformed weather data: %s", exception.what());
+        return false;
+    }
+
+    return true;
 }
 
 void LevelStorage::writeLevelDat(const std::string &levelName, int32_t spawnX, int32_t spawnY, int32_t spawnZ,

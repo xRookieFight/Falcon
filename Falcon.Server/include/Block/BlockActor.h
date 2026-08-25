@@ -1,15 +1,42 @@
 #pragma once
 
 #include "Block/BlockState.h"
+#include "Core/Math/Vector3i.h"
+#include "Core/NBT/Tag.h"
+#include "Inventory/Container.h"
+
+#include <string>
+
+class PacketCodecContext;
 
 class BlockActor {
 public:
     BlockActor() = default;
+
     explicit BlockActor(const BlockState &state) : mState(state) {}
+
+    virtual ~BlockActor() = default;
+
+    virtual const char *getBlockActorId() const = 0;
+
+    virtual Tag saveNbt() const = 0;
+
+    virtual void loadNbt(const Tag &data, const PacketCodecContext &context) = 0;
+
+    virtual Container *getContainer() { return nullptr; }
 
     const BlockState &getState() const noexcept { return mState; }
 
     void setState(const BlockState &state) { mState = state; }
+
+    const Vector3i &getPosition() const noexcept { return mPosition; }
+
+    void setPosition(const Vector3i &position) { mPosition = position; }
+
+    Tag saveWithPosition() const;
+
+protected:
+    Vector3i mPosition;
 
 private:
     BlockState mState;
