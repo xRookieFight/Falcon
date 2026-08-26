@@ -32,11 +32,10 @@ void ScanSurfaceFeature::populate(ChunkGenerateContext &context, IRandom &random
     if (y < SEA_LEVEL - 1 || !isSupportValid(chunk.getBlock(x, y, z), level, worldX, y, worldZ))
         return;
 
-    BlockManager manager(level);
-    BlockManager object(level);
-    if (!DecorationSupport::isAir(manager.getBlockAt(worldX, y + 1, worldZ)))
+    if (!DecorationSupport::isAir(chunk.getBlock(x, y + 1, z)))
         return;
 
+    BlockManager object(level);
     place(object, worldX, y + 1, worldZ);
     queueObject(object);
 }

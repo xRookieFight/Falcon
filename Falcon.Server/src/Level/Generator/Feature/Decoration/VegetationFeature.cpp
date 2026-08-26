@@ -54,8 +54,7 @@ void VegetationFeature::populate(ChunkGenerateContext &context, IRandom &random)
     if (y < SEA_LEVEL || !isSupportValid(chunk.getBlock(x, y, z), level, worldX, y, worldZ))
         return;
 
-    BlockManager manager(level);
-    if (!DecorationSupport::isAir(manager.getBlockAt(worldX, y + 1, worldZ)))
+    if (!DecorationSupport::isAir(chunk.getBlock(x, y + 1, z)))
         return;
 
     BlockManager object(level);
