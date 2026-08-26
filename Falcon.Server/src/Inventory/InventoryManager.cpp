@@ -9,6 +9,7 @@
 #include "Block/Block.h"
 #include "Block/Blocks/FurnaceBlock.h"
 #include "Block/Inventory/FurnaceInventory.h"
+#include "Inventory/BundleInventory.h"
 #include "Item/CraftingRecipeTable.h"
 #include "Inventory/CraftingManager.h"
 #include "Block/Inventory/CraftingTableInventory.h"
@@ -295,6 +296,65 @@ void InventoryManager::syncSlot(InventoryId inventory, int slot) {
     _sendSlotPackets(_getWindowId(inventory), slot, inventory, slot);
 }
 
+void InventoryManager::syncBundle(const ItemStack &bundle, int32_t bundleId,
+                                  const std::vector<ItemStack> &contents) {
+    if (mPlayer == nullptr || mSender == nullptr || bundleId < 0) {
+        return;
+    }
+
+    InventoryContentPacket content;
+    content.mContainerId = CONTAINER_ID_REGISTRY;
+    content.mContents = contents;
+    content.mContainerNameData.mContainer = ContainerSlotType::DynamicContainer;
+    content.mContainerNameData.mHasDynamicId = true;
+    content.mContainerNameData.mDynamicId = bundleId;
+    content.mStorageItem = bundle;
+    mSender->sendPacketTo(mPlayer->getNetworkIdentifier(), content);
+}
+
+void InventoryManager::syncBundles() {
+    if (mPlayer == nullptr || mSender == nullptr || mOwner == nullptr) {
+        return;
+    }
+
+    const PlayerInventory &inventory = mPlayer->getInventory();
+    for (int slot = 0; slot < PlayerInventory::CONTAINER_SIZE; ++slot) {
+        const ItemStack &item = inventory.getItem(slot);
+        if (!BundleInventory::isBundle(item)) {
+            continue;
+        }
+        syncBundle(item, BundleInventory::getBundleId(item),
+                   BundleInventory::readContents(item, mOwner->getCodecContext()));
+    }
+
+    const ItemStack &offhand = inventory.getOffhand();
+    if (BundleInventory::isBundle(offhand)) {
+        syncBundle(offhand, BundleInventory::getBundleId(offhand),
+                   BundleInventory::readContents(offhand, mOwner->getCodecContext()));
+    }
+
+    const ItemStack &cursor = inventory.getCursor();
+    if (BundleInventory::isBundle(cursor)) {
+        syncBundle(cursor, BundleInventory::getBundleId(cursor),
+                   BundleInventory::readContents(cursor, mOwner->getCodecContext()));
+    }
+
+    Container *container = getContainer();
+    if (container == nullptr) {
+        return;
+    }
+
+    const int containerSize = container->getContainerSize();
+    for (int slot = 0; slot < containerSize; ++slot) {
+        const ItemStack &item = container->getContainerItem(slot);
+        if (!BundleInventory::isBundle(item)) {
+            continue;
+        }
+        syncBundle(item, BundleInventory::getBundleId(item),
+                   BundleInventory::readContents(item, mOwner->getCodecContext()));
+    }
+}
+
 void InventoryManager::syncAll() {
     if (mPlayer == nullptr || mSender == nullptr) {
         return;
@@ -305,6 +365,7 @@ void InventoryManager::syncAll() {
     syncContents(InventoryId::Armor);
     syncContents(InventoryId::CraftingInput);
     syncContents(InventoryId::Cursor);
+    syncBundles();
     if (isFurnaceOpen()) {
         syncContents(InventoryId::FurnaceInput);
     }

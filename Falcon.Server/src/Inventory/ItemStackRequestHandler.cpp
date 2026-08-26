@@ -1,17 +1,26 @@
 #include "Inventory/ItemStackRequestHandler.h"
 
 #include "Core/Debug/BedrockLog.h"
+#include "Inventory/BundleInventory.h"
 
 #include <algorithm>
 #include <cstdint>
+#include <memory>
 #include <utility>
 #include <vector>
 
 namespace {
 
     struct TouchedSlot {
-        ContainerSlotType mContainer = ContainerSlotType::Unknown;
+        FullContainerName mContainerName;
         int mSlot = 0;
+    };
+
+    struct BundleView {
+        int32_t mId = 0;
+        ContainerSlotType mOwnerContainer = ContainerSlotType::Unknown;
+        int mOwnerSlot = 0;
+        std::vector<ItemStack> mContents;
     };
 
     struct RequestContext {
@@ -31,10 +40,96 @@ namespace {
         bool mCraftingActive = false;
         bool mCraftRecipeSeen = false;
         bool mCreatedOutputActive = false;
+        const PacketCodecContext *mCodecContext = nullptr;
+        std::vector<std::unique_ptr<BundleView>> mBundles;
     };
 
-    ItemStack *resolveSlot(PlayerInventory &inventory, RequestContext &context, ContainerSlotType container,
+    ItemStack *findBundleOwner(PlayerInventory &inventory, RequestContext &context, int32_t bundleId,
+                               ContainerSlotType &outContainer, int &outSlot) {
+        if (context.mOpenContainer != nullptr) {
+            for (size_t slot = 0; slot < context.mContainerSlots.size(); ++slot) {
+                ItemStack &item = context.mContainerSlots[slot];
+                if (!BundleInventory::isBundle(item) || BundleInventory::getBundleId(item) != bundleId) {
+                    continue;
+                }
+                outContainer = ContainerSlotType::LevelEntity;
+                outSlot = (int) slot;
+                return &item;
+            }
+        }
+
+        for (int slot = 0; slot < PlayerInventory::CONTAINER_SIZE; ++slot) {
+            ItemStack *item = inventory.resolveSlot(ContainerSlotType::Inventory, slot);
+            if (item == nullptr || !BundleInventory::isBundle(*item)) {
+                continue;
+            }
+            if (BundleInventory::getBundleId(*item) != bundleId) {
+                continue;
+            }
+            outContainer = ContainerSlotType::Inventory;
+            outSlot = slot;
+            return item;
+        }
+
+        ItemStack *cursor = inventory.resolveSlot(ContainerSlotType::Cursor, 0);
+        if (cursor != nullptr && BundleInventory::isBundle(*cursor)
+            && BundleInventory::getBundleId(*cursor) == bundleId) {
+            outContainer = ContainerSlotType::Cursor;
+            outSlot = 0;
+            return cursor;
+        }
+
+        ItemStack *offhand = inventory.resolveSlot(ContainerSlotType::Offhand, 1);
+        if (offhand != nullptr && BundleInventory::isBundle(*offhand)
+            && BundleInventory::getBundleId(*offhand) == bundleId) {
+            outContainer = ContainerSlotType::Offhand;
+            outSlot = 1;
+            return offhand;
+        }
+
+        return nullptr;
+    }
+
+    BundleView *resolveBundle(PlayerInventory &inventory, RequestContext &context, int32_t bundleId) {
+        if (context.mCodecContext == nullptr) {
+            return nullptr;
+        }
+
+        for (const std::unique_ptr<BundleView> &view: context.mBundles) {
+            if (view->mId == bundleId) {
+                return view.get();
+            }
+        }
+
+        ContainerSlotType ownerContainer = ContainerSlotType::Unknown;
+        int ownerSlot = 0;
+        ItemStack *owner = findBundleOwner(inventory, context, bundleId, ownerContainer, ownerSlot);
+        if (owner == nullptr) {
+            return nullptr;
+        }
+
+        std::unique_ptr<BundleView> view(new BundleView());
+        view->mId = bundleId;
+        view->mOwnerContainer = ownerContainer;
+        view->mOwnerSlot = ownerSlot;
+        view->mContents = BundleInventory::readContents(*owner, *context.mCodecContext);
+        context.mBundles.push_back(std::move(view));
+        return context.mBundles.back().get();
+    }
+
+    ItemStack *resolveSlot(PlayerInventory &inventory, RequestContext &context, const FullContainerName &name,
                            int slot) {
+        const ContainerSlotType container = name.mContainer;
+        if (container == ContainerSlotType::DynamicContainer) {
+            if (!name.mHasDynamicId || slot < 0 || slot >= BundleInventory::SIZE) {
+                return nullptr;
+            }
+            BundleView *view = resolveBundle(inventory, context, name.mDynamicId);
+            if (view == nullptr) {
+                return nullptr;
+            }
+            return &view->mContents[(size_t) slot];
+        }
         if (container == ContainerSlotType::CreatedOutput) {
             return (slot == 0 || slot == 50) ? &context.mCreatedOutput : nullptr;
         }
@@ -77,15 +172,25 @@ namespace {
         return -1;
     }
 
-    void markTouched(std::vector<TouchedSlot> &touched, ContainerSlotType container, int slot) {
+    bool sameContainerName(const FullContainerName &left, const FullContainerName &right) {
+        if (left.mContainer != right.mContainer) {
+            return false;
+        }
+        if (left.mContainer != ContainerSlotType::DynamicContainer) {
+            return true;
+        }
+        return left.mHasDynamicId == right.mHasDynamicId && left.mDynamicId == right.mDynamicId;
+    }
+
+    void markTouched(std::vector<TouchedSlot> &touched, const FullContainerName &name, int slot) {
         for (const TouchedSlot &entry: touched) {
-            if (entry.mContainer == container && entry.mSlot == slot) {
+            if (sameContainerName(entry.mContainerName, name) && entry.mSlot == slot) {
                 return;
             }
         }
 
         TouchedSlot entry;
-        entry.mContainer = container;
+        entry.mContainerName = name;
         entry.mSlot = slot;
         touched.push_back(entry);
     }
@@ -100,10 +205,10 @@ namespace {
         return response;
     }
 
-    void appendResponseSlot(std::vector<ItemStackResponseContainer> &containers, ContainerSlotType container,
+    void appendResponseSlot(std::vector<ItemStackResponseContainer> &containers, const FullContainerName &container,
                             int slot, const ItemStack &item) {
         for (ItemStackResponseContainer &existing: containers) {
-            if (existing.mContainerName.mContainer != container) {
+            if (!sameContainerName(existing.mContainerName, container)) {
                 continue;
             }
 
@@ -119,16 +224,73 @@ namespace {
         }
 
         ItemStackResponseContainer created;
-        created.mContainerName.mContainer = container;
+        created.mContainerName = container;
         created.mItems.push_back(describeSlot(slot, item));
         containers.push_back(created);
     }
 
+    bool acceptsBundleWeight(RequestContext &context, const std::vector<ItemStack> &projected) {
+        return BundleInventory::getTotalWeight(projected, *context.mCodecContext) <= BundleInventory::MAX_FILL;
+    }
+
+    bool checkBundleCapacity(PlayerInventory &inventory, RequestContext &context,
+                             const FullContainerName &destination, int slot, const ItemStack &source, int count) {
+        if (destination.mContainer != ContainerSlotType::DynamicContainer) {
+            return true;
+        }
+        if (context.mCodecContext == nullptr || slot < 0 || slot >= BundleInventory::SIZE) {
+            return false;
+        }
+
+        BundleView *view = resolveBundle(inventory, context, destination.mDynamicId);
+        if (view == nullptr) {
+            return false;
+        }
+
+        if (BundleInventory::isBundle(source) && BundleInventory::getBundleId(source) == destination.mDynamicId) {
+            return false;
+        }
+
+        std::vector<ItemStack> projected = view->mContents;
+        ItemStack &target = projected[(size_t) slot];
+        if (target.isAir()) {
+            target = source;
+            target.mCount = count;
+        } else {
+            target.mCount += count;
+        }
+
+        return acceptsBundleWeight(context, projected);
+    }
+
+    bool checkBundleSwap(PlayerInventory &inventory, RequestContext &context, const FullContainerName &destination,
+                         int slot, const ItemStack &incoming) {
+        if (destination.mContainer != ContainerSlotType::DynamicContainer) {
+            return true;
+        }
+        if (context.mCodecContext == nullptr || slot < 0 || slot >= BundleInventory::SIZE) {
+            return false;
+        }
+
+        BundleView *view = resolveBundle(inventory, context, destination.mDynamicId);
+        if (view == nullptr) {
+            return false;
+        }
+
+        if (BundleInventory::isBundle(incoming) && BundleInventory::getBundleId(incoming) == destination.mDynamicId) {
+            return false;
+        }
+
+        std::vector<ItemStack> projected = view->mContents;
+        projected[(size_t) slot] = incoming;
+        return acceptsBundleWeight(context, projected);
+    }
+
     bool moveItems(PlayerInventory &inventory, RequestContext &context, const ItemStackRequestAction &action,
                    std::vector<TouchedSlot> &touched) {
-        ItemStack *source = resolveSlot(inventory, context, action.mSource.mContainerName.mContainer,
+        ItemStack *source = resolveSlot(inventory, context, action.mSource.mContainerName,
                                         action.mSource.mSlot);
-        ItemStack *destination = resolveSlot(inventory, context, action.mDestination.mContainerName.mContainer,
+        ItemStack *destination = resolveSlot(inventory, context, action.mDestination.mContainerName,
                                              action.mDestination.mSlot);
 
         if (source == nullptr || destination == nullptr || source == destination) {
@@ -152,6 +314,11 @@ namespace {
             return false;
         }
 
+        if (!checkBundleCapacity(inventory, context, action.mDestination.mContainerName, action.mDestination.mSlot,
+                                 *source, action.mCount)) {
+            return false;
+        }
+
         if (destination->isAir()) {
             ItemStack moved = *source;
             moved.mCount = action.mCount;
@@ -168,16 +335,16 @@ namespace {
         inventory.assignNetId(*source);
         inventory.assignNetId(*destination);
 
-        markTouched(touched, action.mSource.mContainerName.mContainer, action.mSource.mSlot);
-        markTouched(touched, action.mDestination.mContainerName.mContainer, action.mDestination.mSlot);
+        markTouched(touched, action.mSource.mContainerName, action.mSource.mSlot);
+        markTouched(touched, action.mDestination.mContainerName, action.mDestination.mSlot);
         return true;
     }
 
     bool swapItems(PlayerInventory &inventory, RequestContext &context, const ItemStackRequestAction &action,
                    std::vector<TouchedSlot> &touched) {
-        ItemStack *source = resolveSlot(inventory, context, action.mSource.mContainerName.mContainer,
+        ItemStack *source = resolveSlot(inventory, context, action.mSource.mContainerName,
                                         action.mSource.mSlot);
-        ItemStack *destination = resolveSlot(inventory, context, action.mDestination.mContainerName.mContainer,
+        ItemStack *destination = resolveSlot(inventory, context, action.mDestination.mContainerName,
                                              action.mDestination.mSlot);
 
         if (source == nullptr || destination == nullptr || source == destination) {
@@ -189,19 +356,25 @@ namespace {
             return false;
         }
 
+        if (!checkBundleSwap(inventory, context, action.mSource.mContainerName, action.mSource.mSlot, *destination)
+            || !checkBundleSwap(inventory, context, action.mDestination.mContainerName, action.mDestination.mSlot,
+                                *source)) {
+            return false;
+        }
+
         std::swap(*source, *destination);
 
         inventory.assignNetId(*source);
         inventory.assignNetId(*destination);
 
-        markTouched(touched, action.mSource.mContainerName.mContainer, action.mSource.mSlot);
-        markTouched(touched, action.mDestination.mContainerName.mContainer, action.mDestination.mSlot);
+        markTouched(touched, action.mSource.mContainerName, action.mSource.mSlot);
+        markTouched(touched, action.mDestination.mContainerName, action.mDestination.mSlot);
         return true;
     }
 
     bool removeItems(PlayerInventory &inventory, RequestContext &context, const ItemStackRequestAction &action,
                      std::vector<TouchedSlot> &touched, bool dropped = false) {
-        ItemStack *source = resolveSlot(inventory, context, action.mSource.mContainerName.mContainer,
+        ItemStack *source = resolveSlot(inventory, context, action.mSource.mContainerName,
                                         action.mSource.mSlot);
         if (source == nullptr || source->isAir() || action.mCount <= 0 || action.mCount > source->mCount) {
             return false;
@@ -236,7 +409,7 @@ namespace {
         }
 
         inventory.assignNetId(*source);
-        markTouched(touched, action.mSource.mContainerName.mContainer, action.mSource.mSlot);
+        markTouched(touched, action.mSource.mContainerName, action.mSource.mSlot);
         return true;
     }
 
@@ -378,7 +551,9 @@ ItemStackResponseEntry ItemStackRequestHandler::execute(PlayerInventory &invento
                                                        bool craftingTableOpen,
                                                        bool furnaceOpen,
                                                        Container *openContainer,
-                                                       std::vector<ItemStack> *outDroppedItems) {
+                                                       std::vector<ItemStack> *outDroppedItems,
+                                                       const PacketCodecContext *codecContext,
+                                                       std::vector<BundleSyncData> *outBundles) {
     ItemStackResponseEntry entry;
     entry.mRequestId = request.mRequestId;
     entry.mResult = RESULT_OK;
@@ -396,6 +571,7 @@ ItemStackResponseEntry ItemStackRequestHandler::execute(PlayerInventory &invento
     context.mCraftingTableOpen = craftingTableOpen;
     context.mFurnaceOpen = furnaceOpen;
     context.mOpenContainer = openContainer;
+    context.mCodecContext = codecContext;
 
     if (openContainer != nullptr) {
         const int containerSize = openContainer->getContainerSize();
@@ -432,6 +608,29 @@ ItemStackResponseEntry ItemStackRequestHandler::execute(PlayerInventory &invento
         return entry;
     }
 
+    for (const std::unique_ptr<BundleView> &view: context.mBundles) {
+        FullContainerName ownerName;
+        ownerName.mContainer = view->mOwnerContainer;
+
+        ItemStack *owner = resolveSlot(working, context, ownerName, view->mOwnerSlot);
+        if (owner == nullptr || !BundleInventory::isBundle(*owner)
+            || BundleInventory::getBundleId(*owner) != view->mId) {
+            continue;
+        }
+
+        BundleInventory::writeContents(*owner, view->mContents);
+        markTouched(touched, ownerName, view->mOwnerSlot);
+
+        if (outBundles != nullptr) {
+            BundleSyncData data;
+            data.mBundleId = view->mId;
+            data.mOwnerContainer = view->mOwnerContainer;
+            data.mOwnerSlot = view->mOwnerSlot;
+            data.mContents = view->mContents;
+            outBundles->push_back(std::move(data));
+        }
+    }
+
     if (openContainer != nullptr) {
         for (size_t slot = 0; slot < context.mContainerSlots.size(); ++slot)
             openContainer->setContainerItem((int) slot, context.mContainerSlots[slot]);
@@ -443,27 +642,45 @@ ItemStackResponseEntry ItemStackRequestHandler::execute(PlayerInventory &invento
     }
 
     for (const TouchedSlot &slot: touched) {
-        if (slot.mContainer == ContainerSlotType::CreatedOutput) {
+        if (slot.mContainerName.mContainer == ContainerSlotType::CreatedOutput) {
             continue;
         }
 
-        if (slot.mContainer == ContainerSlotType::LevelEntity) {
+        if (slot.mContainerName.mContainer == ContainerSlotType::DynamicContainer) {
+            const BundleView *view = nullptr;
+            for (const std::unique_ptr<BundleView> &candidate: context.mBundles) {
+                if (candidate->mId == slot.mContainerName.mDynamicId) {
+                    view = candidate.get();
+                    break;
+                }
+            }
+
+            if (view == nullptr || slot.mSlot < 0 || slot.mSlot >= BundleInventory::SIZE) {
+                continue;
+            }
+
+            appendResponseSlot(entry.mContainers, slot.mContainerName, slot.mSlot,
+                               view->mContents[(size_t) slot.mSlot]);
+            continue;
+        }
+
+        if (slot.mContainerName.mContainer == ContainerSlotType::LevelEntity) {
             if (openContainer == nullptr || slot.mSlot < 0
                 || (size_t) slot.mSlot >= context.mContainerSlots.size()) {
                 continue;
             }
 
-            appendResponseSlot(entry.mContainers, slot.mContainer, slot.mSlot,
+            appendResponseSlot(entry.mContainers, slot.mContainerName, slot.mSlot,
                                context.mContainerSlots[(size_t) slot.mSlot]);
             continue;
         }
 
-        const ItemStack *item = inventory.resolveSlot(slot.mContainer, slot.mSlot);
+        const ItemStack *item = inventory.resolveSlot(slot.mContainerName.mContainer, slot.mSlot);
         if (item == nullptr) {
             continue;
         }
 
-        appendResponseSlot(entry.mContainers, slot.mContainer, slot.mSlot, *item);
+        appendResponseSlot(entry.mContainers, slot.mContainerName, slot.mSlot, *item);
     }
 
     return entry;

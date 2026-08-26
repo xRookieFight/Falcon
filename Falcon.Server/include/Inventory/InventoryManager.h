@@ -35,6 +35,7 @@ public:
     static const int CONTAINER_ID_OFFHAND = 119;
     static const int CONTAINER_ID_ARMOR = 120;
     static const int CONTAINER_ID_UI = 124;
+    static constexpr int CONTAINER_ID_REGISTRY = 125;
 
     static const int UI_SLOT_CURSOR = 0;
 
@@ -47,6 +48,10 @@ public:
     void syncContents(InventoryId inventory);
 
     void syncSlot(InventoryId inventory, int slot);
+
+    void syncBundle(const ItemStack &bundle, int32_t bundleId, const std::vector<ItemStack> &contents);
+
+    void syncBundles();
 
     void syncSelectedHotbarSlot();
 

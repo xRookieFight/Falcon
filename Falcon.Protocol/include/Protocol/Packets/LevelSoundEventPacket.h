@@ -50,6 +50,12 @@ namespace LevelSoundEvent {
     inline constexpr const char *LARGE_BLAST = "large.blast";
     inline constexpr const char *THUNDER = "ambient.weather.thunder";
     inline constexpr const char *EXPLODE = "random.explode";
+    inline constexpr const char *BUNDLE_INSERT = "bundle.insert";
+    inline constexpr const char *BUNDLE_INSERT_FAIL = "bundle.insert_fail";
+    inline constexpr const char *BUNDLE_REMOVE_ONE = "bundle.remove_one";
+    inline constexpr const char *BUNDLE_DROP_CONTENTS = "bundle.drop_contents";
+    inline constexpr const char *FIRE_IGNITE = "fire.ignite";
+    inline constexpr const char *GHAST_FIREBALL = "mob.ghast.fireball";
     inline constexpr const char *POWER_ON = "power.on";
     inline constexpr const char *POWER_OFF = "power.off";
 }

@@ -2,12 +2,21 @@
 
 #include "Inventory/PlayerInventory.h"
 #include "Inventory/CraftingManager.h"
+#include "Protocol/PacketCodecContext.h"
 #include "Protocol/Packets/CreativeContentPacket.h"
 #include "Protocol/Packets/ItemStackResponsePacket.h"
 #include "Protocol/Types/ItemStackRequest.h"
 
 #include <cstdint>
 #include <vector>
+
+class BundleSyncData {
+public:
+    int32_t mBundleId = 0;
+    ContainerSlotType mOwnerContainer = ContainerSlotType::Unknown;
+    int mOwnerSlot = 0;
+    std::vector<ItemStack> mContents;
+};
 
 class ItemStackRequestHandler {
 public:
@@ -21,5 +30,7 @@ public:
                                           bool craftingTableOpen,
                                           bool furnaceOpen,
                                           Container *openContainer = nullptr,
-                                          std::vector<ItemStack> *outDroppedItems = nullptr);
+                                          std::vector<ItemStack> *outDroppedItems = nullptr,
+                                          const PacketCodecContext *codecContext = nullptr,
+                                          std::vector<BundleSyncData> *outBundles = nullptr);
 };

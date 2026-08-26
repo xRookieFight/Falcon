@@ -7,6 +7,7 @@
 #include "Inventory/CraftingManager.h"
 #include "Block/Inventory/CraftingTableInventory.h"
 #include "Block/Inventory/FurnaceInventory.h"
+#include "Inventory/BundleInventory.h"
 #include "Inventory/ItemStackRequestHandler.h"
 #include "Inventory/PlayerInventory.h"
 #include "Network/Handler/BadPacketHandler.h"
@@ -18,6 +19,7 @@
 #include "Protocol/Packets/InventoryTransactionPacket.h"
 #include "Protocol/Packets/ItemStackRequestPacket.h"
 #include "Protocol/Packets/ItemStackResponsePacket.h"
+#include "Protocol/Packets/LevelSoundEventPacket.h"
 #include "Protocol/Packets/MobArmorEquipmentPacket.h"
 #include "Protocol/Packets/MobEquipmentPacket.h"
 #include "Protocol/Packets/PlayerHotbarPacket.h"
@@ -27,7 +29,39 @@
 
 #include <utility>
 
+namespace {
+    void playBundleSounds(ServerNetworkHandler &owner, ServerPlayer &player, const ItemStackRequest &request,
+                          bool succeeded) {
+        bool inserted = false;
+        bool removed = false;
+
+        for (const ItemStackRequestAction &action: request.mActions) {
+            if (action.mDestination.mContainerName.mContainer == ContainerSlotType::DynamicContainer)
+                inserted = true;
+            if (action.mSource.mContainerName.mContainer == ContainerSlotType::DynamicContainer)
+                removed = true;
+        }
+
+        if (!inserted && !removed)
+            return;
+
+        if (!succeeded) {
+            if (inserted)
+                owner.playLevelSound(LevelSoundEvent::BUNDLE_INSERT_FAIL, player.getPosition(), "minecraft:player");
+            return;
+        }
+
+        if (inserted)
+            owner.playLevelSound(LevelSoundEvent::BUNDLE_INSERT, player.getPosition(), "minecraft:player");
+        else
+            owner.playLevelSound(LevelSoundEvent::BUNDLE_REMOVE_ONE, player.getPosition(), "minecraft:player");
+    }
+}
+
 void InventoryHandler::sendInventory(ServerNetworkHandler &owner, ServerPlayer &player) {
+    std::vector<int> preparedSlots;
+    BundleInventory::prepareBundleIds(player.getInventory(), preparedSlots);
+
     player.getInventoryManager().syncAll();
     if (player.getInventoryManager().isCraftingTableOpen()) {
         player.getInventoryManager().syncCraftingTableState(owner.getRecipeOutputs(), owner.getRecipeSourceIndices());
@@ -154,6 +188,20 @@ void InventoryHandler::handleItemStackRequest(ServerNetworkHandler &owner, const
     bool needsResync = false;
 
     std::vector<ItemStack> droppedItems;
+    std::vector<BundleSyncData> bundles;
+
+    std::vector<int> preparedSlots;
+    bool preparedBundles = BundleInventory::prepareBundleIds(inventory, preparedSlots);
+
+    Container *openContainer = player.getInventoryManager().getContainer();
+    if (openContainer != nullptr && BundleInventory::prepareBundleIds(*openContainer))
+        preparedBundles = true;
+
+    if (preparedBundles) {
+        for (int slot: preparedSlots)
+            player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, slot);
+        player.getInventoryManager().syncBundles();
+    }
 
     for (const ItemStackRequest &request: packet.mRequests) {
         ItemStackResponseEntry entry = ItemStackRequestHandler::execute(inventory, request, owner.getCreativeItems(),
@@ -162,11 +210,32 @@ void InventoryHandler::handleItemStackRequest(ServerNetworkHandler &owner, const
                                                                        player.getInventoryManager().isCraftingTableOpen(),
                                                                        player.getInventoryManager().isFurnaceOpen(),
                                                                        player.getInventoryManager().getContainer(),
-                                                                       &droppedItems);
-        if (entry.mResult != ItemStackRequestHandler::RESULT_OK)
+                                                                       &droppedItems,
+                                                                       &owner.getCodecContext(),
+                                                                       &bundles);
+        if (entry.mResult != ItemStackRequestHandler::RESULT_OK) {
             needsResync = true;
+            playBundleSounds(owner, player, request, false);
+        } else {
+            playBundleSounds(owner, player, request, true);
+        }
 
         response.mEntries.push_back(std::move(entry));
+    }
+
+    for (const BundleSyncData &bundle: bundles) {
+        const ItemStack *owned = inventory.resolveSlot(bundle.mOwnerContainer, bundle.mOwnerSlot);
+        if (owned == nullptr)
+            continue;
+
+        player.getInventoryManager().syncBundle(*owned, bundle.mBundleId, bundle.mContents);
+
+        if (bundle.mOwnerContainer == ContainerSlotType::Inventory)
+            player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, bundle.mOwnerSlot);
+        else if (bundle.mOwnerContainer == ContainerSlotType::Cursor)
+            player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Cursor, 0);
+        else if (bundle.mOwnerContainer == ContainerSlotType::Offhand)
+            player.getInventoryManager().syncSlot(InventoryManager::InventoryId::Offhand, 0);
     }
 
     for (const ItemStack &dropped: droppedItems)
