@@ -5,6 +5,7 @@
 #include "Core/Debug/BedrockLog.h"
 #include "Core/Debug/ContentLogEndPoint.h"
 #include "Core/Debug/FileLogEndPoint.h"
+#include "Level/Generator/Biome/BiomeChunkGenDataRegistry.h"
 #include "Network/Handler/ServerNetworkHandler.h"
 #include "Network/TransportFactory.h"
 #include "Server/PropertiesSettings.h"
@@ -146,6 +147,8 @@ static void logTelemetryNotice() {
 
 void startServer(const ServerSettings &settings) {
     setupServerLogging();
+
+    BiomeChunkGenDataRegistry::initialize();
 
     PropertiesSettings properties(PROPERTIES_FILE);
     logStartupBanner(properties);

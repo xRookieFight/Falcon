@@ -262,9 +262,6 @@ bool ResourcePackManager::_loadPackBytes(std::string data, const std::string &la
     if (!contentKey.empty())
         LOG_INFO(LogAreaID::Server, "Resource pack %s is encrypted (loaded content key)", pack.mName.c_str());
 
-    LOG_INFO(LogAreaID::Server, "Loaded resource pack %s v%s (%llu bytes)", pack.mName.c_str(), version.c_str(),
-             (unsigned long long) pack.mSize);
-
     mPacks.push_back(std::move(pack));
     return true;
 }
@@ -436,7 +433,6 @@ size_t ResourcePackManager::pruneUnsatisfied(const std::vector<std::string> &ava
             continue;
         }
 
-        LOG_WARN(LogAreaID::Server, "Skipping resource pack %s: missing dependency pack", mPacks[i].mName.c_str());
         mPacks.erase(mPacks.begin() + (long) i);
         removed++;
     }

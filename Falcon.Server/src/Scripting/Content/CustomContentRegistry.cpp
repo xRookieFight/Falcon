@@ -156,10 +156,6 @@ void CustomContentRegistry::load(const BehaviorPackManager &packs, ItemDefinitio
         _loadPackRecipes(pack.mPath);
     }
 
-    if (!mItems.empty() || !mBlocks.empty() || !mActors.empty() || !mRecipes.empty())
-        LOG_INFO(LogAreaID::Server,
-                 "Registered %zu custom item(s), %zu custom block(s), %zu custom actor(s), %zu recipe(s)",
-                 mItems.size(), mBlocks.size(), mActors.size(), mRecipes.size());
 }
 
 namespace {

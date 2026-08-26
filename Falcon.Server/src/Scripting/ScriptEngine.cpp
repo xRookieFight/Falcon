@@ -165,8 +165,6 @@ ScriptEngine::ScriptEngine()
     }
 
     _installConsole();
-
-    LOG_INFO(LogAreaID::Server, "Script engine ready (QuickJS)");
 }
 
 ScriptEngine::~ScriptEngine() {

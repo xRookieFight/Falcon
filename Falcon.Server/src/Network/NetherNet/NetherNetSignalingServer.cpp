@@ -123,13 +123,8 @@ namespace nethernet {
     }
 
     bool SignalingServer::_createSslContext() {
-        if (mCertificatePath.empty() || mPrivateKeyPath.empty()) {
-            LOG_WARN(LogAreaID::Network,
-                     "NetherNet signaling has no TLS certificate configured, serving plaintext HTTP; Bedrock "
-                     "clients probe https:// first and will waste a failed round trip before falling back "
-                     "(set nethernet-tls-certificate and nethernet-tls-private-key in server.properties)");
+        if (mCertificatePath.empty() || mPrivateKeyPath.empty())
             return false;
-        }
 
         SSL_CTX *context = SSL_CTX_new(TLS_server_method());
         if (context == nullptr) {

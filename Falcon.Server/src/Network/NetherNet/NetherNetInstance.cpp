@@ -75,9 +75,6 @@ bool NetherNetInstance::host(const ConnectionDefinition &definition) {
         return false;
     }
 
-    LOG_WARN(LogAreaID::Network, "NetherNet is using a freshly generated identity key, clients may show a "
-                                 "trust-on-first-use prompt on their first join");
-
     const nethernet::SignalingServer::OfferHandler handler =
             [this](const std::string &networkID, const std::string &offer, std::string &answer, int &errorCode) {
                 return _negotiate(networkID, offer, answer, errorCode);
@@ -85,9 +82,6 @@ bool NetherNetInstance::host(const ConnectionDefinition &definition) {
 
     if (!mSignaling.start(definition.mIPv4Address, definition.mPort, handler))
         return false;
-
-    LOG_INFO(LogAreaID::Network, "NetherNet signaling endpoint listening on %s://%s:%u (POST /v1/join/{networkId})",
-             mSignaling.isSecure() ? "https" : "http", definition.mIPv4Address.c_str(), (unsigned) definition.mPort);
 
     mIsHosting = true;
     return true;
