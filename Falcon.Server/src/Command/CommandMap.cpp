@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <sstream>
 
 namespace {
     std::string toLowerCase(const std::string &value) {
@@ -31,10 +30,43 @@ Command *CommandMap::getCommand(const std::string &name) const {
 
 std::vector<std::string> CommandMap::_tokenize(const std::string &commandLine) {
     std::vector<std::string> tokens;
-    std::istringstream stream(commandLine);
     std::string token;
+    bool quoted = false;
+    bool escaped = false;
+    bool started = false;
 
-    while (stream >> token)
+    for (char character: commandLine) {
+        if (escaped) {
+            token.push_back(character);
+            escaped = false;
+            continue;
+        }
+
+        if (quoted && character == '\\') {
+            escaped = true;
+            continue;
+        }
+
+        if (character == '"') {
+            quoted = !quoted;
+            started = true;
+            continue;
+        }
+
+        if (!quoted && std::isspace((unsigned char) character)) {
+            if (started) {
+                tokens.push_back(token);
+                token.clear();
+                started = false;
+            }
+            continue;
+        }
+
+        token.push_back(character);
+        started = true;
+    }
+
+    if (started)
         tokens.push_back(token);
 
     return tokens;
