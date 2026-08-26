@@ -89,18 +89,67 @@ int LevelChunk::getNetworkSubChunkCount() const {
     return 0;
 }
 
+void LevelChunk::setBiome(uint32_t biomeId) {
+    mBiomeId = biomeId;
+
+    for (int32_t y = MIN_Y; y <= MAX_Y; y += 16) {
+        SubChunk &subChunk = mSubChunks[subChunkIndexFor(y)];
+        for (int x = 0; x < 16; x++) {
+            for (int z = 0; z < 16; z++) {
+                for (int localY = 0; localY < 16; localY++)
+                    subChunk.setBiome(x, localY, z, biomeId);
+            }
+        }
+    }
+}
+
+void LevelChunk::setBiomeAt(int x, int32_t y, int z, uint32_t biomeId) {
+    if (y < MIN_Y || y > MAX_Y)
+        return;
+
+    mSubChunks[subChunkIndexFor(y)].setBiome(x, y & 15, z, biomeId);
+}
+
+uint32_t LevelChunk::getBiomeAt(int x, int32_t y, int z) const {
+    if (y < MIN_Y || y > MAX_Y)
+        return mBiomeId;
+
+    return mSubChunks[subChunkIndexFor(y)].getBiome(x, y & 15, z);
+}
+
+void LevelChunk::setColumnBiome(int x, int z, uint32_t biomeId) {
+    for (int32_t y = MIN_Y; y <= MAX_Y; y++)
+        setBiomeAt(x, y, z, biomeId);
+}
+
+uint32_t LevelChunk::getColumnBiome(int x, int z) const {
+    return getBiomeAt(x, 63, z);
+}
+
 std::string LevelChunk::encodeBiomes(int sectionCount) const {
     BinaryStream stream;
 
-    for (int i = 0; i < sectionCount; i++) {
-        stream.putByte((unsigned char) ((1 << 1) | 1));
+    for (int i = 0; i < sectionCount; i++)
+        mSubChunks[i].writeBiomes(stream, false);
 
-        for (int word = 0; word < 128; word++)
-            stream.putLInt(0);
+    return stream.getBuffer();
+}
 
-        stream.putVarInt(1);
-        stream.putVarInt((int32_t) mBiomeId);
+bool LevelChunk::readBiomesPersistent(ReadOnlyBinaryStream &stream, int sectionCount) {
+    for (int i = 0; i < sectionCount && i < SUB_CHUNK_COUNT; i++) {
+        if (!mSubChunks[i].readBiomes(stream))
+            return false;
     }
+
+    mBiomeId = getBiomeAt(0, 63, 0);
+    return true;
+}
+
+std::string LevelChunk::encodeBiomesPersistent(int sectionCount) const {
+    BinaryStream stream;
+
+    for (int i = 0; i < sectionCount; i++)
+        mSubChunks[i].writeBiomes(stream, true);
 
     return stream.getBuffer();
 }

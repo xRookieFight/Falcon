@@ -32,6 +32,8 @@ public:
 
     static void handleViewDistanceChange(ServerNetworkHandler &owner, ServerPlayer &player);
 
+    static void invalidateChunk(ServerPlayer &player, int64_t hash);
+
     static int64_t packChunk(int32_t chunkX, int32_t chunkZ);
 
     static int32_t unpackChunkX(int64_t hash);

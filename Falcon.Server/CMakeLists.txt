@@ -6,8 +6,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(FALCON_RECIPES_JSON "${CMAKE_CURRENT_SOURCE_DIR}/resources/recipes.json")
 set(FALCON_ITEM_TAGS_JSON "${CMAKE_CURRENT_SOURCE_DIR}/resources/item_tags.json")
+set(FALCON_BIOME_DEFINITIONS_NBT "${CMAKE_CURRENT_SOURCE_DIR}/resources/biome_definitions.nbt")
 if(NOT EXISTS "${FALCON_RECIPES_JSON}" OR NOT EXISTS "${FALCON_ITEM_TAGS_JSON}")
     message(FATAL_ERROR "Falcon crafting data files are missing")
+endif()
+if(NOT EXISTS "${FALCON_BIOME_DEFINITIONS_NBT}")
+    message(FATAL_ERROR "Falcon biome definitions file is missing")
 endif()
 
 file(READ "${FALCON_RECIPES_JSON}" FALCON_RECIPES_JSON_CONTENT)
@@ -15,6 +19,12 @@ file(READ "${FALCON_ITEM_TAGS_JSON}" FALCON_ITEM_TAGS_JSON_CONTENT)
 set(FALCON_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${FALCON_GENERATED_DIR}")
 configure_file(cmake/CraftingRecipeJson.h.in "${FALCON_GENERATED_DIR}/CraftingRecipeJson.h" @ONLY)
+
+file(READ "${FALCON_BIOME_DEFINITIONS_NBT}" FALCON_BIOME_DEFINITIONS_HEX HEX)
+string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," FALCON_BIOME_DEFINITIONS_BYTES "${FALCON_BIOME_DEFINITIONS_HEX}")
+string(REGEX REPLACE "(0x..,0x..,0x..,0x..,0x..,0x..,0x..,0x..,0x..,0x..,0x..,0x..,)" "\\1\n"
+        FALCON_BIOME_DEFINITIONS_BYTES "${FALCON_BIOME_DEFINITIONS_BYTES}")
+configure_file(cmake/BiomeDefinitionsNbt.h.in "${FALCON_GENERATED_DIR}/BiomeDefinitionsNbt.h" @ONLY)
 
 set(FALCON_BUILD_VERSION "1.26.40.01")
 set(FALCON_BUILD_ID "0")
@@ -39,7 +49,7 @@ else()
 endif()
 configure_file(cmake/BuildInfo.h.in "${FALCON_GENERATED_DIR}/BuildInfo.h" @ONLY)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-        "${FALCON_RECIPES_JSON}" "${FALCON_ITEM_TAGS_JSON}")
+        "${FALCON_RECIPES_JSON}" "${FALCON_ITEM_TAGS_JSON}" "${FALCON_BIOME_DEFINITIONS_NBT}")
 
 file(GLOB_RECURSE FALCON_SERVER_SOURCES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")

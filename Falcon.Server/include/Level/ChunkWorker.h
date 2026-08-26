@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Concurrency/TaskQueue.h"
+#include "Level/GeneratedBlockChange.h"
 #include "Level/LevelChunk.h"
 
 #include <atomic>
@@ -10,13 +11,15 @@
 #include <thread>
 #include <vector>
 
-class FlatChunkGenerator;
+class OverworldGenerator;
 class LevelStorage;
+class GeneratorChunkSource;
 
 struct ChunkTask {
     enum class Kind : int {
         Load = 0,
-        Save = 1
+        Save = 1,
+        Populate = 2
     };
 
     Kind mKind = Kind::Load;
@@ -39,13 +42,15 @@ struct ChunkLoadResult {
     std::string mNetworkData;
     int mNetworkSubChunkCount = 0;
     std::vector<ChunkFluidCell> mFluidCells;
+    std::vector<GeneratedBlockChange> mOverflowChanges;
+    bool mReplacesResident = false;
 };
 
 class ChunkWorker {
 public:
-    static constexpr size_t MAX_THREADS = 8;
+    static constexpr size_t MAX_THREADS = 64;
 
-    ChunkWorker(const FlatChunkGenerator &generator, LevelStorage &storage);
+    ChunkWorker(const OverworldGenerator &generator, LevelStorage &storage);
 
     ~ChunkWorker();
 
@@ -65,6 +70,8 @@ public:
 
     void requestSave(std::unique_ptr<LevelChunk> chunk);
 
+    void requestPopulate(std::unique_ptr<LevelChunk> chunk);
+
     std::vector<ChunkLoadResult> drainCompleted();
 
     size_t getPendingTaskCount() const;
@@ -75,18 +82,23 @@ public:
 
     uint64_t getSavedCount() const { return mSavedCount.load(); }
 
+    uint64_t getPopulatedCount() const { return mPopulatedCount.load(); }
+
 private:
     void _run(size_t queueIndex);
 
-    void _processLoad(ChunkTask &task);
+    void _processLoad(ChunkTask &task, size_t sourceIndex);
 
     void _processSave(ChunkTask &task);
 
+    void _finishChunk(std::unique_ptr<LevelChunk> chunk, size_t sourceIndex, bool replacesResident);
+
     size_t _queueIndexFor(int32_t chunkX, int32_t chunkZ) const;
 
-    const FlatChunkGenerator &mGenerator;
+    const OverworldGenerator &mGenerator;
     LevelStorage &mStorage;
 
+    std::vector<std::unique_ptr<GeneratorChunkSource>> mSources;
     std::vector<std::unique_ptr<TaskQueue<ChunkTask>>> mQueues;
     TaskQueue<ChunkLoadResult> mCompleted;
 
@@ -95,4 +107,5 @@ private:
     std::atomic<uint64_t> mGeneratedCount;
     std::atomic<uint64_t> mLoadedCount;
     std::atomic<uint64_t> mSavedCount;
+    std::atomic<uint64_t> mPopulatedCount;
 };

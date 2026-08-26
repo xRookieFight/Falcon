@@ -9,11 +9,11 @@
 
 class LevelChunk {
 public:
-    static const int SUB_CHUNK_COUNT = 24;
-    static const int LOWEST_SUB_CHUNK_Y = -4;
-    static const int MIN_Y = LOWEST_SUB_CHUNK_Y * 16;
-    static const int MAX_Y = MIN_Y + SUB_CHUNK_COUNT * 16 - 1;
-    static const uint8_t STORAGE_VERSION = 40;
+    static constexpr int SUB_CHUNK_COUNT = 24;
+    static constexpr int LOWEST_SUB_CHUNK_Y = -4;
+    static constexpr int MIN_Y = LOWEST_SUB_CHUNK_Y * 16;
+    static constexpr int MAX_Y = MIN_Y + SUB_CHUNK_COUNT * 16 - 1;
+    static constexpr uint8_t STORAGE_VERSION = 40;
 
     LevelChunk(int32_t x, int32_t z);
 
@@ -27,19 +27,35 @@ public:
 
     void markDirty() { mDirty = true; }
 
+    bool isPopulated() const { return mPopulated; }
+
+    void setPopulated(bool populated) { mPopulated = populated; }
+
     const BlockState &getBlock(int x, int32_t y, int z) const;
 
     void setBlock(int x, int32_t y, int z, const BlockState &state);
 
     void forEachBlock(const std::function<void(int32_t, int32_t, int32_t, const BlockState &)> &callback) const;
 
-    void setBiome(uint32_t biomeId) { mBiomeId = biomeId; }
+    void setBiome(uint32_t biomeId);
 
     uint32_t getBiome() const { return mBiomeId; }
+
+    void setBiomeAt(int x, int32_t y, int z, uint32_t biomeId);
+
+    uint32_t getBiomeAt(int x, int32_t y, int z) const;
+
+    void setColumnBiome(int x, int z, uint32_t biomeId);
+
+    uint32_t getColumnBiome(int x, int z) const;
 
     std::string encodeNetwork() const;
 
     std::string encodeBiomes(int sectionCount) const;
+
+    std::string encodeBiomesPersistent(int sectionCount) const;
+
+    bool readBiomesPersistent(ReadOnlyBinaryStream &stream, int sectionCount);
 
     int getNetworkSubChunkCount() const;
 
@@ -75,6 +91,7 @@ private:
     int32_t mZ;
     uint32_t mBiomeId;
     bool mDirty;
+    bool mPopulated = false;
     std::vector<SubChunk> mSubChunks;
     std::vector<int16_t> mHeightmap;
     std::vector<uint8_t> mSkyLight;

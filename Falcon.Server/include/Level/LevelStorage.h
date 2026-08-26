@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Level/GeneratedBlockChange.h"
 #include "Level/LevelChunk.h"
 #include "Core/NBT/Tag.h"
 
@@ -46,6 +47,12 @@ public:
 
     bool loadChunk(LevelChunk &chunk);
 
+    bool mergePendingBlockChanges(int32_t chunkX, int32_t chunkZ, const std::vector<GeneratedBlockChange> &changes);
+
+    std::vector<GeneratedBlockChange> loadPendingBlockChanges(int32_t chunkX, int32_t chunkZ);
+
+    bool erasePendingBlockChanges(int32_t chunkX, int32_t chunkZ);
+
     bool saveEntities(int32_t chunkX, int32_t chunkZ, const std::vector<Tag> &entities);
 
     std::vector<Tag> loadEntities(int32_t chunkX, int32_t chunkZ);
@@ -58,6 +65,10 @@ public:
 
     bool loadWeather(bool &raining, int32_t &rainTime, bool &thundering, int32_t &thunderTime);
 
+    bool saveGameRules(const Tag &rules);
+
+    bool loadGameRules(Tag &rules);
+
     void writeLevelDat(const std::string &levelName, int32_t spawnX, int32_t spawnY, int32_t spawnZ,
                        int32_t gameType, int32_t difficulty, int64_t seed) const;
 
@@ -65,6 +76,8 @@ private:
     std::string _makeKey(int32_t chunkX, int32_t chunkZ, LevelDbTag tag) const;
 
     std::string _makeSubChunkKey(int32_t chunkX, int32_t chunkZ, int8_t subY) const;
+
+    std::string _makePendingChangesKey(int32_t chunkX, int32_t chunkZ) const;
 
     static void _appendLInt(std::string &out, int32_t value);
 

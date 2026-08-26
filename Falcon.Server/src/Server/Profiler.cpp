@@ -35,7 +35,9 @@ namespace {
             "Network pump io",
             "Network connection",
             "Network decode",
-            "Network handle packet"
+            "Network handle packet",
+            "Fire",
+            "LevelChunk population"
     };
 
     const char *SECTION_COLORS[(int) ProfilerSection::Count] = {
@@ -59,7 +61,9 @@ namespace {
             "#1f6feb",
             "#79b8ff",
             "#b392f0",
-            "#f97583"
+            "#f97583",
+            "#ff7043",
+            "#00c2a8"
     };
 
     bool createDirectory(const std::string &path) {

@@ -22,6 +22,14 @@ public:
 
     bool isEmpty() const;
 
+    uint32_t getBiome(int x, int y, int z) const;
+
+    void setBiome(int x, int y, int z, uint32_t biomeId);
+
+    void writeBiomes(BinaryStream &stream, bool persistent) const;
+
+    bool readBiomes(ReadOnlyBinaryStream &stream);
+
     void writeNetwork(BinaryStream &stream) const;
 
     void writePersistent(BinaryStream &stream) const;
@@ -39,7 +47,11 @@ private:
 
     uint16_t _paletteIndexFor(const BlockState &state);
 
+    uint16_t _biomePaletteIndexFor(uint32_t biomeId);
+
     int8_t mY;
     std::vector<BlockState> mPalette;
     std::vector<uint16_t> mBlocks;
+    std::vector<uint32_t> mBiomePalette;
+    std::vector<uint16_t> mBiomes;
 };

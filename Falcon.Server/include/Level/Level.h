@@ -3,9 +3,11 @@
 #include "Block/Systems/LiquidPhysicsSystem.h"
 #include "Core/Math/Vector3f.h"
 #include "Core/Math/Vector3i.h"
+#include "Level/GeneratedBlockChange.h"
 #include "Level/LevelChunk.h"
 #include "Level/ChunkWorker.h"
-#include "Level/FlatChunkGenerator.h"
+#include "Level/Generator/OverworldGenerator.h"
+#include "Level/GameRules.h"
 #include "Level/LevelStorage.h"
 
 #include <cstdint>
@@ -23,7 +25,7 @@ public:
         int32_t mZ;
     };
 
-    Level(const std::string &name, int viewDistance);
+    Level(const std::string &name, int viewDistance, int64_t seed = 0);
 
     Level &operator=(Level &&other) noexcept;
 
@@ -63,6 +65,14 @@ public:
 
     void saveWeather();
 
+    GameRules &getGameRules() { return mGameRules; }
+
+    const GameRules &getGameRules() const { return mGameRules; }
+
+    void initializeGameRules();
+
+    void saveGameRules();
+
     bool canRainAt(int32_t x, int32_t z);
 
     bool openStorage(const std::string &worldsDirectory);
@@ -91,7 +101,17 @@ public:
 
     bool isChunkResident(int32_t chunkX, int32_t chunkZ) const;
 
+    bool isChunkPopulated(int32_t chunkX, int32_t chunkZ) const;
+
     LevelChunk *peekChunkPtr(int32_t chunkX, int32_t chunkZ);
+
+    LevelChunk &generateTerrainChunk(int32_t chunkX, int32_t chunkZ);
+
+    LevelChunk &insertChunk(LevelChunk chunk);
+
+    LevelChunk extractChunk(int32_t chunkX, int32_t chunkZ);
+
+    void dropChunk(int32_t chunkX, int32_t chunkZ);
 
     int getSkyLightAt(int32_t x, int32_t y, int32_t z);
 
@@ -155,16 +175,39 @@ public:
 
     std::vector<FluidChange> consumeFluidChanges();
 
-    int32_t getAirHash() const { return mGenerator.getAirHash(); }
+    int32_t getAirHash() const { return mGenerator->getAirHash(); }
+
+    int64_t getSeed() const { return mSeed; }
+
+    int32_t pickBiome(int32_t x, int32_t y, int32_t z) const { return mGenerator->pickBiome(x, y, z); }
+
+    OverworldBiomeResult pickBiomeResult(int32_t x, int32_t y, int32_t z) const {
+        return mGenerator->pickBiomeResult(x, y, z);
+    }
+
+    size_t processGeneratedChanges();
+
+    std::vector<int64_t> consumeRepopulatedChunks();
+
+    size_t getPendingChangeChunkCount() const { return mPendingBlockChanges.size(); }
 
 private:
     static int64_t _packChunk(int32_t x, int32_t z);
 
     void _generate(LevelChunk &chunk);
 
+    void _applyGeneratedChanges(const std::vector<GeneratedBlockChange> &changes);
+
+    void _queueGeneratedChanges(std::vector<GeneratedBlockChange> changes);
+
+    void _replayPendingChanges(int64_t key);
+
+    void _flushPendingBlockChanges(bool includeInFlight);
+
     std::string mName;
     int mViewDistance;
-    FlatChunkGenerator mGenerator;
+    int64_t mSeed;
+    std::unique_ptr<OverworldGenerator> mGenerator;
     LevelStorage mStorage;
     LiquidPhysicsSystem mLiquidPhysics;
     std::unordered_map<int64_t, LevelChunk> mChunks;
@@ -174,6 +217,9 @@ private:
     std::unordered_set<int64_t> mPendingChunks;
     std::unordered_set<int64_t> mActiveColumns;
     std::deque<ChunkLoadResult> mCompletedChunks;
+    std::unordered_set<int64_t> mRepopulatedChunks;
+    std::vector<GeneratedBlockChange> mIncomingChanges;
+    std::unordered_map<int64_t, std::vector<GeneratedBlockChange>> mPendingBlockChanges;
     std::unique_ptr<ChunkWorker> mChunkWorker;
     int64_t mTime = 0;
     bool mRaining = false;
@@ -181,4 +227,5 @@ private:
     bool mThundering = false;
     int32_t mThunderTime = 0;
     int32_t mSkyLightSubtracted = 0;
+    GameRules mGameRules;
 };

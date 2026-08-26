@@ -28,7 +28,9 @@ enum class ProfilerSection : int {
     NetworkConnection = 18,
     NetworkDecode = 19,
     NetworkHandlePacket = 20,
-    Count = 21
+    Fire = 21,
+    ChunkPopulation = 22,
+    Count = 23
 };
 
 const char *getProfilerSectionName(ProfilerSection section);

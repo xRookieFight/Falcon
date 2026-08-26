@@ -1,15 +1,17 @@
 #include "Level/ChunkWorker.h"
 
 #include "Block/Blocks/LiquidBlock.h"
-#include "Level/FlatChunkGenerator.h"
+#include "Level/Generator/GeneratorChunkSource.h"
+#include "Level/Generator/OverworldGenerator.h"
 #include "Level/LevelStorage.h"
+#include "Level/SkyLightSystem.h"
 
 #include <algorithm>
 #include <utility>
 
-ChunkWorker::ChunkWorker(const FlatChunkGenerator &generator, LevelStorage &storage)
+ChunkWorker::ChunkWorker(const OverworldGenerator &generator, LevelStorage &storage)
         : mGenerator(generator), mStorage(storage), mRunning(false), mGeneratedCount(0), mLoadedCount(0),
-          mSavedCount(0) {}
+          mSavedCount(0), mPopulatedCount(0) {}
 
 ChunkWorker::~ChunkWorker() {
     stop();
@@ -25,6 +27,11 @@ void ChunkWorker::start(size_t threadCount) {
     mQueues.reserve(count);
     for (size_t i = 0; i < count; ++i)
         mQueues.push_back(std::unique_ptr<TaskQueue<ChunkTask>>(new TaskQueue<ChunkTask>()));
+
+    mSources.clear();
+    mSources.reserve(count);
+    for (size_t i = 0; i < count; ++i)
+        mSources.push_back(std::unique_ptr<GeneratorChunkSource>(new GeneratorChunkSource(mGenerator.getSeed())));
 
     mRunning.store(true);
 
@@ -49,11 +56,12 @@ void ChunkWorker::stop() {
 
     mThreads.clear();
     mQueues.clear();
+    mSources.clear();
     mCompleted.close();
 }
 
 size_t ChunkWorker::_queueIndexFor(int32_t chunkX, int32_t chunkZ) const {
-    const uint64_t key = ((uint64_t) (uint32_t) chunkX << 32) | (uint32_t) chunkZ;
+    const uint64_t key = ((uint64_t) (uint32_t) (chunkX >> 1) << 32) | (uint32_t) (chunkZ >> 1);
     return (size_t) ((key * 1099511628211ull) >> 32) % mQueues.size();
 }
 
@@ -80,6 +88,18 @@ void ChunkWorker::requestSave(std::unique_ptr<LevelChunk> chunk) {
     mQueues[_queueIndexFor(task.mX, task.mZ)]->push(std::move(task));
 }
 
+void ChunkWorker::requestPopulate(std::unique_ptr<LevelChunk> chunk) {
+    if (chunk == nullptr || mQueues.empty())
+        return;
+
+    ChunkTask task;
+    task.mKind = ChunkTask::Kind::Populate;
+    task.mX = chunk->getX();
+    task.mZ = chunk->getZ();
+    task.mChunk = std::move(chunk);
+    mQueues[_queueIndexFor(task.mX, task.mZ)]->push(std::move(task));
+}
+
 std::vector<ChunkLoadResult> ChunkWorker::drainCompleted() {
     return mCompleted.drain();
 }
@@ -92,7 +112,7 @@ size_t ChunkWorker::getPendingTaskCount() const {
     return total;
 }
 
-void ChunkWorker::_processLoad(ChunkTask &task) {
+void ChunkWorker::_processLoad(ChunkTask &task, size_t sourceIndex) {
     std::unique_ptr<LevelChunk> chunk(new LevelChunk(task.mX, task.mZ));
 
     if (mStorage.isOpen() && mStorage.loadChunk(*chunk)) {
@@ -102,9 +122,40 @@ void ChunkWorker::_processLoad(ChunkTask &task) {
         mGeneratedCount.fetch_add(1);
     }
 
+    _finishChunk(std::move(chunk), sourceIndex, false);
+}
+
+void ChunkWorker::_finishChunk(std::unique_ptr<LevelChunk> chunk, size_t sourceIndex, bool replacesResident) {
     ChunkLoadResult result;
-    result.mX = task.mX;
-    result.mZ = task.mZ;
+    result.mX = chunk->getX();
+    result.mZ = chunk->getZ();
+    result.mReplacesResident = replacesResident;
+
+    if (!chunk->isPopulated() && sourceIndex < mSources.size()) {
+        if (!chunk->hasHeightmap())
+            SkyLightSystem::computeHeightmap(*chunk);
+
+        mSources[sourceIndex]->populate(*chunk, result.mOverflowChanges);
+        chunk->setPopulated(true);
+        chunk->markDirty();
+        mPopulatedCount.fetch_add(1);
+    }
+
+    if (mStorage.isOpen()) {
+        const std::vector<GeneratedBlockChange> stored = mStorage.loadPendingBlockChanges(result.mX, result.mZ);
+
+        if (!stored.empty()) {
+            for (const GeneratedBlockChange &change: stored) {
+                if (change.mY < LevelChunk::MIN_Y || change.mY > LevelChunk::MAX_Y)
+                    continue;
+
+                chunk->setBlock(change.mX & 15, change.mY, change.mZ & 15, change.mState);
+            }
+
+            mStorage.erasePendingBlockChanges(result.mX, result.mZ);
+        }
+    }
+
     result.mNetworkSubChunkCount = chunk->getNetworkSubChunkCount();
     result.mNetworkData = chunk->encodeNetwork();
 
@@ -140,7 +191,9 @@ void ChunkWorker::_run(size_t queueIndex) {
 
     while (queue.waitPop(task)) {
         if (task.mKind == ChunkTask::Kind::Load)
-            _processLoad(task);
+            _processLoad(task, queueIndex);
+        else if (task.mKind == ChunkTask::Kind::Populate)
+            _finishChunk(std::move(task.mChunk), queueIndex, true);
         else
             _processSave(task);
 

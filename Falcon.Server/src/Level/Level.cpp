@@ -1,6 +1,7 @@
 #include "Level/Level.h"
 
 #include "Level/BiomeRegistry.h"
+#include "Level/Generator/Biome/ClimateAttributes.h"
 #include "Level/SkyLightSystem.h"
 
 #include "Block/BlockData.h"
@@ -8,11 +9,13 @@
 #include "Core/Debug/BedrockLog.h"
 
 #include <algorithm>
+#include <iterator>
 #include <random>
 #include <utility>
 
-Level::Level(const std::string &name, int viewDistance)
-        : mName(name), mViewDistance(viewDistance), mLiquidPhysics(*this) {}
+Level::Level(const std::string &name, int viewDistance, int64_t seed)
+        : mName(name), mViewDistance(viewDistance), mSeed(seed),
+          mGenerator(new OverworldGenerator(seed)), mLiquidPhysics(*this) {}
 
 Level &Level::operator=(Level &&other) noexcept {
     if (this == &other)
@@ -29,6 +32,7 @@ Level &Level::operator=(Level &&other) noexcept {
     mName = std::move(other.mName);
     mViewDistance = other.mViewDistance;
     mTime = other.mTime;
+    mSeed = other.mSeed;
     mGenerator = std::move(other.mGenerator);
     mStorage = std::move(other.mStorage);
     mChunks = std::move(other.mChunks);
@@ -36,7 +40,11 @@ Level &Level::operator=(Level &&other) noexcept {
     mPendingChunks = std::move(other.mPendingChunks);
     mActiveColumns = std::move(other.mActiveColumns);
     mCompletedChunks = std::move(other.mCompletedChunks);
+    mRepopulatedChunks = std::move(other.mRepopulatedChunks);
+    mIncomingChanges = std::move(other.mIncomingChanges);
+    mPendingBlockChanges = std::move(other.mPendingBlockChanges);
     mLiquidPhysics.moveStateFrom(std::move(other.mLiquidPhysics));
+    mGameRules = std::move(other.mGameRules);
     return *this;
 }
 
@@ -45,7 +53,7 @@ bool Level::openStorage(const std::string &worldsDirectory) {
         return false;
 
     const Vector3i spawn = getSpawnPosition();
-    mStorage.writeLevelDat(mName, spawn.x, spawn.y, spawn.z, 0, 1, 0);
+    mStorage.writeLevelDat(mName, spawn.x, spawn.y, spawn.z, 0, 1, mSeed);
     return true;
 }
 
@@ -54,8 +62,11 @@ void Level::saveAll() {
         return;
 
     saveWeather();
+    saveGameRules();
 
     const bool async = mChunkWorker != nullptr && mChunkWorker->isRunning();
+
+    _flushPendingBlockChanges(!async);
 
     size_t saved = 0;
     for (auto &entry: mChunks) {
@@ -108,20 +119,19 @@ std::vector<Tag> Level::loadBlockEntities(int32_t chunkX, int32_t chunkZ) {
 }
 
 void Level::closeStorage() {
-    saveAll();
-
     if (mChunkWorker != nullptr)
         mChunkWorker->stop();
 
+    saveAll();
     mStorage.close();
 }
 
 Vector3i Level::getSpawnPosition() const {
-    return Vector3i(0, mGenerator.getSpawnY(), 0);
+    return Vector3i(0, mGenerator->getSpawnY(), 0);
 }
 
 Vector3f Level::getSpawnPositionForPlayer() const {
-    return Vector3f(0.0f, (float) mGenerator.getSpawnY(), 0.0f);
+    return Vector3f(0.0f, (float) mGenerator->getSpawnY(), 0.0f);
 }
 
 int64_t Level::_packChunk(int32_t x, int32_t z) {
@@ -129,7 +139,7 @@ int64_t Level::_packChunk(int32_t x, int32_t z) {
 }
 
 void Level::_generate(LevelChunk &chunk) {
-    mGenerator.generate(chunk);
+    mGenerator->generate(chunk);
 }
 
 LevelChunk &Level::getChunk(int32_t chunkX, int32_t chunkZ) {
@@ -148,11 +158,134 @@ LevelChunk &Level::getChunk(int32_t chunkX, int32_t chunkZ) {
 
     auto result = mChunks.emplace(key, std::move(chunk));
     mLiquidPhysics.onChunkLoaded(result.first->second);
+    _replayPendingChanges(key);
     return result.first->second;
+}
+
+LevelChunk &Level::generateTerrainChunk(int32_t chunkX, int32_t chunkZ) {
+    const int64_t key = _packChunk(chunkX, chunkZ);
+
+    auto it = mChunks.find(key);
+    if (it != mChunks.end())
+        return it->second;
+
+    LevelChunk chunk(chunkX, chunkZ);
+    _generate(chunk);
+
+    return mChunks.emplace(key, std::move(chunk)).first->second;
+}
+
+LevelChunk &Level::insertChunk(LevelChunk chunk) {
+    const int64_t key = _packChunk(chunk.getX(), chunk.getZ());
+    return mChunks.emplace(key, std::move(chunk)).first->second;
+}
+
+LevelChunk Level::extractChunk(int32_t chunkX, int32_t chunkZ) {
+    const int64_t key = _packChunk(chunkX, chunkZ);
+
+    auto it = mChunks.find(key);
+    if (it == mChunks.end())
+        return LevelChunk(chunkX, chunkZ);
+
+    LevelChunk chunk = std::move(it->second);
+    mChunks.erase(it);
+    return chunk;
+}
+
+void Level::dropChunk(int32_t chunkX, int32_t chunkZ) {
+    mChunks.erase(_packChunk(chunkX, chunkZ));
+}
+
+void Level::_queueGeneratedChanges(std::vector<GeneratedBlockChange> changes) {
+    if (changes.empty())
+        return;
+
+    if (mIncomingChanges.empty()) {
+        mIncomingChanges = std::move(changes);
+        return;
+    }
+
+    mIncomingChanges.insert(mIncomingChanges.end(), std::make_move_iterator(changes.begin()),
+                            std::make_move_iterator(changes.end()));
+}
+
+void Level::_replayPendingChanges(int64_t key) {
+    auto pending = mPendingBlockChanges.find(key);
+    if (pending == mPendingBlockChanges.end())
+        return;
+
+    std::vector<GeneratedBlockChange> changes = std::move(pending->second);
+    mPendingBlockChanges.erase(pending);
+    _queueGeneratedChanges(std::move(changes));
+}
+
+void Level::_applyGeneratedChanges(const std::vector<GeneratedBlockChange> &changes) {
+    for (const GeneratedBlockChange &change: changes) {
+        if (change.mY < LevelChunk::MIN_Y || change.mY > LevelChunk::MAX_Y)
+            continue;
+
+        const int32_t chunkX = change.mX >> 4;
+        const int32_t chunkZ = change.mZ >> 4;
+        const int64_t key = _packChunk(chunkX, chunkZ);
+
+        LevelChunk *chunk = peekChunkPtr(chunkX, chunkZ);
+        if (chunk == nullptr || mPendingChunks.find(key) != mPendingChunks.end()) {
+            mPendingBlockChanges[key].push_back(change);
+            continue;
+        }
+
+        const int32_t localX = change.mX & 15;
+        const int32_t localZ = change.mZ & 15;
+
+        if (chunk->getBlock(localX, change.mY, localZ) == change.mState)
+            continue;
+
+        chunk->setBlock(localX, change.mY, localZ, change.mState);
+        chunk->clearSkyLightOnly();
+        mChunkNetworkCache.erase(key);
+        mRepopulatedChunks.insert(key);
+    }
+}
+
+size_t Level::processGeneratedChanges() {
+    if (mIncomingChanges.empty())
+        return 0;
+
+    std::vector<GeneratedBlockChange> batch;
+    batch.swap(mIncomingChanges);
+    _applyGeneratedChanges(batch);
+    return batch.size();
+}
+
+void Level::_flushPendingBlockChanges(bool includeInFlight) {
+    if (!mStorage.isOpen())
+        return;
+
+    for (auto it = mPendingBlockChanges.begin(); it != mPendingBlockChanges.end();) {
+        if (!includeInFlight && mPendingChunks.find(it->first) != mPendingChunks.end()) {
+            ++it;
+            continue;
+        }
+
+        mStorage.mergePendingBlockChanges((int32_t) (it->first >> 32), (int32_t) (it->first & 0xffffffff),
+                                          it->second);
+        it = mPendingBlockChanges.erase(it);
+    }
+}
+
+std::vector<int64_t> Level::consumeRepopulatedChunks() {
+    std::vector<int64_t> chunks(mRepopulatedChunks.begin(), mRepopulatedChunks.end());
+    mRepopulatedChunks.clear();
+    return chunks;
 }
 
 bool Level::isChunkResident(int32_t chunkX, int32_t chunkZ) const {
     return mChunks.find(_packChunk(chunkX, chunkZ)) != mChunks.end();
+}
+
+bool Level::isChunkPopulated(int32_t chunkX, int32_t chunkZ) const {
+    const auto it = mChunks.find(_packChunk(chunkX, chunkZ));
+    return it != mChunks.end() && it->second.isPopulated();
 }
 
 LevelChunk *Level::peekChunkPtr(int32_t chunkX, int32_t chunkZ) {
@@ -209,7 +342,7 @@ void Level::setActiveColumns(std::vector<int64_t> columns) {
 
 void Level::startWorkers(size_t threadCount) {
     if (mChunkWorker == nullptr)
-        mChunkWorker.reset(new ChunkWorker(mGenerator, mStorage));
+        mChunkWorker.reset(new ChunkWorker(*mGenerator, mStorage));
 
     mChunkWorker->start(threadCount);
 }
@@ -217,7 +350,9 @@ void Level::startWorkers(size_t threadCount) {
 bool Level::requestChunkAsync(int32_t chunkX, int32_t chunkZ) {
     const int64_t key = _packChunk(chunkX, chunkZ);
 
-    if (mChunks.find(key) != mChunks.end())
+    auto resident = mChunks.find(key);
+
+    if (resident != mChunks.end() && resident->second.isPopulated())
         return true;
 
     if (mChunkWorker == nullptr || !mChunkWorker->isRunning())
@@ -225,6 +360,11 @@ bool Level::requestChunkAsync(int32_t chunkX, int32_t chunkZ) {
 
     if (!mPendingChunks.insert(key).second)
         return false;
+
+    if (resident != mChunks.end()) {
+        mChunkWorker->requestPopulate(std::unique_ptr<LevelChunk>(new LevelChunk(resident->second)));
+        return false;
+    }
 
     mChunkWorker->requestLoad(chunkX, chunkZ);
     return false;
@@ -247,16 +387,29 @@ size_t Level::drainCompletedChunks() {
         const int64_t key = _packChunk(result.mX, result.mZ);
         mPendingChunks.erase(key);
 
-        if (result.mChunk != nullptr && mChunks.find(key) == mChunks.end()) {
-            mChunks.emplace(key, std::move(*result.mChunk));
+        auto resident = mChunks.find(key);
+        const bool canInsert = resident == mChunks.end();
+        const bool canReplace = !canInsert && result.mReplacesResident && !resident->second.isPopulated();
+
+        if (result.mChunk != nullptr && (canInsert || canReplace)) {
+            if (canInsert) {
+                mChunks.emplace(key, std::move(*result.mChunk));
+            } else {
+                resident->second = std::move(*result.mChunk);
+                mRepopulatedChunks.insert(key);
+            }
+
             mChunkNetworkCache[key] = std::move(result.mNetworkData);
 
             for (const ChunkFluidCell &cell: result.mFluidCells)
                 mLiquidPhysics.schedule(Vector3i(cell.mX, cell.mY, cell.mZ), cell.mTickRate);
 
             added++;
+
+            _queueGeneratedChanges(std::move(result.mOverflowChanges));
         }
 
+        _replayPendingChanges(key);
         mCompletedChunks.pop_front();
     }
 
@@ -340,7 +493,7 @@ void Level::setBlockState(int32_t x, int32_t y, int32_t z, const BlockState &sta
 }
 
 void Level::setBlock(int32_t x, int32_t y, int32_t z, int32_t blockHash) {
-    if (blockHash == mGenerator.getAirHash()) {
+    if (blockHash == mGenerator->getAirHash()) {
         setBlockState(x, y, z, VanillaBlocks::AIR().toBlockState());
         return;
     }
@@ -365,15 +518,12 @@ void Level::tickFluids() {
 }
 
 bool Level::canRainAt(int32_t x, int32_t z) {
-    static const BiomeRegistry registry;
-    const std::vector<BiomeDefinitionData> &biomes = registry.getBiomes();
-
-    const uint32_t biomeId = getChunk(x >> 4, z >> 4).getBiome();
-    if (biomeId >= biomes.size())
+    const int32_t biomeId = (int32_t) getChunk(x >> 4, z >> 4).getColumnBiome(x & 15, z & 15);
+    const ClimateAttributes *climate = ClimateAttributes::getForBiome(biomeId);
+    if (climate == nullptr)
         return true;
 
-    const BiomeDefinitionData &biome = biomes[biomeId];
-    return biome.mRain && biome.mDownfall > 0.0f;
+    return climate->mRain && climate->mDownfall > 0.0f;
 }
 
 void Level::initializeWeather() {
@@ -390,6 +540,16 @@ void Level::initializeWeather() {
 
 void Level::saveWeather() {
     mStorage.saveWeather(mRaining, mRainTime, mThundering, mThunderTime);
+}
+
+void Level::initializeGameRules() {
+    Tag stored = Tag::ofCompound();
+    if (mStorage.loadGameRules(stored))
+        mGameRules.load(stored);
+}
+
+void Level::saveGameRules() {
+    mStorage.saveGameRules(mGameRules.save());
 }
 
 std::vector<Level::FluidChange> Level::consumeFluidChanges() {

@@ -158,9 +158,16 @@ namespace {
             const int32_t chunkX = ChunkStreamHandler::unpackChunkX(hash);
             const int32_t chunkZ = ChunkStreamHandler::unpackChunkZ(hash);
 
-            if (level.isChunkResident(chunkX, chunkZ)) {
+            if (level.isChunkPopulated(chunkX, chunkZ)) {
                 state.mLoading.erase(hash);
                 pushQueue(state, state.mReadyToSend, hash);
+                continue;
+            }
+
+            if (level.isChunkResident(chunkX, chunkZ)) {
+                state.mLoading.erase(hash);
+                level.requestChunkAsync(chunkX, chunkZ);
+                requeue.push_back(hash);
                 continue;
             }
 
@@ -274,6 +281,18 @@ void ChunkStreamHandler::handleTeleport(ServerNetworkHandler &owner, ServerPlaye
 
     loadQueuedChunks(state, owner, TELEPORT_LOAD_COUNT);
     sendReadyChunks(state, owner, player);
+}
+
+void ChunkStreamHandler::invalidateChunk(ServerPlayer &player, int64_t hash) {
+    ChunkStreamState &state = player.getChunkStreamState();
+
+    if (player.getSentChunks().erase(hash) == 0)
+        return;
+
+    if (state.mInRadius.find(hash) == state.mInRadius.end())
+        return;
+
+    pushQueue(state, state.mReadyToSend, hash);
 }
 
 void ChunkStreamHandler::handleViewDistanceChange(ServerNetworkHandler &owner, ServerPlayer &player) {

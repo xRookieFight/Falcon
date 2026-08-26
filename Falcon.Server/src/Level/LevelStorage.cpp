@@ -7,6 +7,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <unordered_map>
 #include <utility>
 
 #include <leveldb/db.h>
@@ -17,6 +18,16 @@
 
 namespace {
     const char *WEATHER_KEY = "weather";
+    const char *GAME_RULES_KEY = "gameRules";
+    const int32_t FINALIZED_STATE_NEEDS_POPULATION = 1;
+    const int32_t FINALIZED_STATE_DONE = 2;
+    const char *PENDING_BLOCK_CHANGES_PREFIX = "falcon_pending_block_changes";
+
+    int64_t packBlockPosition(int32_t x, int32_t y, int32_t z) {
+        return (((int64_t) (x + 30000000) & 0x3FFFFFFLL) << 37)
+               | (((int64_t) (z + 30000000) & 0x3FFFFFFLL) << 11)
+               | (((int64_t) (y + 400) & 0x3FFLL) << 1);
+    }
 }
 
 LevelStorage::LevelStorage() : mDb(nullptr), mDimensionId(0) {}
@@ -129,7 +140,7 @@ bool LevelStorage::saveChunk(const LevelChunk &chunk) {
     batch.Put(_makeKey(chunk.getX(), chunk.getZ(), LevelDbTag::Version), version);
 
     std::string finalized;
-    _appendLInt(finalized, 2);
+    _appendLInt(finalized, chunk.isPopulated() ? FINALIZED_STATE_DONE : FINALIZED_STATE_NEEDS_POPULATION);
     batch.Put(_makeKey(chunk.getX(), chunk.getZ(), LevelDbTag::FinalizedState), finalized);
 
     for (int i = 0; i < LevelChunk::SUB_CHUNK_COUNT; i++) {
@@ -146,7 +157,7 @@ bool LevelStorage::saveChunk(const LevelChunk &chunk) {
         heightAndBiomes.putByte(0);
         heightAndBiomes.putByte(0);
     }
-    heightAndBiomes.put(chunk.encodeBiomes(LevelChunk::SUB_CHUNK_COUNT));
+    heightAndBiomes.put(chunk.encodeBiomesPersistent(LevelChunk::SUB_CHUNK_COUNT));
     batch.Put(_makeKey(chunk.getX(), chunk.getZ(), LevelDbTag::Data3D), heightAndBiomes.getBuffer());
 
     const leveldb::Status status = mDb->Write(leveldb::WriteOptions(), &batch);
@@ -196,10 +207,149 @@ bool LevelStorage::loadChunk(LevelChunk &chunk) {
         }
     }
 
+    std::string heightAndBiomes;
+    if (mDb->Get(leveldb::ReadOptions(), _makeKey(chunk.getX(), chunk.getZ(), LevelDbTag::Data3D),
+                 &heightAndBiomes).ok()) {
+        ReadOnlyBinaryStream stream(heightAndBiomes);
+
+        try {
+            for (int i = 0; i < 512; i++)
+                stream.getByte();
+
+            chunk.readBiomesPersistent(stream, LevelChunk::SUB_CHUNK_COUNT);
+        } catch (const BinaryDataException &exception) {
+            LOG_WARN(LogAreaID::Server, "Malformed biome data for chunk %d %d: %s", chunk.getX(), chunk.getZ(),
+                     exception.what());
+        }
+    }
+
+    std::string finalized;
+    if (mDb->Get(leveldb::ReadOptions(), _makeKey(chunk.getX(), chunk.getZ(), LevelDbTag::FinalizedState),
+                 &finalized).ok() && finalized.size() >= 4) {
+        const int32_t state = (int32_t) ((unsigned char) finalized[0]
+                                         | ((unsigned char) finalized[1] << 8)
+                                         | ((unsigned char) finalized[2] << 16)
+                                         | ((unsigned char) finalized[3] << 24));
+        chunk.setPopulated(state >= FINALIZED_STATE_DONE);
+    }
+
     chunk.clearDirty();
     if (replacedUnknown)
         chunk.markDirty();
     return loadedAny;
+}
+
+std::string LevelStorage::_makePendingChangesKey(int32_t chunkX, int32_t chunkZ) const {
+    std::string key = PENDING_BLOCK_CHANGES_PREFIX;
+    _appendLInt(key, chunkX);
+    _appendLInt(key, chunkZ);
+    _appendLInt(key, mDimensionId);
+    return key;
+}
+
+bool LevelStorage::mergePendingBlockChanges(int32_t chunkX, int32_t chunkZ,
+                                            const std::vector<GeneratedBlockChange> &changes) {
+    if (mDb == nullptr || changes.empty())
+        return false;
+
+    std::vector<GeneratedBlockChange> merged = loadPendingBlockChanges(chunkX, chunkZ);
+    std::unordered_map<int64_t, size_t> index;
+
+    for (size_t position = 0; position < merged.size(); position++)
+        index[packBlockPosition(merged[position].mX, merged[position].mY, merged[position].mZ)] = position;
+
+    for (const GeneratedBlockChange &change: changes) {
+        const int64_t packed = packBlockPosition(change.mX, change.mY, change.mZ);
+        const std::unordered_map<int64_t, size_t>::const_iterator found = index.find(packed);
+
+        if (found != index.end()) {
+            merged[found->second] = change;
+            continue;
+        }
+
+        index[packed] = merged.size();
+        merged.push_back(change);
+    }
+
+    Tag root = Tag::ofCompound();
+    Tag list = Tag::ofList(Tag::Type::Compound);
+
+    for (const GeneratedBlockChange &change: merged) {
+        Tag entry = Tag::ofCompound();
+        entry.putInt("x", change.mX);
+        entry.putInt("y", change.mY);
+        entry.putInt("z", change.mZ);
+        entry.put("block", change.mState.toNbt());
+        list.addToList(entry);
+    }
+
+    root.put("changes", list);
+
+    BinaryStream stream;
+    NbtIo::writeTag(stream, root, NbtVariant::LittleEndian);
+
+    const leveldb::Status status = mDb->Put(leveldb::WriteOptions(), _makePendingChangesKey(chunkX, chunkZ),
+                                            stream.getBuffer());
+    if (!status.ok()) {
+        LOG_WARN(LogAreaID::Server, "Could not save pending block changes for chunk %d %d: %s", chunkX, chunkZ,
+                 status.ToString().c_str());
+        return false;
+    }
+
+    return true;
+}
+
+std::vector<GeneratedBlockChange> LevelStorage::loadPendingBlockChanges(int32_t chunkX, int32_t chunkZ) {
+    std::vector<GeneratedBlockChange> changes;
+
+    if (mDb == nullptr)
+        return changes;
+
+    std::string data;
+    if (!mDb->Get(leveldb::ReadOptions(), _makePendingChangesKey(chunkX, chunkZ), &data).ok())
+        return changes;
+
+    ReadOnlyBinaryStream stream(data);
+
+    try {
+        const Tag root = NbtIo::readTag(stream, NbtVariant::LittleEndian);
+        const Tag *list = root.get("changes");
+        if (list == nullptr || !list->isList())
+            return changes;
+
+        for (const Tag &entry: list->getList()) {
+            if (!entry.isCompound())
+                continue;
+
+            const Tag *block = entry.get("block");
+            if (block == nullptr || !block->isCompound())
+                continue;
+
+            const Tag *states = block->get("states");
+
+            GeneratedBlockChange change;
+            change.mX = entry.getInt("x");
+            change.mY = entry.getInt("y");
+            change.mZ = entry.getInt("z");
+            change.mState = BlockState(block->getString("name", "minecraft:air"),
+                                       states == nullptr ? Tag::ofCompound() : *states);
+            changes.push_back(change);
+        }
+    } catch (const std::exception &exception) {
+        LOG_WARN(LogAreaID::Server, "Malformed pending block changes for chunk %d %d: %s", chunkX, chunkZ,
+                 exception.what());
+    }
+
+    return changes;
+}
+
+bool LevelStorage::erasePendingBlockChanges(int32_t chunkX, int32_t chunkZ) {
+    if (mDb == nullptr)
+        return false;
+
+    const leveldb::Status status = mDb->Delete(leveldb::WriteOptions(),
+                                               _makePendingChangesKey(chunkX, chunkZ));
+    return status.ok() || status.IsNotFound();
 }
 
 bool LevelStorage::saveEntities(int32_t chunkX, int32_t chunkZ, const std::vector<Tag> &entities) {
@@ -344,6 +494,42 @@ bool LevelStorage::loadWeather(bool &raining, int32_t &rainTime, bool &thunderin
         thunderTime = weather.getInt("thunderTime");
     } catch (const std::exception &exception) {
         LOG_WARN(LogAreaID::Server, "Malformed weather data: %s", exception.what());
+        return false;
+    }
+
+    return true;
+}
+
+bool LevelStorage::saveGameRules(const Tag &rules) {
+    if (mDb == nullptr)
+        return false;
+
+    BinaryStream stream;
+    NbtIo::writeTag(stream, rules, NbtVariant::LittleEndian);
+
+    const leveldb::Status status = mDb->Put(leveldb::WriteOptions(), GAME_RULES_KEY, stream.getBuffer());
+    if (!status.ok()) {
+        LOG_WARN(LogAreaID::Server, "Could not save game rules: %s", status.ToString().c_str());
+        return false;
+    }
+
+    return true;
+}
+
+bool LevelStorage::loadGameRules(Tag &rules) {
+    if (mDb == nullptr)
+        return false;
+
+    std::string data;
+    if (!mDb->Get(leveldb::ReadOptions(), GAME_RULES_KEY, &data).ok())
+        return false;
+
+    ReadOnlyBinaryStream stream(data);
+
+    try {
+        rules = NbtIo::readTag(stream, NbtVariant::LittleEndian);
+    } catch (const std::exception &exception) {
+        LOG_WARN(LogAreaID::Server, "Malformed game rules data: %s", exception.what());
         return false;
     }
 

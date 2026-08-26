@@ -1,0 +1,11 @@
+#pragma once
+
+#include <cstddef>
+
+namespace FalconBiomeData {
+    inline constexpr unsigned char kBiomeDefinitionsNbt[] = {
+@FALCON_BIOME_DEFINITIONS_BYTES@
+    };
+
+    inline constexpr std::size_t kBiomeDefinitionsNbtSize = sizeof(kBiomeDefinitionsNbt);
+}
