@@ -46,15 +46,10 @@ public:
 
     void schedule(const Vector3i &position, int64_t delay = 1);
     void processImmediately(const Vector3i &position);
-    void tick();
 
-    void activateColumn(int32_t chunkX, int32_t chunkZ);
+    void onScheduledUpdate(const Vector3i &position);
 
     static bool needsInitialTick(const LevelChunk &chunk, int32_t localX, int32_t y, int32_t localZ);
-
-    size_t getScheduledCount() const { return mSchedule.size(); }
-
-    size_t getLastProcessedCount() const { return mLastProcessed; }
 
     std::vector<LiquidChange> consumeChanges();
 
@@ -88,7 +83,6 @@ private:
 
     bool _isLoaded(int32_t x, int32_t z) const;
 
-    bool _isActive(int32_t x, int32_t z) const;
 
     void _enqueueImmediate(const Position &position);
 
@@ -112,11 +106,6 @@ private:
     static constexpr int8_t FLOW_CAN_FLOW_DOWN = 1;
 
     Level &mLevel;
-    std::map<int64_t, std::vector<Position>> mBuckets;
-    std::unordered_map<int64_t, std::vector<Position>> mParked;
-    int64_t mTick = 0;
-    size_t mLastProcessed = 0;
-    std::unordered_map<Position, int64_t, PositionHash> mSchedule;
     std::vector<LiquidChange> mChanges;
     bool mImmediatePropagation = false;
     std::vector<Position> mImmediateQueue;

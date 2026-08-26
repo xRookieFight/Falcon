@@ -43,6 +43,7 @@ Level &Level::operator=(Level &&other) noexcept {
     mRepopulatedChunks = std::move(other.mRepopulatedChunks);
     mIncomingChanges = std::move(other.mIncomingChanges);
     mPendingBlockChanges = std::move(other.mPendingBlockChanges);
+    mBlockUpdateScheduler.moveStateFrom(std::move(other.mBlockUpdateScheduler));
     mLiquidPhysics.moveStateFrom(std::move(other.mLiquidPhysics));
     mGameRules = std::move(other.mGameRules);
     return *this;
@@ -415,7 +416,7 @@ void Level::setActiveColumns(std::vector<int64_t> columns) {
 
     for (int64_t column: columns) {
         if (mActiveColumns.find(column) == mActiveColumns.end())
-            mLiquidPhysics.activateColumn((int32_t) (column >> 32), (int32_t) (column & 0xffffffff));
+            mBlockUpdateScheduler.activateColumn((int32_t) (column >> 32), (int32_t) (column & 0xffffffff));
     }
 
     mActiveColumns.swap(next);
@@ -619,8 +620,18 @@ void Level::processFluidImmediately(const Vector3i &position) {
     mLiquidPhysics.processImmediately(position);
 }
 
-void Level::tickFluids() {
-    mLiquidPhysics.tick();
+void Level::tick() {
+    mBlockUpdateScheduler.tick(
+            [this](const Vector3i &position) {
+                mLiquidPhysics.onScheduledUpdate(position);
+            },
+            [this](int32_t chunkX, int32_t chunkZ) {
+                return isColumnActive(chunkX, chunkZ);
+            });
+}
+
+void Level::scheduleBlockUpdate(const Vector3i &position, int64_t delay) {
+    mBlockUpdateScheduler.schedule(position, delay);
 }
 
 bool Level::canRainAt(int32_t x, int32_t z) {

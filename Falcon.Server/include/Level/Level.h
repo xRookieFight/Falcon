@@ -3,6 +3,7 @@
 #include "Block/Systems/LiquidPhysicsSystem.h"
 #include "Core/Math/Vector3f.h"
 #include "Core/Math/Vector3i.h"
+#include "Level/BlockUpdateScheduler.h"
 #include "Level/GeneratedBlockChange.h"
 #include "Level/LevelChunk.h"
 #include "Level/ChunkWorker.h"
@@ -176,15 +177,19 @@ public:
 
     void processFluidImmediately(const Vector3i &position);
 
-    void tickFluids();
+    void tick();
+
+    void scheduleBlockUpdate(const Vector3i &position, int64_t delay = 1);
+
+    BlockUpdateScheduler &getBlockUpdateScheduler() { return mBlockUpdateScheduler; }
 
     void setActiveColumns(std::vector<int64_t> columns);
 
     bool isColumnActive(int32_t chunkX, int32_t chunkZ) const;
 
-    size_t getScheduledFluidCount() const { return mLiquidPhysics.getScheduledCount(); }
+    size_t getScheduledFluidCount() const { return mBlockUpdateScheduler.getScheduledCount(); }
 
-    size_t getLastFluidProcessedCount() const { return mLiquidPhysics.getLastProcessedCount(); }
+    size_t getLastFluidProcessedCount() const { return mBlockUpdateScheduler.getLastProcessedCount(); }
 
     using FluidChange = LiquidChange;
 
@@ -224,6 +229,7 @@ private:
     int64_t mSeed;
     std::unique_ptr<OverworldGenerator> mGenerator;
     LevelStorage mStorage;
+    BlockUpdateScheduler mBlockUpdateScheduler;
     LiquidPhysicsSystem mLiquidPhysics;
     std::unordered_map<int64_t, LevelChunk> mChunks;
     static const size_t MAX_CHUNK_INSERTS_PER_TICK = 8;

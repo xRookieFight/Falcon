@@ -824,7 +824,7 @@ void ServerNetworkHandler::tick() {
     }
 
     mProfiler.beginSection(ProfilerSection::Fluids);
-    mLevel.tickFluids();
+    mLevel.tick();
     mProfiler.endSection(ProfilerSection::Fluids);
 
     mProfiler.beginSection(ProfilerSection::FluidBroadcast);

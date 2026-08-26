@@ -12,10 +12,6 @@
 void LiquidPhysicsSystem::moveStateFrom(LiquidPhysicsSystem &&other) {
     if (this == &other)
         return;
-    mTick = other.mTick;
-    mSchedule = std::move(other.mSchedule);
-    mBuckets = std::move(other.mBuckets);
-    mParked = std::move(other.mParked);
     mChanges = std::move(other.mChanges);
     mImmediatePropagation = other.mImmediatePropagation;
     mImmediateQueue = std::move(other.mImmediateQueue);
@@ -31,25 +27,6 @@ const BlockState &LiquidPhysicsSystem::_stateAt(int32_t x, int32_t y, int32_t z)
 
 bool LiquidPhysicsSystem::_isLoaded(int32_t x, int32_t z) const {
     return mLevel.isChunkResident(x >> 4, z >> 4);
-}
-
-bool LiquidPhysicsSystem::_isActive(int32_t x, int32_t z) const {
-    return mLevel.isColumnActive(x >> 4, z >> 4);
-}
-
-void LiquidPhysicsSystem::activateColumn(int32_t chunkX, int32_t chunkZ) {
-    const int64_t column = ((int64_t) chunkX << 32) | (uint32_t) chunkZ;
-
-    auto it = mParked.find(column);
-    if (it == mParked.end())
-        return;
-
-    std::vector<Position> parked;
-    parked.swap(it->second);
-    mParked.erase(it);
-
-    for (const Position &position: parked)
-        schedule(Vector3i(position.x, position.y, position.z), 1);
 }
 
 void LiquidPhysicsSystem::onChunkLoaded(LevelChunk &chunk) {
@@ -137,18 +114,11 @@ Vector3f LiquidPhysicsSystem::getFlowVector(const Vector3i &position) {
 }
 
 void LiquidPhysicsSystem::schedule(const Vector3i &position, int64_t delay) {
-    if (position.y < LevelChunk::MIN_Y || position.y > LevelChunk::MAX_Y)
-        return;
+    mLevel.getBlockUpdateScheduler().schedule(position, delay);
+}
 
-    const Position key{position.x, position.y, position.z};
-    const int64_t due = mTick + std::max<int64_t>(1, delay);
-
-    auto it = mSchedule.find(key);
-    if (it != mSchedule.end() && due >= it->second)
-        return;
-
-    mSchedule[key] = due;
-    mBuckets[due].push_back(key);
+void LiquidPhysicsSystem::onScheduledUpdate(const Vector3i &position) {
+    process(position);
 }
 
 void LiquidPhysicsSystem::processImmediately(const Vector3i &position) {
@@ -162,7 +132,7 @@ void LiquidPhysicsSystem::processImmediately(const Vector3i &position) {
         const Position current = mImmediateQueue.back();
         mImmediateQueue.pop_back();
         mImmediatePending.erase(current);
-        mSchedule.erase(current);
+        mLevel.getBlockUpdateScheduler().cancel(Vector3i(current.x, current.y, current.z));
         process(Vector3i(current.x, current.y, current.z));
     }
 
@@ -613,36 +583,3 @@ void LiquidPhysicsSystem::_getOptimalFlowDirections(int32_t x, int32_t y, int32_
         out[j] = flowCost[j] == minCost;
 }
 
-void LiquidPhysicsSystem::tick() {
-    ++mTick;
-    mLastProcessed = 0;
-
-    if (mBuckets.empty())
-        return;
-
-    while (!mBuckets.empty()) {
-        auto bucket = mBuckets.begin();
-        if (bucket->first > mTick)
-            break;
-
-        std::vector<Position> positions;
-        positions.swap(bucket->second);
-        const int64_t bucketTick = bucket->first;
-        mBuckets.erase(bucket);
-
-        for (const Position &key: positions) {
-            auto scheduled = mSchedule.find(key);
-            if (scheduled != mSchedule.end() && scheduled->second == bucketTick) {
-                if (!_isActive(key.x, key.z)) {
-                    mSchedule.erase(scheduled);
-                    const int64_t column = ((int64_t) (key.x >> 4) << 32) | (uint32_t) (key.z >> 4);
-                    mParked[column].push_back(key);
-                } else {
-                    mSchedule.erase(scheduled);
-                    process(Vector3i(key.x, key.y, key.z));
-                    mLastProcessed++;
-                }
-            }
-        }
-    }
-}
