@@ -1,6 +1,7 @@
 #include "Core/Debug/ContentLogEndPoint.h"
 
 #include <cstdio>
+#include <string>
 
 #ifndef _WIN32
 
@@ -13,6 +14,8 @@ ContentLogEndPoint::ContentLogEndPoint(bool useColor) : mUseColor(useColor) {
     if (mUseColor && isatty(fileno(stdout)) == 0)
         mUseColor = false;
 #endif
+
+    setvbuf(stdout, nullptr, _IOFBF, STDOUT_BUFFER_SIZE);
 }
 
 const char *ContentLogEndPoint::_getColorCode(LogLevel level) {
@@ -31,17 +34,27 @@ const char *ContentLogEndPoint::_getColorCode(LogLevel level) {
 }
 
 void ContentLogEndPoint::log(const LogDetails &details) {
+    std::string line;
+    line.reserve(details.mMessage.size() + LINE_PREFIX_RESERVE);
+
+    if (mUseColor)
+        line.append(_getColorCode(details.mLevel));
+
+    line.append("[");
+    line.append(details.getTimestamp());
+    line.append(" ");
+    line.append(toString(details.mLevel));
+    line.append("]");
+
+    if (mUseColor)
+        line.append("\033[0m");
+
+    line.append(" ");
+    line.append(details.mMessage);
+    line.append("\n");
+
     std::lock_guard<std::mutex> guard(mMutex);
-
-    if (mUseColor) {
-        fprintf(stdout, "%s[%s %s]\033[0m %s\n", _getColorCode(details.mLevel), details.getTimestamp().c_str(),
-                toString(details.mLevel), details.mMessage.c_str());
-    } else {
-        fprintf(stdout, "[%s %s] %s\n", details.getTimestamp().c_str(), toString(details.mLevel),
-                details.mMessage.c_str());
-    }
-
-    fflush(stdout);
+    fwrite(line.data(), 1, line.size(), stdout);
 }
 
 void ContentLogEndPoint::flush() {

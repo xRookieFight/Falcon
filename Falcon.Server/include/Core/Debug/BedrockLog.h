@@ -44,6 +44,8 @@ namespace BedrockLog {
 
     void flush();
 
+    void shutdown();
+
 }
 
 #define LOG_TRACE(area, ...) \

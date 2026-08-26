@@ -16,7 +16,7 @@ void FileLogEndPoint::log(const LogDetails &details) {
     std::lock_guard<std::mutex> guard(mMutex);
 
     mStream << "[" << details.getTimestamp() << " " << toString(details.mLevel) << "] "
-            << details.mMessage << std::endl;
+            << details.mMessage << "\n";
 }
 
 void FileLogEndPoint::flush() {

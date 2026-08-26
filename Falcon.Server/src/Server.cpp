@@ -231,7 +231,7 @@ void startServer(const ServerSettings &settings) {
 
     LOG_INFO(LogAreaID::Server, "Shutting down...");
     networkHandler.stopServerListening();
-    BedrockLog::flush();
+    BedrockLog::shutdown();
 }
 
 int main() {
