@@ -9,6 +9,7 @@ enum class ActorFlag : int {
     Sprinting = 3,
     UsingItem = 4,
     Invisible = 5,
+    Baby = 11,
     CanClimb = 19,
     CanWalk = 22,
     Gliding = 32,

@@ -48,7 +48,8 @@ bool ThrowableItem::onUse(ServerNetworkHandler &owner, ServerPlayer &player, con
     if (player.hasItemCooldown(item, owner.getCurrentTick()))
         return true;
 
-    ServerActor *projectile = owner.spawnProjectile(player, mEntityIdentifier, mThrowForce);
+    ServerActor *projectile = owner.spawnProjectile(player, mEntityIdentifier, mThrowForce,
+                                                    ServerNetworkHandler::THROWN_PROJECTILE_DROP);
     if (projectile == nullptr)
         return false;
 
@@ -65,7 +66,8 @@ ThrownPotionItem::ThrownPotionItem(const Item &base, std::string entityIdentifie
         : ThrowableItem(base, std::move(entityIdentifier), 1.5f, 0) {}
 
 bool ThrownPotionItem::onUse(ServerNetworkHandler &owner, ServerPlayer &player, const ItemStack &item) const {
-    ServerActor *projectile = owner.spawnProjectile(player, mEntityIdentifier, mThrowForce);
+    ServerActor *projectile = owner.spawnProjectile(player, mEntityIdentifier, mThrowForce,
+                                                    ServerNetworkHandler::THROWN_PROJECTILE_DROP);
     if (projectile == nullptr)
         return false;
 

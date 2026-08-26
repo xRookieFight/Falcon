@@ -81,6 +81,12 @@ namespace {
     const float EXPERIENCE_ORB_DRAG = 0.02f;
     const float EXPERIENCE_ORB_GROUND_FRICTION = 0.6f;
     const float EXPERIENCE_ORB_PICKUP_REACH = 1.0f;
+    const int32_t ACTOR_DATA_SCALE = 38;
+    const int32_t EGG_HATCH_CHANCE = 8;
+    const int32_t EGG_QUADRUPLE_HATCH_CHANCE = 32;
+    const int32_t EGG_QUADRUPLE_HATCH_COUNT = 4;
+    const float EGG_HATCH_HEIGHT = 0.5f;
+    const float BABY_SCALE = 0.5f;
 
     bool intersectsActorBox(const Vector3f &actorPosition, float width, float height, const Vector3f &point) {
         const float halfWidth = width * 0.5f + PROJECTILE_HIT_GROW;
@@ -285,7 +291,8 @@ ServerActor *ServerNetworkHandler::getActor(int64_t uniqueId) {
     return it == mActors.end() ? nullptr : it->second.get();
 }
 
-ServerActor *ServerNetworkHandler::spawnProjectile(ServerPlayer &player, const std::string &identifier, float speed) {
+ServerActor *ServerNetworkHandler::spawnProjectile(ServerPlayer &player, const std::string &identifier, float speed,
+                                                   float verticalOffset) {
     const float degreesToRadians = 3.14159265358979323846f / 180.0f;
     const Vector3f &rotation = player.getRotation();
     const float pitch = rotation.x * degreesToRadians;
@@ -294,7 +301,7 @@ ServerActor *ServerNetworkHandler::spawnProjectile(ServerPlayer &player, const s
     const Vector3f direction(-std::sin(yaw) * std::cos(pitch), -std::sin(pitch), std::cos(yaw) * std::cos(pitch));
 
     Vector3f spawnPosition = player.getPosition();
-    spawnPosition.y += 1.5f;
+    spawnPosition.y += PLAYER_EYE_HEIGHT + verticalOffset;
 
     ServerActor *projectile = spawnActor(identifier, spawnPosition);
     if (projectile == nullptr)
@@ -353,9 +360,7 @@ bool ServerNetworkHandler::onThrownProjectileHit(ServerActor &projectile, const 
     }
 
     if (identifier == "minecraft:egg") {
-        static std::mt19937 eggRng(0x51ED270Bu);
-        if (eggRng() % 8 == 0)
-            spawnActor("minecraft:chicken", hitPosition);
+        _hatchEggChicks(hitPosition);
         return true;
     }
 
@@ -853,6 +858,49 @@ void ServerNetworkHandler::syncActorProperties(ServerActor &actor) {
     for (auto &entry: mPlayers) {
         if (entry.second.isSpawned())
             mNetworkHandler->send(entry.first, packet, mCodecContext);
+    }
+}
+
+void ServerNetworkHandler::_hatchEggChicks(const Vector3f &hitPosition) {
+    static std::mt19937 hatchRandom(std::random_device{}());
+
+    if (std::uniform_int_distribution<int32_t>(0, EGG_HATCH_CHANCE - 1)(hatchRandom) != 0)
+        return;
+
+    int32_t chicks = 1;
+    if (std::uniform_int_distribution<int32_t>(0, EGG_QUADRUPLE_HATCH_CHANCE - 1)(hatchRandom) == 0)
+        chicks = EGG_QUADRUPLE_HATCH_COUNT;
+
+    const Vector3f spawnPosition(hitPosition.x, hitPosition.y + EGG_HATCH_HEIGHT, hitPosition.z);
+
+    for (int32_t chick = 0; chick < chicks; ++chick) {
+        ServerActor *hatched = spawnActor("minecraft:chicken", spawnPosition);
+        if (hatched == nullptr)
+            continue;
+
+        hatched->getFlags().set(ActorFlag::Baby, true);
+
+        EntityDataMap metadata;
+
+        EntityDataEntry flags;
+        flags.mId = ActorFlags::FLAGS_DATA_ID;
+        flags.mFormat = EntityDataFormat::Long;
+        flags.mLongValue = hatched->getFlags().getLowBits();
+        metadata.mEntries.push_back(flags);
+
+        EntityDataEntry flags2;
+        flags2.mId = ActorFlags::FLAGS_2_DATA_ID;
+        flags2.mFormat = EntityDataFormat::Long;
+        flags2.mLongValue = hatched->getFlags().getHighBits();
+        metadata.mEntries.push_back(flags2);
+
+        EntityDataEntry scale;
+        scale.mId = ACTOR_DATA_SCALE;
+        scale.mFormat = EntityDataFormat::Float;
+        scale.mFloatValue = BABY_SCALE;
+        metadata.mEntries.push_back(scale);
+
+        sendActorMetadata(*hatched, metadata);
     }
 }
 

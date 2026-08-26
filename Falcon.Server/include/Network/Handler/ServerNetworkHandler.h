@@ -122,7 +122,11 @@ public:
 
     bool tickExperienceOrb(ServerActor &orb);
 
-    ServerActor *spawnProjectile(ServerPlayer &player, const std::string &identifier, float speed);
+    // Bows fire from eye level while thrown items leave the hand slightly lower.
+    static constexpr float THROWN_PROJECTILE_DROP = -0.3f;
+
+    ServerActor *spawnProjectile(ServerPlayer &player, const std::string &identifier, float speed,
+                                 float verticalOffset = 0.0f);
 
     bool onThrownProjectileHit(ServerActor &projectile, const Vector3f &hitPosition, ServerPlayer *hitPlayer);
 
@@ -333,6 +337,8 @@ public:
     void _sendActorSpawn(ServerPlayer &player, ServerActor &actor);
 
     void _sendActorRemove(ServerPlayer &player, const ServerActor &actor);
+
+    void _hatchEggChicks(const Vector3f &hitPosition);
 
     bool _equipHeldArmor(ServerPlayer &player, const Item &itemType);
 
