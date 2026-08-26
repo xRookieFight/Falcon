@@ -31,6 +31,10 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(quickjs)
 
+if(TARGET qjs AND NOT MSVC)
+    target_compile_options(qjs PRIVATE -Wno-error)
+endif()
+
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_DEPS_LIBS OFF CACHE BOOL "" FORCE)
 set(NO_MEDIA ON CACHE BOOL "" FORCE)
