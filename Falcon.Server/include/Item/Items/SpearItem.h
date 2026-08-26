@@ -22,6 +22,8 @@ public:
     static bool matches(const std::string &identifier);
 
 private:
+    void stab(ServerNetworkHandler &owner, ServerPlayer &player, const ItemStack &item) const;
+
     float getJabDamage(const ItemStack &item) const;
 
     void applyLunge(ServerNetworkHandler &owner, ServerPlayer &player, const ItemStack &item) const;

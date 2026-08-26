@@ -236,10 +236,34 @@ void SpearItem::applyLunge(ServerNetworkHandler &owner, ServerPlayer &player, co
 }
 
 bool SpearItem::onStartUsing(ServerNetworkHandler &owner, ServerPlayer &player, const ItemStack &item) const {
-    (void) item;
-
     owner.playLevelSound("item." + mTierName + ".use", player.getPosition(), "minecraft:player");
+    stab(owner, player, item);
+
+    // Staying in the using state is what drives the sweep in onUsingTick.
     return true;
+}
+
+void SpearItem::stab(ServerNetworkHandler &owner, ServerPlayer &player, const ItemStack &item) const {
+    if (player.hasItemCooldown(item, owner.getCurrentTick()))
+        return;
+
+    player.startItemCooldown(item, owner.getCurrentTick(), STAB_COOLDOWN_TICKS);
+    applyLunge(owner, player, item);
+
+    if (movementSpeedOf(player) < MINIMUM_SPEED || !player.getFlags().get(ActorFlag::Sprinting)) {
+        owner.playLevelSound("item." + mTierName + ".attack_miss", player.getPosition(), "minecraft:player");
+        return;
+    }
+
+    Actor *target = findTarget(owner, player, MAX_STAB_DISTANCE);
+    if (target != nullptr) {
+        applySpearDamage(owner, player, *target, getJabDamage(item));
+        owner.playLevelSound("item." + mTierName + ".attack_hit", player.getPosition(), "minecraft:player");
+    } else {
+        owner.playLevelSound("item." + mTierName + ".attack_miss", player.getPosition(), "minecraft:player");
+    }
+
+    owner.damagePlayerHeldItem(player, 1);
 }
 
 void SpearItem::onUsingTick(ServerNetworkHandler &owner, ServerPlayer &player, const ItemStack &item,
@@ -262,27 +286,11 @@ void SpearItem::onUsingTick(ServerNetworkHandler &owner, ServerPlayer &player, c
 
 bool SpearItem::onStopUsing(ServerNetworkHandler &owner, ServerPlayer &player, const ItemStack &item,
                             int32_t elapsedTicks) const {
+    (void) owner;
+    (void) player;
+    (void) item;
     (void) elapsedTicks;
 
-    if (player.hasItemCooldown(item, owner.getCurrentTick()))
-        return true;
-
-    player.startItemCooldown(item, owner.getCurrentTick(), STAB_COOLDOWN_TICKS);
-    applyLunge(owner, player, item);
-
-    if (movementSpeedOf(player) < MINIMUM_SPEED || !player.getFlags().get(ActorFlag::Sprinting)) {
-        owner.playLevelSound("item." + mTierName + ".attack_miss", player.getPosition(), "minecraft:player");
-        return true;
-    }
-
-    Actor *target = findTarget(owner, player, MAX_STAB_DISTANCE);
-    if (target != nullptr) {
-        applySpearDamage(owner, player, *target, getJabDamage(item));
-        owner.playLevelSound("item." + mTierName + ".attack_hit", player.getPosition(), "minecraft:player");
-    } else {
-        owner.playLevelSound("item." + mTierName + ".attack_miss", player.getPosition(), "minecraft:player");
-    }
-
-    owner.damagePlayerHeldItem(player, 1);
+    // The jab already ran when the spear was raised, releasing it only ends the sweep.
     return true;
 }
