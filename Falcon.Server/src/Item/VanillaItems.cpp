@@ -1,5 +1,7 @@
 #include "Item/VanillaItems.h"
 
+#include "Item/Items/BundleItem.h"
+#include "Item/Items/FireStarterItems.h"
 #include "Item/Items/MaceItem.h"
 #include "Item/Items/FireworkRocketItem.h"
 #include "Item/Items/RangedWeaponItems.h"
@@ -2450,8 +2452,16 @@ namespace {
         if (identifier == "minecraft:ender_eye")
             return std::make_unique<ThrowableItem>(base, "minecraft:eye_of_ender_signal", 1.2f, 0);
 
+        if (BundleItem::matches(identifier))
+            return std::make_unique<BundleItem>(base);
+
         if (identifier == "minecraft:mace")
             return std::make_unique<MaceItem>(base);
+
+        if (identifier == "minecraft:flint_and_steel")
+            return std::make_unique<FlintAndSteelItem>(base);
+        if (identifier == "minecraft:fire_charge")
+            return std::make_unique<FireChargeItem>(base);
 
         if (identifier == "minecraft:firework_rocket")
             return std::make_unique<FireworkRocketItem>(base);

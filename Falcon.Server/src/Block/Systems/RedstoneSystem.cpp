@@ -5,6 +5,7 @@
 #include "Block/BlockData.h"
 #include "Block/Blocks/CommandBlock.h"
 #include "Block/Systems/CommandBlockSystem.h"
+#include "Block/Systems/FireSystem.h"
 #include "Block/Systems/PistonSystem.h"
 #include "Level/Level.h"
 #include "Network/Handler/BlockActionHandler.h"
@@ -1313,6 +1314,9 @@ void RedstoneSystem::onUpdate(ServerNetworkHandler &owner, const Vector3i &posit
     } else if (PistonSystem::isPiston(identifier)) {
         if (type == RedstoneUpdateType::Normal || type == RedstoneUpdateType::Redstone)
             PistonSystem::onRedstoneUpdate(owner, position, state);
+    } else if (FireSystem::matches(identifier)) {
+        if (type == RedstoneUpdateType::Normal)
+            FireSystem::onNormalUpdate(owner, position, state);
     }
 
     --gDepth;
