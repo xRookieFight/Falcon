@@ -58,7 +58,7 @@ bool GameModeCommand::execute(CommandOrigin &sender, const std::vector<std::stri
 
     const int gameMode = parseGameMode(arguments[0]);
     if (gameMode < 0) {
-        sender.sendTranslation("commands.gamemode.invalid", {arguments[0]});
+        sender.sendTranslation("commands.gamemode.fail.invalid", {arguments[0]});
         return false;
     }
 
@@ -70,7 +70,7 @@ bool GameModeCommand::execute(CommandOrigin &sender, const std::vector<std::stri
         if (arguments.size() > 1)
             sender.sendTranslation("commands.generic.player.notFound", {});
         else
-            sender.sendTranslation("commands.generic.playerOnly", {});
+            sender.sendTranslation("commands.generic.targetNotPlayer", {});
         return false;
     }
 

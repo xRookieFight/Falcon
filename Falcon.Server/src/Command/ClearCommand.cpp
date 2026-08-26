@@ -26,7 +26,7 @@ bool ClearCommand::execute(CommandOrigin &sender, const std::vector<std::string>
     if (arguments.empty()) {
         ServerPlayer *self = sender.asPlayer();
         if (self == nullptr) {
-            sender.sendTranslation("commands.generic.playerOnly", {});
+            sender.sendTranslation("commands.generic.targetNotPlayer", {});
             return false;
         }
 
@@ -36,7 +36,7 @@ bool ClearCommand::execute(CommandOrigin &sender, const std::vector<std::string>
     }
 
     if (targets.empty()) {
-        sender.sendTranslation("commands.generic.selector.empty", {});
+        sender.sendTranslation("commands.generic.noTargetMatch", {});
         return false;
     }
 

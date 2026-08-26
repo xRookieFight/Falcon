@@ -77,7 +77,7 @@ bool TimeCommand::execute(CommandOrigin &sender, const std::vector<std::string> 
     if (operation == "set") {
         int64_t time = 0;
         if (!parseTime(arguments[1], time) || time < 0) {
-            sender.sendTranslation("commands.time.invalid", {arguments[1]});
+            sender.sendTranslation("commands.generic.syntax", {"/time set ", arguments[1], ""});
             return false;
         }
         mHandler.getLevel().setTime(time);
@@ -89,7 +89,7 @@ bool TimeCommand::execute(CommandOrigin &sender, const std::vector<std::string> 
     if (operation == "add") {
         int64_t time = 0;
         if (!parseInteger(arguments[1], time)) {
-            sender.sendTranslation("commands.time.invalid", {arguments[1]});
+            sender.sendTranslation("commands.generic.syntax", {"/time add ", arguments[1], ""});
             return false;
         }
         mHandler.getLevel().addTime(time);
@@ -107,7 +107,7 @@ bool TimeCommand::execute(CommandOrigin &sender, const std::vector<std::string> 
         else if (query == "day")
             sender.sendTranslation("commands.time.query.day", {std::to_string(mHandler.getLevel().getTime() / 24000)});
         else {
-            sender.sendTranslation("commands.time.invalid", {query});
+            sender.sendTranslation("commands.generic.syntax", {"/time query ", query, ""});
             return false;
         }
         return true;
