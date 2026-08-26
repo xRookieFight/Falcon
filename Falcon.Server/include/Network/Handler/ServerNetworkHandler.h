@@ -381,6 +381,8 @@ public:
 
     void queueConsoleCommand(const std::string &commandLine);
 
+    void postToMainThread(std::function<void()> task);
+
     void sendModalForm(ServerPlayer &player, uint32_t formId, const std::string &formData,
                        ModalFormCallback callback = {});
 
@@ -558,4 +560,7 @@ private:
 
     std::mutex mConsoleQueueMutex;
     std::queue<std::string> mConsoleQueue;
+
+    std::mutex mMainThreadTaskMutex;
+    std::vector<std::function<void()>> mMainThreadTasks;
 };

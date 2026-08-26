@@ -11,8 +11,11 @@
 #include "Command/KillCommand.h"
 #include "Command/TimeCommand.h"
 #include "Command/ProfilerCommand.h"
+#include "Command/GameRuleCommand.h"
+#include "Command/LocateCommand.h"
 #include "Command/WeatherCommand.h"
 #include "Block/BlockActorStore.h"
+#include "Level/Generator/OverworldGenerator.h"
 #include "Block/Systems/PistonSystem.h"
 #include "Network/Handler/ChunkStreamHandler.h"
 #include "Item/Items/ElytraItem.h"
@@ -105,6 +108,7 @@
 #include "Block/Block.h"
 #include "Block/Systems/FurnaceSystem.h"
 #include "Block/Systems/CommandBlockSystem.h"
+#include "Block/Systems/FireSystem.h"
 #include "Block/Systems/RedstoneSystem.h"
 #include "Protocol/Packets/CommandBlockUpdatePacket.h"
 #include "Block/Blocks/VanillaBlocks.h"
@@ -443,9 +447,11 @@ ServerNetworkHandler::ServerNetworkHandler(const std::string &serverName, const 
     mCommands.registerCommand(std::make_shared<KillCommand>(*this));
     mCommands.registerCommand(std::make_shared<TimeCommand>(*this));
     mCommands.registerCommand(std::make_shared<WeatherCommand>(*this));
+    mCommands.registerCommand(std::make_shared<GameRuleCommand>(*this));
     mCommands.registerCommand(std::make_shared<ProfilerCommand>(*this));
     mCommands.registerCommand(std::make_shared<CameraCommand>(*this));
     mCommands.registerCommand(std::make_shared<ClearCommand>(*this));
+    mCommands.registerCommand(std::make_shared<LocateCommand>(*this));
 
     mResourcePacks.loadFromDirectory("resource_packs");
     mResourcePacks.loadBundledAddonsFrom("behavior_packs");
@@ -470,7 +476,7 @@ size_t ServerNetworkHandler::_getChunkWorkerThreadCount() const {
 
     if (configured <= 0) {
         const unsigned hardware = std::thread::hardware_concurrency();
-        configured = hardware == 0 ? 2 : (int) (hardware > 2 ? hardware - 1 : 1);
+        configured = hardware == 0 ? 2 : (int) (hardware > 3 ? hardware - 2 : 1);
     }
 
     if (configured < 1)
@@ -514,9 +520,11 @@ void ServerNetworkHandler::setProperties(const PropertiesSettings &properties) {
                                               properties.getNetherNetTlsPrivateKey());
     }
 
-    mLevel = Level(properties.getLevelName(), _getServerViewDistance());
+    mLevel = Level(properties.getLevelName(), _getServerViewDistance(),
+                   OverworldGenerator::parseSeed(properties.getLevelSeed()));
     mLevel.openStorage("worlds");
     mLevel.initializeWeather();
+    mLevel.initializeGameRules();
     mLevel.startWorkers(_getChunkWorkerThreadCount());
 
     _logPackStack();
@@ -616,16 +624,11 @@ void ServerNetworkHandler::_loadScripts() {
         if (!pack.hasScript())
             continue;
 
-        LOG_INFO(LogAreaID::Server, "Loading behavior pack script %s (%s, API %s)",
-                 pack.scriptPath().c_str(), pack.mName.c_str(),
-                 pack.mApiVersion.empty() ? "unknown" : pack.mApiVersion.c_str());
-
         if (mScriptEngine.evaluateFile(pack.scriptPath()))
             loaded++;
     }
 
-    if (loaded != 0)
-        LOG_INFO(LogAreaID::Server, "Loaded %zu behavior pack script(s)", loaded);
+    (void) loaded;
 
     mScriptEngine.onWorldInitialize();
 }
@@ -719,6 +722,17 @@ void ServerNetworkHandler::tick() {
             mConsoleQueue.pop();
         }
     }
+
+    {
+        std::vector<std::function<void()>> tasks;
+        {
+            std::lock_guard<std::mutex> lock(mMainThreadTaskMutex);
+            tasks.swap(mMainThreadTasks);
+        }
+
+        for (const std::function<void()> &task: tasks)
+            task();
+    }
     mProfiler.endSection(ProfilerSection::ConsoleCommands);
 
     mNetworkHandler->runEvents();
@@ -726,6 +740,22 @@ void ServerNetworkHandler::tick() {
     mProfiler.beginSection(ProfilerSection::ChunkDrain);
     mLevel.drainCompletedChunks();
     mProfiler.endSection(ProfilerSection::ChunkDrain);
+
+    mProfiler.beginSection(ProfilerSection::ChunkPopulation);
+    mLevel.processGeneratedChanges();
+
+    const std::vector<int64_t> repopulated = mLevel.consumeRepopulatedChunks();
+    if (!repopulated.empty()) {
+        for (auto &entry: mPlayers) {
+            ServerPlayer &player = entry.second;
+            if (!player.isSpawned())
+                continue;
+
+            for (const int64_t hash: repopulated)
+                ChunkStreamHandler::invalidateChunk(player, hash);
+        }
+    }
+    mProfiler.endSection(ProfilerSection::ChunkPopulation);
 
     {
         const int tickDistance = mProperties.getTickDistance();
@@ -914,6 +944,10 @@ void ServerNetworkHandler::tick() {
     PistonSystem::tick(*this);
     CommandBlockSystem::tickCommandBlocks(*this);
     mProfiler.endSection(ProfilerSection::Redstone);
+
+    mProfiler.beginSection(ProfilerSection::Fire);
+    FireSystem::tick(*this);
+    mProfiler.endSection(ProfilerSection::Fire);
 
     mProfiler.beginSection(ProfilerSection::Announcement);
     _updateServerAnnouncement();
@@ -1305,6 +1339,14 @@ void ServerNetworkHandler::setPlayerOp(ServerPlayer &player, bool isOp) {
 void ServerNetworkHandler::queueConsoleCommand(const std::string &commandLine) {
     std::lock_guard<std::mutex> lock(mConsoleQueueMutex);
     mConsoleQueue.push(commandLine);
+}
+
+void ServerNetworkHandler::postToMainThread(std::function<void()> task) {
+    if (task == nullptr)
+        return;
+
+    std::lock_guard<std::mutex> lock(mMainThreadTaskMutex);
+    mMainThreadTasks.push_back(std::move(task));
 }
 
 void ServerNetworkHandler::_sendAbilities(ServerPlayer &player) {
@@ -2313,6 +2355,11 @@ void ServerNetworkHandler::setPlayerGameMode(ServerPlayer &player, int gameMode)
     if (!mayFly && player.isFlying()) {
         player.setFlying(false);
         player.setOnGround(MovementHandler::checkGroundState(*this, player.getPosition()));
+    }
+
+    if (gameMode == (int32_t) GameType::Spectator) {
+        player.setFlying(true);
+        player.setOnGround(false);
     }
 
     _sendAbilities(player);

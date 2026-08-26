@@ -306,7 +306,7 @@ void LoginHandler::sendStartGame(ServerNetworkHandler &owner, ServerPlayer &play
                                         player.getPosition().z);
     startGame.mRotation = Vector2f(player.getRotation().x, player.getRotation().y);
 
-    startGame.mSeed = 0;
+    startGame.mSeed = owner.getLevel().getSeed();
     startGame.mDimensionId = 0;
     startGame.mGeneratorId = 1;
     startGame.mLevelGameType = owner.getProperties().getGameType();
@@ -332,7 +332,7 @@ void LoginHandler::sendStartGame(ServerNetworkHandler &owner, ServerPlayer &play
 
     startGame.mBlockProperties = CustomContentRegistry::getInstance().getBlockProperties();
 
-    startGame.mGamerules.push_back(GameRuleData::ofBool("showcoordinates", true));
+    startGame.mGamerules = owner.getLevel().getGameRules().toNetwork();
 
     owner.getNetworkHandler().send(id, startGame, owner.getCodecContext());
 
@@ -396,14 +396,17 @@ void LoginHandler::sendAbilities(ServerNetworkHandler &owner, ServerPlayer &play
     }
 
     if (player.isOp()) {
-        abilityValues |= 1u << (int) PlayerAbility::Build;
-        abilityValues |= 1u << (int) PlayerAbility::Mine;
-        abilityValues |= 1u << (int) PlayerAbility::DoorsAndSwitches;
-        abilityValues |= 1u << (int) PlayerAbility::OpenContainers;
-        abilityValues |= 1u << (int) PlayerAbility::AttackPlayers;
-        abilityValues |= 1u << (int) PlayerAbility::AttackMobs;
         abilityValues |= 1u << (int) PlayerAbility::OperatorCommands;
         abilityValues |= 1u << (int) PlayerAbility::Teleport;
+
+        if (!isSpectator) {
+            abilityValues |= 1u << (int) PlayerAbility::Build;
+            abilityValues |= 1u << (int) PlayerAbility::Mine;
+            abilityValues |= 1u << (int) PlayerAbility::DoorsAndSwitches;
+            abilityValues |= 1u << (int) PlayerAbility::OpenContainers;
+            abilityValues |= 1u << (int) PlayerAbility::AttackPlayers;
+            abilityValues |= 1u << (int) PlayerAbility::AttackMobs;
+        }
     }
 
     if (player.isFlying())

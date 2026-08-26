@@ -2,6 +2,7 @@
 
 #include "Actor/ServerPlayer.h"
 #include "Network/Handler/ServerNetworkHandler.h"
+#include "Protocol/Types/StartGameTypes.h"
 
 #include <algorithm>
 #include <cctype>
@@ -28,21 +29,21 @@ int GameModeCommand::parseGameMode(const std::string &value) {
         return 1;
     if (mode == "2" || mode == "adventure" || mode == "a")
         return 2;
-    if (mode == "3" || mode == "spectator" || mode == "spc" || mode == "view" || mode == "v")
-        return 3;
+    if (mode == "3" || mode == "6" || mode == "spectator" || mode == "spc" || mode == "view" || mode == "v")
+        return (int) GameType::Spectator;
 
     return -1;
 }
 
 const char *GameModeCommand::getGameModeName(int gameMode) {
-    switch (gameMode) {
-        case 0:
+    switch ((GameType) gameMode) {
+        case GameType::Survival:
             return "Survival";
-        case 1:
+        case GameType::Creative:
             return "Creative";
-        case 2:
+        case GameType::Adventure:
             return "Adventure";
-        case 3:
+        case GameType::Spectator:
             return "Spectator";
         default:
             return "Unknown";
