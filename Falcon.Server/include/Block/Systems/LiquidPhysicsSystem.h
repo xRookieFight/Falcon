@@ -88,8 +88,7 @@ private:
 
     bool _canBeFlowedInto(const BlockState &state) const;
     int _calculateFlowCost(int32_t x, int32_t y, int32_t z, int accumulatedCost, int maxCost,
-                           int originOpposite, int lastOpposite,
-                           std::unordered_map<Position, int8_t, PositionHash> &visited);
+                           int originOpposite, int lastOpposite);
     void _getOptimalFlowDirections(int32_t x, int32_t y, int32_t z, int decayPerBlock, bool out[4]);
 
     void scheduleNeighbors(int32_t x, int32_t y, int32_t z);
@@ -106,6 +105,7 @@ private:
     static constexpr int8_t FLOW_CAN_FLOW_DOWN = 1;
 
     Level &mLevel;
+    std::unordered_map<Position, int8_t, PositionHash> mFlowCostVisited;
     std::vector<LiquidChange> mChanges;
     bool mImmediatePropagation = false;
     std::vector<Position> mImmediateQueue;

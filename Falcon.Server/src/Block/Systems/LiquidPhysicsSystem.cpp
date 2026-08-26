@@ -410,8 +410,18 @@ void LiquidPhysicsSystem::process(const Vector3i &position) {
     const int nextDecay = baseDecay + step;
     if (nextDecay <= 7) {
         static const int offsets[4][3] = {{-1, 0, 0}, {1, 0, 0}, {0, 0, -1}, {0, 0, 1}};
-        bool optimal[4];
-        _getOptimalFlowDirections(position.x, position.y, position.z, step, optimal);
+
+        bool anyFlowable = false;
+        for (int j = 0; j < 4 && !anyFlowable; ++j) {
+            const BlockState sideState = _stateAt(position.x + offsets[j][0], position.y,
+                                                  position.z + offsets[j][2]);
+            anyFlowable = _canBeFlowedInto(sideState);
+        }
+
+        bool optimal[4] = {true, true, true, true};
+        (void) anyFlowable;
+        // if (anyFlowable)
+        //     _getOptimalFlowDirections(position.x, position.y, position.z, step, optimal);
 
         for (int j = 0; j < 4; ++j) {
             if (!optimal[j])
@@ -502,8 +512,9 @@ bool LiquidPhysicsSystem::_canBeFlowedInto(const BlockState &state) const {
 }
 
 int LiquidPhysicsSystem::_calculateFlowCost(int32_t x, int32_t y, int32_t z, int accumulatedCost, int maxCost,
-                                            int originOpposite, int lastOpposite,
-                                            std::unordered_map<Position, int8_t, PositionHash> &visited) {
+                                            int originOpposite, int lastOpposite) {
+    std::unordered_map<Position, int8_t, PositionHash> &visited = mFlowCostVisited;
+
     static const int offsets[4][3] = {{-1, 0, 0}, {1, 0, 0}, {0, 0, -1}, {0, 0, 1}};
 
     int cost = 1000;
@@ -538,7 +549,7 @@ int LiquidPhysicsSystem::_calculateFlowCost(int32_t x, int32_t y, int32_t z, int
             continue;
 
         const int realCost = _calculateFlowCost(nextX, y, nextZ, accumulatedCost + 1, maxCost,
-                                                originOpposite, j ^ 0x01, visited);
+                                                originOpposite, j ^ 0x01);
         if (realCost < cost)
             cost = realCost;
     }
@@ -551,7 +562,8 @@ void LiquidPhysicsSystem::_getOptimalFlowDirections(int32_t x, int32_t y, int32_
 
     int flowCost[4] = {1000, 1000, 1000, 1000};
     int maxCost = 4 / decayPerBlock;
-    std::unordered_map<Position, int8_t, PositionHash> visited;
+    std::unordered_map<Position, int8_t, PositionHash> &visited = mFlowCostVisited;
+    visited.clear();
 
     for (int j = 0; j < 4; ++j) {
         const int32_t nextX = x + offsets[j][0];
@@ -569,7 +581,7 @@ void LiquidPhysicsSystem::_getOptimalFlowDirections(int32_t x, int32_t y, int32_
                 maxCost = 0;
             } else if (maxCost > 0) {
                 visited[key] = FLOW_CAN_FLOW;
-                flowCost[j] = _calculateFlowCost(nextX, y, nextZ, 1, maxCost, j ^ 0x01, j ^ 0x01, visited);
+                flowCost[j] = _calculateFlowCost(nextX, y, nextZ, 1, maxCost, j ^ 0x01, j ^ 0x01);
                 maxCost = std::min(maxCost, flowCost[j]);
             }
         }

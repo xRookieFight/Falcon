@@ -55,6 +55,15 @@ void BlockUpdateScheduler::activateColumn(int32_t chunkX, int32_t chunkZ) {
         schedule(Vector3i(position.x, position.y, position.z), 1);
 }
 
+void BlockUpdateScheduler::_deferRemaining(const std::vector<Position> &positions, size_t from,
+                                           int64_t bucketTick) {
+    if (from >= positions.size())
+        return;
+
+    std::vector<Position> &target = mBuckets[bucketTick];
+    target.insert(target.end(), positions.begin() + (long) from, positions.end());
+}
+
 void BlockUpdateScheduler::tick(const UpdateHandler &handler,
                                 const std::function<bool(int32_t, int32_t)> &isActive) {
     ++mTick;
@@ -63,7 +72,9 @@ void BlockUpdateScheduler::tick(const UpdateHandler &handler,
     if (mBuckets.empty())
         return;
 
-    while (!mBuckets.empty()) {
+    bool exhausted = false;
+
+    while (!mBuckets.empty() && !exhausted) {
         auto bucket = mBuckets.begin();
         if (bucket->first > mTick)
             break;
@@ -73,7 +84,9 @@ void BlockUpdateScheduler::tick(const UpdateHandler &handler,
         const int64_t bucketTick = bucket->first;
         mBuckets.erase(bucket);
 
-        for (const Position &key: positions) {
+        for (size_t i = 0; i < positions.size(); ++i) {
+            const Position &key = positions[i];
+
             auto scheduled = mSchedule.find(key);
             if (scheduled == mSchedule.end() || scheduled->second != bucketTick)
                 continue;
@@ -87,6 +100,12 @@ void BlockUpdateScheduler::tick(const UpdateHandler &handler,
 
             handler(Vector3i(key.x, key.y, key.z));
             mLastProcessed++;
+
+            if (mLastProcessed >= MAX_UPDATES_PER_TICK) {
+                _deferRemaining(positions, i + 1, bucketTick);
+                exhausted = true;
+                break;
+            }
         }
     }
 }

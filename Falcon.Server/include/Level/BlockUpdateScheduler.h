@@ -51,6 +51,10 @@ private:
         }
     };
 
+    void _deferRemaining(const std::vector<Position> &positions, size_t from, int64_t bucketTick);
+
+    static constexpr size_t MAX_UPDATES_PER_TICK = 4096;
+
     std::map<int64_t, std::vector<Position>> mBuckets;
     std::unordered_map<int64_t, std::vector<Position>> mParked;
     std::unordered_map<Position, int64_t, PositionHash> mSchedule;
