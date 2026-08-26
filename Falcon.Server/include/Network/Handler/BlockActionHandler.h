@@ -7,10 +7,14 @@ class ServerNetworkHandler;
 class ServerPlayer;
 class ItemUseTransaction;
 class Packet;
+class BlockState;
 
 class BlockActionHandler {
 public:
     static void broadcastToViewers(ServerNetworkHandler &owner, const Vector3f &position, const Packet &packet);
+
+    static void broadcastBlockUpdate(ServerNetworkHandler &owner, const Vector3i &position,
+                                     const BlockState &state);
 
     static void breakBlock(ServerNetworkHandler &owner, ServerPlayer &player, const Vector3i &position);
 

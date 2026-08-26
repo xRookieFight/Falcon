@@ -2,7 +2,10 @@
 
 #include "Block/BlockData.h"
 #include "Block/Components/BlockPlacementComponent.h"
+#include "Block/Blocks/BaseRailBlock.h"
+#include "Block/Blocks/BedBlock.h"
 #include "Block/Blocks/ChestBlock.h"
+#include "Block/Blocks/DoorBlock.h"
 #include "Block/Blocks/CraftingTableBlock.h"
 #include "Block/Blocks/FurnaceBlock.h"
 #include "Block/Blocks/VanillaBlocks.h"
@@ -282,6 +285,20 @@ void BlockActionHandler::broadcastToViewers(ServerNetworkHandler &owner, const V
             owner.getNetworkHandler().send(entry.first, packet, owner.getCodecContext());
         }
     }
+}
+
+void BlockActionHandler::broadcastBlockUpdate(ServerNetworkHandler &owner, const Vector3i &position,
+                                              const BlockState &state) {
+    UpdateBlockPacket update;
+    update.mBlockPosition = position;
+    update.mRuntimeId = (uint32_t) BlockStateHasher::hash(state.mName, state.mStates);
+    update.mFlags = UpdateBlockPacket::Flag::All;
+    update.mDataLayer = 0;
+    broadcastToViewers(owner,
+                       Vector3f((float) position.x + 0.5f,
+                                (float) position.y + 0.5f,
+                                (float) position.z + 0.5f),
+                       update);
 }
 
 bool BlockActionHandler::canInteractWithBlock(ServerPlayer &player, const Vector3i &position) {
@@ -714,10 +731,14 @@ void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &p
         return;
     }
 
-    const BlockState placedState = BlockPlacementComponent::apply(
-            BlockState(definition.getIdentifier(), definition.getState()),
-            player.getRotation().y, transaction.mBlockFace, transaction.mClickPosition,
-            player.getPosition(), target);
+    BlockState placedState = BlockPlacementComponent::apply(
+            BlockState(definition.getIdentifier(), definition.getState()), &level,
+            player.getRotation().y, player.getRotation().x, transaction.mBlockFace,
+            transaction.mClickPosition, player.getPosition(), target);
+
+    if (BaseRailBlock::matches(placedState.mName))
+        BaseRailBlock::onPlace(owner, target, placedState);
+
     const int32_t blockHash = BlockStateHasher::hash(placedState.mName, placedState.mStates);
     level.setBlockState(target.x, target.y, target.z, placedState);
 
@@ -750,6 +771,14 @@ void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &p
 
     if (ChestBlock::matches(placedState.mName))
         ChestBlock::onPlaced(owner.getLevel(), target);
+
+    if (DoorBlock::matches(placedState.mName))
+        DoorBlock::onPlaced(owner, target, placedState);
+
+    if (BedBlock::matches(placedState.mName)) {
+        BedBlock::onPlaced(owner, target, placedState,
+                           BlockPlacementComponent::getHorizontalFacing(player.getRotation().y));
+    }
 
     RedstoneSystem::onBlockPlaced(owner, target, placedState);
 }
