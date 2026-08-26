@@ -19,13 +19,13 @@ Falcon is a Minecraft: Bedrock Edition server built from the ground up in C++17.
 from any existing server: the protocol, world storage, inventory, movement and gameplay systems are
 all reimplemented by hand.
 
-- **Native C++17** — no runtime to install, the server ships as a single self-contained executable
-- **Own RakNet implementation** — sockets, reliability layer and connection handshake written here
-- **NetherNet transport** — WebRTC signaling and transport, running alongside RakNet
-- **Vanilla-like world generation** — noise, density functions, aquifers, caves, biomes and features
-- **Behavior pack support** — custom items, blocks, actors and recipes loaded from packs, with a
+- **Native C++17** - no runtime to install, the server ships as a single self-contained executable
+- **Own RakNet implementation** - sockets, reliability layer and connection handshake written here
+- **NetherNet transport** - WebRTC signaling and transport, running alongside RakNet
+- **Vanilla-like world generation** - noise, density functions, aquifers, caves, biomes and features
+- **Behavior pack support** - custom items, blocks, actors and recipes loaded from packs, with a
   QuickJS scripting engine running pack scripts
-- **Layered architecture** — network, protocol and server concerns stay separate
+- **Layered architecture** - network, protocol and server concerns stay separate
 
 ## Features
 
