@@ -12,17 +12,15 @@ for tool in cmake g++ ninja; do
 done
 
 echo "[2/3] Configuring project with CMake..."
-if ! cmake -B build -G Ninja -DCMAKE_CXX_COMPILER=g++ -DCMAKE_MAKE_PROGRAM=ninja >> "$LOG" 2>&1; then
+echo "      First run fetches leveldb, quickjs and libdatachannel - this can take a while."
+if ! cmake -B build -G Ninja -DCMAKE_CXX_COMPILER=g++ -DCMAKE_MAKE_PROGRAM=ninja 2>&1 | tee -a "$LOG"; then
     echo "[ERROR] CMake configuration failed. See $LOG for details."
-    cat "$LOG"
     exit 1
 fi
 
 echo "[3/3] Building FalconServer..."
-cmake --build build --config Release >> "$LOG" 2>&1
-BUILD_RESULT=$?
-
-cat "$LOG"
+cmake --build build --config Release 2>&1 | tee -a "$LOG"
+BUILD_RESULT=${PIPESTATUS[0]}
 
 if [ "$BUILD_RESULT" -ne 0 ]; then
     echo "[ERROR] Build failed. Full output saved to $LOG."

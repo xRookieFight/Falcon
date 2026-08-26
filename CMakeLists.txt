@@ -17,6 +17,8 @@ FetchContent_Declare(
     leveldb
     GIT_REPOSITORY https://github.com/NaySurGithub/leveldb.git
     GIT_TAG dc68a4cac5f2ece6cb990ef0c8e69c677b2dcba7
+    GIT_SHALLOW TRUE
+    GIT_PROGRESS TRUE
 )
 FetchContent_MakeAvailable(leveldb)
 
@@ -28,11 +30,17 @@ FetchContent_Declare(
     quickjs
     GIT_REPOSITORY https://github.com/quickjs-ng/quickjs.git
     GIT_TAG v0.10.1
+    GIT_SHALLOW TRUE
+    GIT_PROGRESS TRUE
 )
 FetchContent_MakeAvailable(quickjs)
 
-if(TARGET qjs AND NOT MSVC)
-    target_compile_options(qjs PRIVATE -Wno-error)
+if(NOT MSVC)
+    foreach(qjs_target qjs qjsc qjs_exe run-test262 api-test function_source)
+        if(TARGET ${qjs_target})
+            target_compile_options(${qjs_target} PRIVATE -Wno-error)
+        endif()
+    endforeach()
 endif()
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
@@ -49,6 +57,8 @@ FetchContent_Declare(
     libdatachannel
     GIT_REPOSITORY https://github.com/paullouisageneau/libdatachannel.git
     GIT_TAG 443f6934d9007eb7076ab7825ba330f355fcbead
+    GIT_SHALLOW TRUE
+    GIT_PROGRESS TRUE
 )
 FetchContent_MakeAvailable(libdatachannel)
 
