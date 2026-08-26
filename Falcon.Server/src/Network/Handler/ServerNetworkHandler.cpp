@@ -555,9 +555,6 @@ void ServerNetworkHandler::setProperties(const PropertiesSettings &properties) {
 
     _logPackStack();
 
-    const int fluidBudget = properties.getFluidBudgetMs();
-    mLevel.setFluidTimeBudgetMs(fluidBudget < 0 ? -1.0 : (fluidBudget < 1 ? 1.0 : (double) fluidBudget));
-
     switch (properties.getGameType()) {
         case GameType::Creative:
             mAnnouncement.mGameMode = "Creative";
@@ -825,8 +822,6 @@ void ServerNetworkHandler::tick() {
             mProfiler.endSection(ProfilerSection::ActorPersistence);
         }
     }
-
-    mLevel.updateFluidBudget(getMillisecondsPerTick());
 
     mProfiler.beginSection(ProfilerSection::Fluids);
     mLevel.tickFluids();

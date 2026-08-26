@@ -5,7 +5,6 @@
 #include "Level/Level.h"
 
 #include <algorithm>
-#include <chrono>
 #include <cmath>
 #include <limits>
 #include <vector>
@@ -441,8 +440,14 @@ void LiquidPhysicsSystem::process(const Vector3i &position) {
     const int nextDecay = baseDecay + step;
     if (nextDecay <= 7) {
         static const int offsets[4][3] = {{-1, 0, 0}, {1, 0, 0}, {0, 0, -1}, {0, 0, 1}};
-        for (const auto &offset: offsets) {
-            const Vector3i side(position.x + offset[0], position.y, position.z + offset[2]);
+        bool optimal[4];
+        _getOptimalFlowDirections(position.x, position.y, position.z, step, optimal);
+
+        for (int j = 0; j < 4; ++j) {
+            if (!optimal[j])
+                continue;
+
+            const Vector3i side(position.x + offsets[j][0], position.y, position.z + offsets[j][2]);
             if (resolveFluidCollision(side, currentState, false))
                 continue;
 
@@ -510,15 +515,6 @@ void LiquidPhysicsSystem::process(const Vector3i &position) {
     }
 }
 
-void LiquidPhysicsSystem::_deferRemaining(const std::vector<Position> &positions, size_t from, int64_t bucketTick) {
-    if (from >= positions.size())
-        return;
-
-    std::vector<Position> &target = mBuckets[bucketTick];
-    target.insert(target.end(), positions.begin() + (long) from, positions.end());
-    mLastDeferred += positions.size() - from;
-}
-
 void LiquidPhysicsSystem::_enqueueImmediate(const Position &position) {
     if (position.y < LevelChunk::MIN_Y || position.y > LevelChunk::MAX_Y)
         return;
@@ -529,48 +525,102 @@ void LiquidPhysicsSystem::_enqueueImmediate(const Position &position) {
     mImmediateQueue.push_back(position);
 }
 
-void LiquidPhysicsSystem::updateAdaptiveBudget(double millisecondsPerTick) {
-    if (mBaselineBudgetMs < 0.0)
-        return;
+bool LiquidPhysicsSystem::_canBeFlowedInto(const BlockState &state) const {
+    if (isFluidState(state) && LiquidView(state).isSource())
+        return false;
+    return isFlowable(state);
+}
 
-    if (++mAdaptiveCounter < ADAPTIVE_INTERVAL_TICKS)
-        return;
+int LiquidPhysicsSystem::_calculateFlowCost(int32_t x, int32_t y, int32_t z, int accumulatedCost, int maxCost,
+                                            int originOpposite, int lastOpposite,
+                                            std::unordered_map<Position, int8_t, PositionHash> &visited) {
+    static const int offsets[4][3] = {{-1, 0, 0}, {1, 0, 0}, {0, 0, -1}, {0, 0, 1}};
 
-    mAdaptiveCounter = 0;
+    int cost = 1000;
+    for (int j = 0; j < 4; ++j) {
+        if (j == originOpposite || j == lastOpposite)
+            continue;
 
-    if (mTimeBudgetMs < 0.0) {
-        if (millisecondsPerTick > ADAPTIVE_HIGH_MSPT)
-            mTimeBudgetMs = ADAPTIVE_MAX_FINITE_MS;
+        const int32_t nextX = x + offsets[j][0];
+        const int32_t nextZ = z + offsets[j][2];
+        const Position key{nextX, y, nextZ};
 
-        return;
+        int8_t status;
+        auto found = visited.find(key);
+        if (found != visited.end()) {
+            status = found->second;
+        } else {
+            const BlockState side = _stateAt(nextX, y, nextZ);
+            if (!_canBeFlowedInto(side)) {
+                status = FLOW_BLOCKED;
+            } else {
+                const BlockState under = _stateAt(nextX, y - 1, nextZ);
+                status = _canBeFlowedInto(under) ? FLOW_CAN_FLOW_DOWN : FLOW_CAN_FLOW;
+            }
+            visited.emplace(key, status);
+        }
+
+        if (status == FLOW_BLOCKED)
+            continue;
+        if (status == FLOW_CAN_FLOW_DOWN)
+            return accumulatedCost;
+        if (accumulatedCost >= maxCost)
+            continue;
+
+        const int realCost = _calculateFlowCost(nextX, y, nextZ, accumulatedCost + 1, maxCost,
+                                                originOpposite, j ^ 0x01, visited);
+        if (realCost < cost)
+            cost = realCost;
     }
 
-    if (millisecondsPerTick < ADAPTIVE_LOW_MSPT) {
-        mTimeBudgetMs += ADAPTIVE_STEP_MS;
+    return cost;
+}
 
-        if (mTimeBudgetMs > ADAPTIVE_MAX_FINITE_MS)
-            mTimeBudgetMs = -1.0;
-    } else if (millisecondsPerTick > ADAPTIVE_HIGH_MSPT) {
-        mTimeBudgetMs -= ADAPTIVE_STEP_MS;
+void LiquidPhysicsSystem::_getOptimalFlowDirections(int32_t x, int32_t y, int32_t z, int decayPerBlock, bool out[4]) {
+    static const int offsets[4][3] = {{-1, 0, 0}, {1, 0, 0}, {0, 0, -1}, {0, 0, 1}};
 
-        if (mTimeBudgetMs < mBaselineBudgetMs)
-            mTimeBudgetMs = mBaselineBudgetMs;
+    int flowCost[4] = {1000, 1000, 1000, 1000};
+    int maxCost = 4 / decayPerBlock;
+    std::unordered_map<Position, int8_t, PositionHash> visited;
+
+    for (int j = 0; j < 4; ++j) {
+        const int32_t nextX = x + offsets[j][0];
+        const int32_t nextZ = z + offsets[j][2];
+        const Position key{nextX, y, nextZ};
+        const BlockState side = _stateAt(nextX, y, nextZ);
+
+        if (!_canBeFlowedInto(side)) {
+            visited[key] = FLOW_BLOCKED;
+        } else {
+            const BlockState under = _stateAt(nextX, y - 1, nextZ);
+            if (_canBeFlowedInto(under)) {
+                visited[key] = FLOW_CAN_FLOW_DOWN;
+                flowCost[j] = 0;
+                maxCost = 0;
+            } else if (maxCost > 0) {
+                visited[key] = FLOW_CAN_FLOW;
+                flowCost[j] = _calculateFlowCost(nextX, y, nextZ, 1, maxCost, j ^ 0x01, j ^ 0x01, visited);
+                maxCost = std::min(maxCost, flowCost[j]);
+            }
+        }
     }
+
+    int minCost = 1000;
+    for (int j = 0; j < 4; ++j)
+        minCost = std::min(minCost, flowCost[j]);
+
+    for (int j = 0; j < 4; ++j)
+        out[j] = flowCost[j] == minCost;
 }
 
 void LiquidPhysicsSystem::tick() {
     ++mTick;
     mLastProcessed = 0;
-    mLastDeferred = 0;
 
     if (mBuckets.empty())
         return;
 
-    const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
-    size_t sinceCheck = 0;
-    bool exhausted = false;
-
-    while (!mBuckets.empty() && !exhausted) {
+    while (!mBuckets.empty()) {
         auto bucket = mBuckets.begin();
         if (bucket->first > mTick)
             break;
@@ -580,9 +630,7 @@ void LiquidPhysicsSystem::tick() {
         const int64_t bucketTick = bucket->first;
         mBuckets.erase(bucket);
 
-        for (size_t i = 0; i < positions.size(); ++i) {
-            const Position &key = positions[i];
-
+        for (const Position &key: positions) {
             auto scheduled = mSchedule.find(key);
             if (scheduled != mSchedule.end() && scheduled->second == bucketTick) {
                 if (!_isActive(key.x, key.z)) {
@@ -593,32 +641,8 @@ void LiquidPhysicsSystem::tick() {
                     mSchedule.erase(scheduled);
                     process(Vector3i(key.x, key.y, key.z));
                     mLastProcessed++;
-
-                    if (mLastProcessed >= MAX_UPDATES_PER_TICK) {
-                        _deferRemaining(positions, i + 1, bucketTick);
-                        exhausted = true;
-                        break;
-                    }
                 }
             }
-
-            if (++sinceCheck < BUDGET_CHECK_INTERVAL)
-                continue;
-
-            sinceCheck = 0;
-
-            if (mTimeBudgetMs < 0.0)
-                continue;
-
-            const double elapsed = std::chrono::duration<double, std::milli>(
-                    std::chrono::steady_clock::now() - start).count();
-
-            if (elapsed < mTimeBudgetMs)
-                continue;
-
-            _deferRemaining(positions, i + 1, bucketTick);
-            exhausted = true;
-            break;
         }
     }
 }

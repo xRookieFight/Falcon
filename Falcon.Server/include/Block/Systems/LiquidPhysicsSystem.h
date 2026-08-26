@@ -52,20 +52,10 @@ public:
 
     static bool needsInitialTick(const LevelChunk &chunk, int32_t localX, int32_t y, int32_t localZ);
 
-    void setTimeBudgetMs(double milliseconds) {
-        mBaselineBudgetMs = milliseconds;
-        mTimeBudgetMs = milliseconds;
-    }
-
-    double getTimeBudgetMs() const { return mTimeBudgetMs; }
-
-    void updateAdaptiveBudget(double millisecondsPerTick);
-
     size_t getScheduledCount() const { return mSchedule.size(); }
 
     size_t getLastProcessedCount() const { return mLastProcessed; }
 
-    size_t getLastDeferredCount() const { return mLastDeferred; }
     std::vector<LiquidChange> consumeChanges();
 
 private:
@@ -100,8 +90,13 @@ private:
 
     bool _isActive(int32_t x, int32_t z) const;
 
-    void _deferRemaining(const std::vector<Position> &positions, size_t from, int64_t bucketTick);
     void _enqueueImmediate(const Position &position);
+
+    bool _canBeFlowedInto(const BlockState &state) const;
+    int _calculateFlowCost(int32_t x, int32_t y, int32_t z, int accumulatedCost, int maxCost,
+                           int originOpposite, int lastOpposite,
+                           std::unordered_map<Position, int8_t, PositionHash> &visited);
+    void _getOptimalFlowDirections(int32_t x, int32_t y, int32_t z, int decayPerBlock, bool out[4]);
 
     void scheduleNeighbors(int32_t x, int32_t y, int32_t z);
     void scheduleLoaded(LevelChunk &chunk);
@@ -112,24 +107,15 @@ private:
     bool resolveFluidCollision(const Vector3i &target, const BlockState &sourceState, bool downward);
     BlockState makeState(bool lava, int decay, bool falling) const;
 
-    static constexpr size_t MAX_UPDATES_PER_TICK = 4096;
-    static constexpr size_t BUDGET_CHECK_INTERVAL = 8;
-
-    static constexpr double ADAPTIVE_LOW_MSPT = 30.0;
-    static constexpr double ADAPTIVE_HIGH_MSPT = 42.0;
-    static constexpr double ADAPTIVE_STEP_MS = 2.0;
-    static constexpr double ADAPTIVE_MAX_FINITE_MS = 45.0;
-    static constexpr int64_t ADAPTIVE_INTERVAL_TICKS = 20;
+    static constexpr int8_t FLOW_BLOCKED = -1;
+    static constexpr int8_t FLOW_CAN_FLOW = 0;
+    static constexpr int8_t FLOW_CAN_FLOW_DOWN = 1;
 
     Level &mLevel;
     std::map<int64_t, std::vector<Position>> mBuckets;
     std::unordered_map<int64_t, std::vector<Position>> mParked;
     int64_t mTick = 0;
-    double mTimeBudgetMs = 20.0;
-    double mBaselineBudgetMs = 20.0;
-    int64_t mAdaptiveCounter = 0;
     size_t mLastProcessed = 0;
-    size_t mLastDeferred = 0;
     std::unordered_map<Position, int64_t, PositionHash> mSchedule;
     std::vector<LiquidChange> mChanges;
     bool mImmediatePropagation = false;

@@ -386,42 +386,62 @@ void BlockActionHandler::breakBlock(ServerNetworkHandler &owner, ServerPlayer &p
         const bool silkTouch = ItemEnchantments::getLevel(heldItem, EnchantmentIds::SILK_TOUCH) > 0;
         const int32_t fortuneLevel = ItemEnchantments::getLevel(heldItem, EnchantmentIds::FORTUNE);
 
-        std::string dropIdentifier;
-        int32_t dropCount = 0;
-        const std::string normalizedDropIdentifier = furnaceDropIdentifier(brokenState.mName);
+        auto spawnDrop = [&](const std::string &identifier, int32_t count) {
+            if (identifier.empty() || count <= 0)
+                return;
 
-        if (silkTouch && brokenData->mSilkTouch) {
-            dropIdentifier = normalizedDropIdentifier;
-            dropCount = 1;
-        } else if (brokenData->mDropKind == BlockDropKind::Self) {
-            dropIdentifier = normalizedDropIdentifier;
-            dropCount = brokenData->mDropMin;
-        } else if (brokenData->mDropKind == BlockDropKind::Other && brokenData->mDropIdentifier != nullptr) {
-            dropIdentifier = brokenData->mDropIdentifier;
-            const int32_t range = (int32_t) brokenData->mDropMax - (int32_t) brokenData->mDropMin + 1;
-            dropCount = (int32_t) brokenData->mDropMin + (range > 0 ? rand() % range : 0);
-
-            if (fortuneLevel > 0)
-                dropCount += rand() % (fortuneLevel + 1);
-        }
-
-        if (!dropIdentifier.empty() && dropCount > 0) {
             Item parsedItem;
-            const bool parsed = StringToItemParser::getInstance().parse(dropIdentifier, parsedItem);
-            if (parsed) {
-                ItemStack drop;
-                drop.mDefinition = owner.getItemDefinitions().getDefinition(parsedItem.getIdentifier());
-                drop.mBlockDefinition = owner.getBlockDefinitions().getDefinition(parsedItem.getIdentifier());
-                drop.mCount = dropCount;
+            if (!StringToItemParser::getInstance().parse(identifier, parsedItem))
+                return;
 
-                if (ContainerBlock::keepsContentsInItem(brokenIdentifier))
-                    ContainerBlock::writeContentsToItem(position, drop);
+            ItemStack drop;
+            drop.mDefinition = owner.getItemDefinitions().getDefinition(parsedItem.getIdentifier());
+            drop.mBlockDefinition = owner.getBlockDefinitions().getDefinition(parsedItem.getIdentifier());
+            drop.mCount = count;
 
-                const Vector3f dropPosition((float) position.x + 0.5f, (float) position.y + 0.5f,
-                                            (float) position.z + 0.5f);
-                owner.dropItem(dropPosition, drop, ItemActorHandler::randomDropMotion(),
-                               ItemActorHandler::DROP_PICKUP_DELAY);
+            if (ContainerBlock::keepsContentsInItem(brokenIdentifier))
+                ContainerBlock::writeContentsToItem(position, drop);
+
+            const Vector3f dropPosition((float) position.x + 0.5f, (float) position.y + 0.5f,
+                                        (float) position.z + 0.5f);
+            owner.dropItem(dropPosition, drop, ItemActorHandler::randomDropMotion(),
+                           ItemActorHandler::DROP_PICKUP_DELAY);
+        };
+
+        const bool grassLike = brokenState.mName == "minecraft:short_grass"
+                               || brokenState.mName == "minecraft:tall_grass";
+
+        if (grassLike) {
+            const bool usedShears = heldItem.mDefinition != nullptr
+                                    && heldItem.mDefinition->getIdentifier() == "minecraft:shears";
+            if (usedShears)
+                spawnDrop(furnaceDropIdentifier(brokenState.mName), 1);
+
+            if (rand() % 8 == 0) {
+                const int32_t seedCount = fortuneLevel == 0 ? 1 : 1 + rand() % (fortuneLevel * 2);
+                spawnDrop("minecraft:wheat_seeds", seedCount);
             }
+        } else {
+            std::string dropIdentifier;
+            int32_t dropCount = 0;
+            const std::string normalizedDropIdentifier = furnaceDropIdentifier(brokenState.mName);
+
+            if (silkTouch && brokenData->mSilkTouch) {
+                dropIdentifier = normalizedDropIdentifier;
+                dropCount = 1;
+            } else if (brokenData->mDropKind == BlockDropKind::Self) {
+                dropIdentifier = normalizedDropIdentifier;
+                dropCount = brokenData->mDropMin;
+            } else if (brokenData->mDropKind == BlockDropKind::Other && brokenData->mDropIdentifier != nullptr) {
+                dropIdentifier = brokenData->mDropIdentifier;
+                const int32_t range = (int32_t) brokenData->mDropMax - (int32_t) brokenData->mDropMin + 1;
+                dropCount = (int32_t) brokenData->mDropMin + (range > 0 ? rand() % range : 0);
+
+                if (fortuneLevel > 0)
+                    dropCount += rand() % (fortuneLevel + 1);
+            }
+
+            spawnDrop(dropIdentifier, dropCount);
         }
 
         if (!silkTouch) {

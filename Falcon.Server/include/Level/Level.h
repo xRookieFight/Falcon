@@ -175,17 +175,11 @@ public:
 
     void tickFluids();
 
-    void setFluidTimeBudgetMs(double milliseconds) { mLiquidPhysics.setTimeBudgetMs(milliseconds); }
-
-    void updateFluidBudget(double millisecondsPerTick) { mLiquidPhysics.updateAdaptiveBudget(millisecondsPerTick); }
-
     void setActiveColumns(std::vector<int64_t> columns);
 
     bool isColumnActive(int32_t chunkX, int32_t chunkZ) const;
 
     size_t getScheduledFluidCount() const { return mLiquidPhysics.getScheduledCount(); }
-
-    size_t getDeferredFluidCount() const { return mLiquidPhysics.getLastDeferredCount(); }
 
     size_t getLastFluidProcessedCount() const { return mLiquidPhysics.getLastProcessedCount(); }
 
