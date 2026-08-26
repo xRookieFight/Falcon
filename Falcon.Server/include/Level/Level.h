@@ -103,6 +103,16 @@ public:
 
     bool isChunkPopulated(int32_t chunkX, int32_t chunkZ) const;
 
+    void registerChunkLoader(uint64_t loaderId, int32_t chunkX, int32_t chunkZ);
+
+    bool unregisterChunkLoader(uint64_t loaderId, int32_t chunkX, int32_t chunkZ);
+
+    void unregisterAllChunkLoaders(uint64_t loaderId);
+
+    size_t processChunkUnloads();
+
+    size_t getUnloadQueueSize() const { return mUnloadQueue.size(); }
+
     LevelChunk *peekChunkPtr(int32_t chunkX, int32_t chunkZ);
 
     LevelChunk &generateTerrainChunk(int32_t chunkX, int32_t chunkZ);
@@ -218,6 +228,9 @@ private:
     std::unordered_set<int64_t> mActiveColumns;
     std::deque<ChunkLoadResult> mCompletedChunks;
     std::unordered_set<int64_t> mRepopulatedChunks;
+    std::unordered_map<int64_t, std::unordered_set<uint64_t>> mChunkLoaders;
+    std::unordered_set<int64_t> mUnloadQueue;
+    static constexpr size_t MAX_CHUNK_UNLOADS_PER_TICK = 8;
     std::vector<GeneratedBlockChange> mIncomingChanges;
     std::unordered_map<int64_t, std::vector<GeneratedBlockChange>> mPendingBlockChanges;
     std::unique_ptr<ChunkWorker> mChunkWorker;

@@ -1,9 +1,36 @@
 #include "Level/LevelChunk.h"
 
+#include <algorithm>
+
+namespace {
+    const unsigned char BIOME_COPY_PREVIOUS = 0xff;
+}
+
 LevelChunk::LevelChunk(int32_t x, int32_t z) : mX(x), mZ(z), mBiomeId(1), mDirty(false) {
     mSubChunks.reserve(SUB_CHUNK_COUNT);
     for (int i = 0; i < SUB_CHUNK_COUNT; i++)
         mSubChunks.push_back(SubChunk((int8_t) (LOWEST_SUB_CHUNK_Y + i)));
+
+    mSubChunkNetworkCache.resize(SUB_CHUNK_COUNT);
+    mSubChunkNetworkValid.assign(SUB_CHUNK_COUNT, 0);
+}
+
+void LevelChunk::invalidateNetworkCaches() {
+    mSubChunkNetworkValid.assign(SUB_CHUNK_COUNT, 0);
+    mTopHeightsValid = false;
+    mNetworkAnchorValid = false;
+}
+
+void LevelChunk::buildNetworkCaches() const {
+    for (int i = 0; i < SUB_CHUNK_COUNT; i++) {
+        if (mSubChunks[(size_t) i].isEmpty())
+            continue;
+
+        encodeSubChunkNetwork(i);
+    }
+
+    getTopBlockHeights();
+    encodeNetworkAnchor();
 }
 
 int LevelChunk::_lightIndex(int x, int32_t y, int z) {
@@ -67,7 +94,11 @@ void LevelChunk::setBlock(int x, int32_t y, int z, const BlockState &state) {
     if (y < MIN_Y || y > MAX_Y)
         return;
 
-    mSubChunks[subChunkIndexFor(y)].setBlock(x, y & 15, z, state);
+    const int index = subChunkIndexFor(y);
+    mSubChunks[index].setBlock(x, y & 15, z, state);
+    mSubChunkNetworkValid[(size_t) index] = 0;
+    mTopHeightsValid = false;
+    mNetworkAnchorValid = false;
     mDirty = true;
 }
 
@@ -91,6 +122,7 @@ int LevelChunk::getNetworkSubChunkCount() const {
 
 void LevelChunk::setBiome(uint32_t biomeId) {
     mBiomeId = biomeId;
+    mNetworkAnchorValid = false;
 
     for (int32_t y = MIN_Y; y <= MAX_Y; y += 16) {
         SubChunk &subChunk = mSubChunks[subChunkIndexFor(y)];
@@ -108,6 +140,7 @@ void LevelChunk::setBiomeAt(int x, int32_t y, int z, uint32_t biomeId) {
         return;
 
     mSubChunks[subChunkIndexFor(y)].setBiome(x, y & 15, z, biomeId);
+    mNetworkAnchorValid = false;
 }
 
 uint32_t LevelChunk::getBiomeAt(int x, int32_t y, int z) const {
@@ -142,6 +175,7 @@ bool LevelChunk::readBiomesPersistent(ReadOnlyBinaryStream &stream, int sectionC
     }
 
     mBiomeId = getBiomeAt(0, 63, 0);
+    mNetworkAnchorValid = false;
     return true;
 }
 
@@ -160,10 +194,89 @@ std::string LevelChunk::encodeNetwork() const {
     const int sectionCount = getNetworkSubChunkCount();
 
     for (int i = 0; i < sectionCount; i++)
-        mSubChunks[i].writeNetwork(stream);
+        stream.put(encodeSubChunkNetwork(i));
 
     stream.put(encodeBiomes(sectionCount));
     stream.putByte(0);
 
     return stream.getBuffer();
+}
+
+const std::string &LevelChunk::encodeNetworkAnchor() const {
+    if (mNetworkAnchorValid)
+        return mNetworkAnchorCache;
+
+    BinaryStream stream;
+
+    const int sectionCount = std::max(1, getNetworkSubChunkCount());
+
+    for (int i = 0; i < sectionCount; i++)
+        mSubChunks[i].writeBiomes(stream, false);
+
+    for (int i = sectionCount; i < SUB_CHUNK_COUNT; i++)
+        stream.putByte(BIOME_COPY_PREVIOUS);
+
+    stream.putByte(0);
+
+    mNetworkAnchorCache = stream.getBuffer();
+    mNetworkAnchorValid = true;
+
+    return mNetworkAnchorCache;
+}
+
+const std::string &LevelChunk::encodeSubChunkNetwork(int index) const {
+    static const std::string empty;
+
+    if (index < 0 || index >= SUB_CHUNK_COUNT)
+        return empty;
+
+    std::string &cached = mSubChunkNetworkCache[(size_t) index];
+    if (mSubChunkNetworkValid[(size_t) index] != 0)
+        return cached;
+
+    BinaryStream stream;
+    mSubChunks[(size_t) index].writeNetwork(stream);
+
+    cached = stream.getBuffer();
+    mSubChunkNetworkValid[(size_t) index] = 1;
+
+    return cached;
+}
+
+const std::vector<int32_t> &LevelChunk::getTopBlockHeights() const {
+    if (mTopHeightsValid)
+        return mTopHeightsCache;
+
+    std::vector<int32_t> heights((size_t) 256, MIN_Y - 1);
+    size_t remaining = heights.size();
+
+    for (int index = SUB_CHUNK_COUNT - 1; index >= 0 && remaining > 0; index--) {
+        const SubChunk &subChunk = mSubChunks[(size_t) index];
+        if (subChunk.isEmpty())
+            continue;
+
+        const int32_t baseY = MIN_Y + index * 16;
+
+        for (int z = 0; z < 16; z++) {
+            for (int x = 0; x < 16; x++) {
+                const size_t slot = (size_t) ((z << 4) | x);
+                if (heights[slot] != MIN_Y - 1)
+                    continue;
+
+                for (int localY = 15; localY >= 0; localY--) {
+                    if (subChunk.getBlock(x, localY, z).mName == "minecraft:air")
+                        continue;
+
+                    heights[slot] = baseY + localY;
+                    remaining--;
+                    break;
+                }
+            }
+        }
+    }
+
+    mTopHeightsCache = std::move(heights);
+    mTopHeightsValid = true;
+
+    return mTopHeightsCache;
 }

@@ -105,6 +105,8 @@ public:
 
     bool getClientSideChunkGenerationEnabled() const { return getBool("client-side-chunk-generation-enabled", false); }
 
+    bool getSubChunkRequestsEnabled() const { return getBool("sub-chunk-requests-enabled", false); }
+
     bool getBlockNetworkIdsAreHashes() const { return getBool("block-network-ids-are-hashes", true); }
 
     bool getDisableCustomSkins() const { return getBool("disable-custom-skins", false); }

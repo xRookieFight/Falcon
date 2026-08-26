@@ -283,6 +283,79 @@ bool Level::isChunkResident(int32_t chunkX, int32_t chunkZ) const {
     return mChunks.find(_packChunk(chunkX, chunkZ)) != mChunks.end();
 }
 
+void Level::registerChunkLoader(uint64_t loaderId, int32_t chunkX, int32_t chunkZ) {
+    const int64_t key = _packChunk(chunkX, chunkZ);
+    mChunkLoaders[key].insert(loaderId);
+    mUnloadQueue.erase(key);
+}
+
+bool Level::unregisterChunkLoader(uint64_t loaderId, int32_t chunkX, int32_t chunkZ) {
+    const int64_t key = _packChunk(chunkX, chunkZ);
+
+    auto entry = mChunkLoaders.find(key);
+    if (entry == mChunkLoaders.end())
+        return false;
+
+    if (entry->second.erase(loaderId) == 0)
+        return false;
+
+    if (!entry->second.empty())
+        return false;
+
+    mChunkLoaders.erase(entry);
+    mUnloadQueue.insert(key);
+    return true;
+}
+
+void Level::unregisterAllChunkLoaders(uint64_t loaderId) {
+    for (auto entry = mChunkLoaders.begin(); entry != mChunkLoaders.end();) {
+        if (entry->second.erase(loaderId) == 0 || !entry->second.empty()) {
+            ++entry;
+            continue;
+        }
+
+        mUnloadQueue.insert(entry->first);
+        entry = mChunkLoaders.erase(entry);
+    }
+}
+
+size_t Level::processChunkUnloads() {
+    if (mUnloadQueue.empty())
+        return 0;
+
+    size_t unloaded = 0;
+
+    for (auto it = mUnloadQueue.begin(); it != mUnloadQueue.end() && unloaded < MAX_CHUNK_UNLOADS_PER_TICK;) {
+        const int64_t key = *it;
+
+        if (mChunkLoaders.find(key) != mChunkLoaders.end() || mPendingChunks.find(key) != mPendingChunks.end()) {
+            it = mUnloadQueue.erase(it);
+            continue;
+        }
+
+        auto chunk = mChunks.find(key);
+        if (chunk == mChunks.end()) {
+            it = mUnloadQueue.erase(it);
+            continue;
+        }
+
+        if (chunk->second.isDirty() && mStorage.isOpen()) {
+            if (mChunkWorker != nullptr && mChunkWorker->isRunning())
+                mChunkWorker->requestSave(std::unique_ptr<LevelChunk>(new LevelChunk(chunk->second)));
+            else
+                mStorage.saveChunk(chunk->second);
+        }
+
+        mChunks.erase(chunk);
+        mChunkNetworkCache.erase(key);
+        mRepopulatedChunks.erase(key);
+        it = mUnloadQueue.erase(it);
+        unloaded++;
+    }
+
+    return unloaded;
+}
+
 bool Level::isChunkPopulated(int32_t chunkX, int32_t chunkZ) const {
     const auto it = mChunks.find(_packChunk(chunkX, chunkZ));
     return it != mChunks.end() && it->second.isPopulated();

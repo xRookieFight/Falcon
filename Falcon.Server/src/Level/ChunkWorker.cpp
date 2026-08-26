@@ -1,6 +1,7 @@
 #include "Level/ChunkWorker.h"
 
 #include "Block/Blocks/LiquidBlock.h"
+#include "Block/Systems/LiquidPhysicsSystem.h"
 #include "Level/Generator/GeneratorChunkSource.h"
 #include "Level/Generator/OverworldGenerator.h"
 #include "Level/LevelStorage.h"
@@ -8,6 +9,27 @@
 
 #include <algorithm>
 #include <utility>
+
+#include <pthread.h>
+#include <sched.h>
+
+namespace {
+    void lowerCurrentThreadPriority() {
+        sched_param parameters;
+        int policy = 0;
+
+        if (pthread_getschedparam(pthread_self(), &policy, &parameters) != 0)
+            return;
+
+        const int minimum = sched_get_priority_min(policy);
+        const int maximum = sched_get_priority_max(policy);
+        if (minimum < 0 || maximum < 0 || minimum >= maximum)
+            return;
+
+        parameters.sched_priority = minimum + (maximum - minimum) / 4;
+        pthread_setschedparam(pthread_self(), policy, &parameters);
+    }
+}
 
 ChunkWorker::ChunkWorker(const OverworldGenerator &generator, LevelStorage &storage)
         : mGenerator(generator), mStorage(storage), mRunning(false), mGeneratedCount(0), mLoadedCount(0),
@@ -156,12 +178,18 @@ void ChunkWorker::_finishChunk(std::unique_ptr<LevelChunk> chunk, size_t sourceI
         }
     }
 
+    chunk->buildNetworkCaches();
+
     result.mNetworkSubChunkCount = chunk->getNetworkSubChunkCount();
     result.mNetworkData = chunk->encodeNetwork();
 
-    chunk->forEachBlock([&result](int32_t x, int32_t y, int32_t z, const BlockState &state) {
+    const LevelChunk &scanned = *chunk;
+    chunk->forEachBlock([&result, &scanned](int32_t x, int32_t y, int32_t z, const BlockState &state) {
         const LiquidBlock liquid(state);
         if (!liquid.isLiquid() && !liquid.isBubbleColumn())
+            return;
+
+        if (!LiquidPhysicsSystem::needsInitialTick(scanned, x & 15, y, z & 15))
             return;
 
         ChunkFluidCell cell;
@@ -186,6 +214,8 @@ void ChunkWorker::_processSave(ChunkTask &task) {
 }
 
 void ChunkWorker::_run(size_t queueIndex) {
+    lowerCurrentThreadPriority();
+
     TaskQueue<ChunkTask> &queue = *mQueues[queueIndex];
     ChunkTask task;
 

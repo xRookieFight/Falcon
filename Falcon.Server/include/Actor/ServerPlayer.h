@@ -259,6 +259,8 @@ public:
 
     std::unordered_set<int64_t> &getSentChunks() { return mSentChunks; }
 
+    std::unordered_set<uint64_t> &getVisibleActors() { return mVisibleActors; }
+
     size_t getSentChunkCount() const { return mSentChunkCount; }
 
     void addSentChunkCount(size_t count) { mSentChunkCount += count; }
@@ -315,6 +317,7 @@ private:
     Vector3i mLastBlockAttacked;
     bool mSawNonZeroClientTick = false;
     std::unordered_set<int64_t> mSentChunks;
+    std::unordered_set<uint64_t> mVisibleActors;
     size_t mSentChunkCount = 0;
     bool mSpawnChunksReady = false;
     int32_t mLastChunkX = 0;

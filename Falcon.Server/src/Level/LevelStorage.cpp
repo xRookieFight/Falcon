@@ -28,6 +28,18 @@ namespace {
                | (((int64_t) (z + 30000000) & 0x3FFFFFFLL) << 11)
                | (((int64_t) (y + 400) & 0x3FFLL) << 1);
     }
+
+    const EncodingSettings &_storageEncodingSettings() {
+        static const EncodingSettings settings = []() {
+            EncodingSettings storage;
+            storage.mMaxListSize = 1024 * 1024;
+            storage.mMaxByteArraySize = 32 * 1024 * 1024;
+            storage.mMaxStringLength = 1024 * 32;
+            return storage;
+        }();
+
+        return settings;
+    }
 }
 
 LevelStorage::LevelStorage() : mDb(nullptr), mDimensionId(0) {}
@@ -197,6 +209,7 @@ bool LevelStorage::loadChunk(LevelChunk &chunk) {
             continue;
 
         ReadOnlyBinaryStream stream(data);
+        stream.setEncodingSettings(_storageEncodingSettings());
 
         try {
             if (chunk.getSubChunk(i).readPersistent(stream, &replacedUnknown))
@@ -310,6 +323,7 @@ std::vector<GeneratedBlockChange> LevelStorage::loadPendingBlockChanges(int32_t 
         return changes;
 
     ReadOnlyBinaryStream stream(data);
+    stream.setEncodingSettings(_storageEncodingSettings());
 
     try {
         const Tag root = NbtIo::readTag(stream, NbtVariant::LittleEndian);
@@ -391,6 +405,7 @@ std::vector<Tag> LevelStorage::loadEntities(int32_t chunkX, int32_t chunkZ) {
         return entities;
 
     ReadOnlyBinaryStream stream(data);
+    stream.setEncodingSettings(_storageEncodingSettings());
 
     try {
         while (!stream.feof())
@@ -442,6 +457,7 @@ std::vector<Tag> LevelStorage::loadBlockEntities(int32_t chunkX, int32_t chunkZ)
         return blockEntities;
 
     ReadOnlyBinaryStream stream(data);
+    stream.setEncodingSettings(_storageEncodingSettings());
 
     try {
         while (!stream.feof())

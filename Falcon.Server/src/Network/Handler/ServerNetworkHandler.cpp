@@ -38,6 +38,8 @@
 #include "Network/LoginChainVerifier.h"
 #include "Network/Handler/LoginHandler.h"
 #include "Network/Handler/MovementHandler.h"
+#include "Network/Handler/SubChunkRequestHandler.h"
+#include "Protocol/Packets/SubChunkRequestPacket.h"
 #include "Core/Utility/ReadOnlyBinaryStream.h"
 #include "Level/LevelChunk.h"
 #include "Protocol/MinecraftPackets.h"
@@ -938,6 +940,8 @@ void ServerNetworkHandler::tick() {
     mProfiler.endSection(ProfilerSection::ItemActors);
 
     tickActors();
+    updateActorVisibility();
+    mLevel.processChunkUnloads();
 
     mProfiler.beginSection(ProfilerSection::Redstone);
     RedstoneSystem::tick(*this);
@@ -1004,6 +1008,9 @@ void ServerNetworkHandler::onConnectionClosed(const NetworkIdentifier &id, Disco
             mEventBus.after().mPlayerLeave.emit(leaveEvent);
         }
     }
+
+    if (player != nullptr)
+        mLevel.unregisterAllChunkLoaders(player->getRuntimeId());
 
     mModalFormCallbacks.erase(id);
     mPlayers.erase(id);
@@ -2446,6 +2453,17 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const RequestChun
     ChunkStreamHandler::handleViewDistanceChange(*this, *player);
     _sendChunks(*player);
     _checkTerrainReady(*player);
+}
+
+void ServerNetworkHandler::handle(const NetworkIdentifier &id, const SubChunkRequestPacket &packet) {
+    ServerPlayer *player = _getPlayer(id);
+    if (player == nullptr)
+        return;
+
+    if (!mProperties.getSubChunkRequestsEnabled())
+        return;
+
+    SubChunkRequestHandler::handleRequest(*this, *player, packet);
 }
 
 void ServerNetworkHandler::_checkTerrainReady(ServerPlayer &player) {

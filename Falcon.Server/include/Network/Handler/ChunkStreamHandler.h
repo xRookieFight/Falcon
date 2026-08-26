@@ -13,7 +13,6 @@ struct ChunkStreamState {
     std::unordered_set<int64_t> mLoading;
     std::vector<int64_t> mReadyToSend;
     int64_t mLastLoaderChunk = INT64_MAX;
-    int64_t mLastOrderRunMillis = 0;
     int32_t mComparatorChunkX = 0;
     int32_t mComparatorChunkZ = 0;
     double mComparatorDirX = 0.0;
@@ -22,9 +21,8 @@ struct ChunkStreamState {
 
 class ChunkStreamHandler {
 public:
-    static const int32_t FIELD_OF_VIEW_DEGREES = 70;
-    static const int32_t ORDER_RUN_INTERVAL_MILLIS = 50;
-    static const int32_t TELEPORT_LOAD_COUNT = 8;
+    static constexpr int32_t FIELD_OF_VIEW_DEGREES = 70;
+    static constexpr int32_t TELEPORT_LOAD_COUNT = 8;
 
     static void tick(ServerNetworkHandler &owner, ServerPlayer &player);
 

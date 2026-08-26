@@ -39,14 +39,20 @@ static void requestShutdown(int signalNumber) {
     gRunning.store(false);
 }
 
+static bool fileExists(const char *path);
+
 static void setupServerLogging() {
-    printf("NO LOG FILE! - setting up server logging...\n");
-    fflush(stdout);
+    static const char *LOG_FILE = "server.log";
+
+    if (!fileExists(LOG_FILE)) {
+        printf("NO LOG FILE! - setting up server logging...\n");
+        fflush(stdout);
+    }
 
     BedrockLog::setLogLevel(LogLevel::Info);
     BedrockLog::addEndPoint(std::make_shared<ContentLogEndPoint>());
 
-    std::shared_ptr<FileLogEndPoint> fileEndPoint = std::make_shared<FileLogEndPoint>("server.log");
+    std::shared_ptr<FileLogEndPoint> fileEndPoint = std::make_shared<FileLogEndPoint>(LOG_FILE);
     if (fileEndPoint->isOpen())
         BedrockLog::addEndPoint(fileEndPoint);
 }

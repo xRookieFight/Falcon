@@ -41,6 +41,8 @@
 #include "Scripting/Content/CustomContentRegistry.h"
 
 #include <algorithm>
+#include "Network/Handler/ChunkStreamHandler.h"
+
 #include <cmath>
 
 namespace {
@@ -533,7 +535,18 @@ void ServerNetworkHandler::removeActor(int64_t uniqueId) {
     mActors.erase(it);
 }
 
-void ServerNetworkHandler::broadcastActorSpawn(ServerActor &actor) {
+bool ServerNetworkHandler::canPlayerSeeActor(ServerPlayer &player, const ServerActor &actor) const {
+    if (!player.isSpawned())
+        return false;
+
+    const Vector3f position = actor.getPosition();
+    const int64_t hash = ChunkStreamHandler::packChunk((int32_t) std::floor(position.x) >> 4,
+                                                       (int32_t) std::floor(position.z) >> 4);
+
+    return player.getSentChunks().find(hash) != player.getSentChunks().end();
+}
+
+void ServerNetworkHandler::_sendActorSpawn(ServerPlayer &player, ServerActor &actor) {
     AddActorPacket packet;
     packet.mUniqueActorId = actor.getUniqueId();
     packet.mRuntimeActorId = (int64_t) actor.getRuntimeId();
@@ -543,38 +556,76 @@ void ServerNetworkHandler::broadcastActorSpawn(ServerActor &actor) {
     packet.mRotation = Vector2f(actor.getRotation().x, actor.getRotation().y);
     packet.mProperties = buildActorProperties(actor);
 
+    mNetworkHandler->send(player.getNetworkIdentifier(), packet, mCodecContext);
+}
+
+void ServerNetworkHandler::_sendActorRemove(ServerPlayer &player, const ServerActor &actor) {
+    RemoveActorPacket packet;
+    packet.mUniqueActorId = actor.getUniqueId();
+
+    mNetworkHandler->send(player.getNetworkIdentifier(), packet, mCodecContext);
+}
+
+void ServerNetworkHandler::broadcastActorSpawn(ServerActor &actor) {
     for (auto &entry: mPlayers) {
-        if (entry.second.isSpawned())
-            mNetworkHandler->send(entry.first, packet, mCodecContext);
+        ServerPlayer &player = entry.second;
+        if (!canPlayerSeeActor(player, actor))
+            continue;
+
+        if (!player.getVisibleActors().insert(actor.getRuntimeId()).second)
+            continue;
+
+        _sendActorSpawn(player, actor);
+    }
+}
+
+void ServerNetworkHandler::updateActorVisibility() {
+    for (auto &entry: mPlayers) {
+        ServerPlayer &player = entry.second;
+        if (!player.isSpawned())
+            continue;
+
+        std::unordered_set<uint64_t> &visible = player.getVisibleActors();
+
+        for (auto &actorEntry: mActors) {
+            ServerActor &actor = *actorEntry.second;
+            const bool shouldSee = actor.isAlive() && canPlayerSeeActor(player, actor);
+            const bool seen = visible.find(actor.getRuntimeId()) != visible.end();
+
+            if (shouldSee == seen)
+                continue;
+
+            if (shouldSee) {
+                visible.insert(actor.getRuntimeId());
+                _sendActorSpawn(player, actor);
+            } else {
+                visible.erase(actor.getRuntimeId());
+                _sendActorRemove(player, actor);
+            }
+        }
     }
 }
 
 void ServerNetworkHandler::sendActorsTo(ServerPlayer &player) {
     for (auto &entry: mActors) {
         ServerActor &actor = *entry.second;
-        if (!actor.isAlive())
+        if (!actor.isAlive() || !canPlayerSeeActor(player, actor))
             continue;
 
-        AddActorPacket packet;
-        packet.mUniqueActorId = actor.getUniqueId();
-        packet.mRuntimeActorId = (int64_t) actor.getRuntimeId();
-        packet.mIdentifier = actor.getTypeId();
-        packet.mPosition = actor.getPosition();
-        packet.mMotion = actor.getMotion();
-        packet.mRotation = Vector2f(actor.getRotation().x, actor.getRotation().y);
-        packet.mProperties = buildActorProperties(actor);
+        if (!player.getVisibleActors().insert(actor.getRuntimeId()).second)
+            continue;
 
-        mNetworkHandler->send(player.getNetworkIdentifier(), packet, mCodecContext);
+        _sendActorSpawn(player, actor);
     }
 }
 
 void ServerNetworkHandler::broadcastActorRemove(ServerActor &actor) {
-    RemoveActorPacket packet;
-    packet.mUniqueActorId = actor.getUniqueId();
-
     for (auto &entry: mPlayers) {
-        if (entry.second.isSpawned())
-            mNetworkHandler->send(entry.first, packet, mCodecContext);
+        ServerPlayer &player = entry.second;
+        if (player.getVisibleActors().erase(actor.getRuntimeId()) == 0)
+            continue;
+
+        _sendActorRemove(player, actor);
     }
 }
 

@@ -48,6 +48,8 @@ public:
 
     void activateColumn(int32_t chunkX, int32_t chunkZ);
 
+    static bool needsInitialTick(const LevelChunk &chunk, int32_t localX, int32_t y, int32_t localZ);
+
     void setTimeBudgetMs(double milliseconds) { mTimeBudgetMs = milliseconds; }
 
     double getTimeBudgetMs() const { return mTimeBudgetMs; }
@@ -60,6 +62,8 @@ public:
     std::vector<LiquidChange> consumeChanges();
 
 private:
+    static bool _canFlowInto(const BlockState &source, const BlockState &target);
+
     struct Position {
         int32_t x;
         int32_t y;
@@ -100,8 +104,8 @@ private:
     bool resolveFluidCollision(const Vector3i &target, const BlockState &sourceState, bool downward);
     BlockState makeState(bool lava, int decay, bool falling) const;
 
-    static const size_t MAX_UPDATES_PER_TICK = 4096;
-    static const size_t BUDGET_CHECK_INTERVAL = 64;
+    static constexpr size_t MAX_UPDATES_PER_TICK = 4096;
+    static constexpr size_t BUDGET_CHECK_INTERVAL = 8;
 
     Level &mLevel;
     std::map<int64_t, std::vector<Position>> mBuckets;

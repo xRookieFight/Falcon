@@ -51,6 +51,16 @@ public:
 
     std::string encodeNetwork() const;
 
+    const std::string &encodeNetworkAnchor() const;
+
+    const std::string &encodeSubChunkNetwork(int index) const;
+
+    const std::vector<int32_t> &getTopBlockHeights() const;
+
+    void buildNetworkCaches() const;
+
+    void invalidateNetworkCaches();
+
     std::string encodeBiomes(int sectionCount) const;
 
     std::string encodeBiomesPersistent(int sectionCount) const;
@@ -95,4 +105,10 @@ private:
     std::vector<SubChunk> mSubChunks;
     std::vector<int16_t> mHeightmap;
     std::vector<uint8_t> mSkyLight;
+    mutable std::vector<std::string> mSubChunkNetworkCache;
+    mutable std::vector<uint8_t> mSubChunkNetworkValid;
+    mutable std::vector<int32_t> mTopHeightsCache;
+    mutable std::string mNetworkAnchorCache;
+    mutable bool mTopHeightsValid = false;
+    mutable bool mNetworkAnchorValid = false;
 };

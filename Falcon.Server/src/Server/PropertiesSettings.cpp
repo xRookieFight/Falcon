@@ -52,6 +52,7 @@ void PropertiesSettings::_writeDefault(const std::string &path) {
     file << "compression-algorithm=zlib\n";
     file << "server-authoritative-movement=server-auth\n";
     file << "client-side-chunk-generation-enabled=false\n";
+    file << "sub-chunk-requests-enabled=false\n";
     file << "block-network-ids-are-hashes=true\n";
     file << "disable-custom-skins=false\n";
     file << "transport=raknet\n";
@@ -113,7 +114,8 @@ bool PropertiesSettings::_isKnownProperty(const std::string &key) {
             "level-name", "level-seed", "default-player-permission-level", "texturepack-required",
             "content-log-file-enabled", "content-log-console-output-enabled", "content-log-level",
             "compression-threshold", "compression-algorithm", "chat-restriction", "disable-player-interaction",
-            "client-side-chunk-generation-enabled", "block-network-ids-are-hashes", "disable-custom-skins",
+            "client-side-chunk-generation-enabled", "sub-chunk-requests-enabled",
+            "block-network-ids-are-hashes", "disable-custom-skins",
             "server-authoritative-movement", "server-authoritative-movement-strict",
             "server-authoritative-dismount-strict", "server-authoritative-entity-interactions-strict",
             "server-authoritative-block-breaking-pick-range-scalar", "server-build-radius-ratio",

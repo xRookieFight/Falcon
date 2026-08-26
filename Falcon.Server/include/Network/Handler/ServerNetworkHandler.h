@@ -155,6 +155,10 @@ public:
 
     void broadcastActorRemove(ServerActor &actor);
 
+    void updateActorVisibility();
+
+    bool canPlayerSeeActor(ServerPlayer &player, const ServerActor &actor) const;
+
     void broadcastActorMove(ServerActor &actor);
 
     void syncActorProperties(ServerActor &actor);
@@ -317,6 +321,10 @@ public:
 
     void _sendHealth(ServerPlayer &player);
 
+    void _sendActorSpawn(ServerPlayer &player, ServerActor &actor);
+
+    void _sendActorRemove(ServerPlayer &player, const ServerActor &actor);
+
     bool _equipHeldArmor(ServerPlayer &player, const Item &itemType);
 
     void _sendEntityData(ServerPlayer &player);
@@ -417,6 +425,8 @@ private:
     void handle(const NetworkIdentifier &id, const PacketViolationWarningPacket &packet) override;
 
     void handle(const NetworkIdentifier &id, const RequestChunkRadiusPacket &packet) override;
+
+    void handle(const NetworkIdentifier &id, const SubChunkRequestPacket &packet) override;
 
     void handle(const NetworkIdentifier &id, const RequestAbilityPacket &packet) override;
 
