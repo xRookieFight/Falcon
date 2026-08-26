@@ -36,6 +36,12 @@ GameRules::GameRules() {
     fireTick.mBoolValue = true;
     mRules.push_back(fireTick);
 
+    Rule daylightCycle;
+    daylightCycle.mName = "dodaylightcycle";
+    daylightCycle.mType = GameRuleData::Type::Bool;
+    daylightCycle.mBoolValue = true;
+    mRules.push_back(daylightCycle);
+
     Rule showCoordinates;
     showCoordinates.mName = "showcoordinates";
     showCoordinates.mType = GameRuleData::Type::Bool;

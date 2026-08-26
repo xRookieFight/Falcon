@@ -8,7 +8,8 @@
 #include <cstdlib>
 
 TimeCommand::TimeCommand(ServerNetworkHandler &handler)
-        : Command("time", "commands.time.description", "/time <set|add|query> ..."), mHandler(handler) {}
+        : Command("time", "commands.time.description", "/time <add|set|query|start|stop> ..."),
+          mHandler(handler) {}
 
 bool TimeCommand::parseInteger(const std::string &value, int64_t &out) {
     if (value.empty())
@@ -35,6 +36,10 @@ bool TimeCommand::parseTime(const std::string &value, int64_t &out) {
         out = 6000;
         return true;
     }
+    if (lowered == "sunset") {
+        out = 12000;
+        return true;
+    }
     if (lowered == "night") {
         out = 13000;
         return true;
@@ -43,29 +48,52 @@ bool TimeCommand::parseTime(const std::string &value, int64_t &out) {
         out = 18000;
         return true;
     }
+    if (lowered == "sunrise") {
+        out = 23000;
+        return true;
+    }
     return parseInteger(value, out);
 }
 
 std::vector<CommandOverloadData> TimeCommand::getOverloads() const {
-    CommandParamData operation;
-    operation.mName = "operation";
-    operation.mHasEnumData = true;
-    operation.mEnumData.mName = "TimeOperation";
-    operation.mEnumData.mValues = {"set", "add", "query"};
+    const auto enumParameter = [](const std::string &name, const std::string &enumName,
+                                  const std::vector<std::string> &values) {
+        CommandParamData parameter;
+        parameter.mName = name;
+        parameter.mHasEnumData = true;
+        parameter.mEnumData.mName = enumName;
+        parameter.mEnumData.mValues = values;
+        return parameter;
+    };
 
-    CommandParamData value;
-    value.mName = "value";
-    value.mOptional = true;
-    value.mHasType = true;
-    value.mType = CommandParamType::String;
+    CommandParamData amount;
+    amount.mName = "amount";
+    amount.mHasType = true;
+    amount.mType = CommandParamType::Int;
 
-    CommandOverloadData overload;
-    overload.mParameters = {operation, value};
-    return {overload};
+    CommandOverloadData add;
+    add.mParameters = {enumParameter("mode", "TimeModeAdd", {"add"}), amount};
+
+    CommandOverloadData setAmount;
+    setAmount.mParameters = {enumParameter("mode", "TimeModeSet", {"set"}), amount};
+
+    CommandOverloadData setTime;
+    setTime.mParameters = {enumParameter("mode", "TimeModeSet", {"set"}),
+                           enumParameter("time", "TimeSpec",
+                                         {"day", "night", "midnight", "noon", "sunrise", "sunset"})};
+
+    CommandOverloadData query;
+    query.mParameters = {enumParameter("mode", "TimeModeQuery", {"query"}),
+                         enumParameter("query", "TimeQuery", {"daytime", "gametime", "day"})};
+
+    CommandOverloadData daylightCycle;
+    daylightCycle.mParameters = {enumParameter("mode", "TimeMode", {"start", "stop"})};
+
+    return {add, setAmount, setTime, query, daylightCycle};
 }
 
 bool TimeCommand::execute(CommandOrigin &sender, const std::vector<std::string> &arguments) {
-    if (arguments.size() < 2) {
+    if (arguments.empty()) {
         sender.sendTranslation("commands.generic.usage", {getUsage()});
         return false;
     }
@@ -73,6 +101,19 @@ bool TimeCommand::execute(CommandOrigin &sender, const std::vector<std::string> 
     std::string operation = arguments[0];
     for (char &character: operation)
         character = (char) std::tolower((unsigned char) character);
+
+    if (operation == "start" || operation == "stop") {
+        const bool running = operation == "start";
+        mHandler.getLevel().getGameRules().setFromString("dodaylightcycle", running ? "true" : "false");
+        mHandler.getLevel().saveGameRules();
+        sender.sendTranslation(running ? "commands.time.start" : "commands.time.stop", {});
+        return true;
+    }
+
+    if (arguments.size() < 2) {
+        sender.sendTranslation("commands.generic.usage", {getUsage()});
+        return false;
+    }
 
     if (operation == "set") {
         int64_t time = 0;

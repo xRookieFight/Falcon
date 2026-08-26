@@ -32,9 +32,9 @@ bool EnchantCommand::execute(CommandOrigin &sender, const std::vector<std::strin
         return false;
     }
 
-    ServerPlayer *target = mHandler.getPlayerByName(arguments[0]);
-    if (target == nullptr) {
-        sender.sendTranslation("commands.generic.player.notFound", {});
+    const std::vector<ServerPlayer *> targets = mHandler.resolveTargets(sender, arguments[0]);
+    if (targets.empty()) {
+        sender.sendTranslation("commands.generic.noTargetMatch", {});
         return false;
     }
 
@@ -55,51 +55,56 @@ bool EnchantCommand::execute(CommandOrigin &sender, const std::vector<std::strin
         return false;
     }
 
-    PlayerInventory &inventory = target->getInventory();
-    ItemStack item = inventory.getItemInHand();
+    bool enchanted = false;
 
-    if (item.isAir() || item.mCount <= 0) {
-        sender.sendTranslation("commands.enchant.noItem", {target->getName()});
-        return false;
-    }
+    for (ServerPlayer *target: targets) {
+        PlayerInventory &inventory = target->getInventory();
+        ItemStack item = inventory.getItemInHand();
 
-    if (item.mDefinition->getIdentifier() == "minecraft:book") {
-        std::shared_ptr<ItemDefinition> enchantedBook =
-                mHandler.getItemDefinitions().getDefinition("minecraft:enchanted_book");
-
-        if (enchantedBook != nullptr) {
-            item.mDefinition = enchantedBook;
+        if (item.isAir() || item.mCount <= 0) {
+            sender.sendTranslation("commands.enchant.noItem", {target->getName()});
+            continue;
         }
+
+        if (item.mDefinition->getIdentifier() == "minecraft:book") {
+            std::shared_ptr<ItemDefinition> enchantedBook =
+                    mHandler.getItemDefinitions().getDefinition("minecraft:enchanted_book");
+
+            if (enchantedBook != nullptr) {
+                item.mDefinition = enchantedBook;
+            }
+        }
+
+        const EnchantmentData *conflict = nullptr;
+        const EnchantmentApplyResult result = ItemEnchantments::apply(item, *enchantment, level, &conflict);
+
+        if (result == EnchantmentApplyResult::IncompatibleItem) {
+            sender.sendTranslation("commands.enchant.noItem", {target->getName()});
+            continue;
+        }
+
+        if (result == EnchantmentApplyResult::IncompatibleEnchantment) {
+            sender.sendTranslation("commands.enchant.notFound", {enchantment->mDisplayName});
+            continue;
+        }
+
+        if (result != EnchantmentApplyResult::Success) {
+            sender.sendTranslation("commands.generic.usage", {getUsage()});
+            continue;
+        }
+
+        inventory.setItemInHand(item);
+        target->getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory,
+                                               inventory.getSelectedSlot());
+
+        enchanted = true;
+        sender.sendTranslation("commands.enchant.success", {target->getName()});
+
+        if (target != sender.asPlayer())
+            target->sendTranslation("commands.enchant.success", {target->getName()});
     }
 
-    const EnchantmentData *conflict = nullptr;
-    const EnchantmentApplyResult result = ItemEnchantments::apply(item, *enchantment, level, &conflict);
-
-    if (result == EnchantmentApplyResult::IncompatibleItem) {
-        sender.sendTranslation("commands.enchant.noItem", {target->getName()});
-        return false;
-    }
-
-    if (result == EnchantmentApplyResult::IncompatibleEnchantment) {
-        sender.sendTranslation("commands.enchant.notFound", {enchantment->mDisplayName});
-        return false;
-    }
-
-    if (result != EnchantmentApplyResult::Success) {
-        sender.sendTranslation("commands.generic.usage", {getUsage()});
-        return false;
-    }
-
-    inventory.setItemInHand(item);
-    target->getInventoryManager().syncSlot(InventoryManager::InventoryId::Inventory, inventory.getSelectedSlot());
-
-    sender.sendTranslation("commands.enchant.success", {target->getName()});
-
-    if (target != sender.asPlayer()) {
-        target->sendTranslation("commands.enchant.success", {target->getName()});
-    }
-
-    return true;
+    return enchanted;
 }
 
 std::vector<CommandOverloadData> EnchantCommand::getOverloads() const {

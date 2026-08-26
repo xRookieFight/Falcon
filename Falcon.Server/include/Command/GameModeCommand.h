@@ -10,6 +10,8 @@ public:
 
     bool execute(CommandOrigin &sender, const std::vector<std::string> &arguments) override;
 
+    std::vector<CommandOverloadData> getOverloads() const override;
+
     static int parseGameMode(const std::string &value);
 
     static const char *getGameModeName(int gameMode);

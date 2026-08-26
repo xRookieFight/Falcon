@@ -43,7 +43,10 @@ public:
 
     void addTime(int64_t time) { setTime(mTime + time); }
 
-    void tickTime() { ++mTime; }
+    void tickTime() {
+        if (mGameRules.getBool("dodaylightcycle"))
+            ++mTime;
+    }
 
     bool isRaining() const { return mRaining; }
 

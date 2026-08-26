@@ -6,10 +6,6 @@
 KillCommand::KillCommand(ServerNetworkHandler &handler)
         : Command("kill", "commands.kill.description", "/kill [player]"), mHandler(handler) {}
 
-CommandPermission KillCommand::getRequiredPermission() const {
-    return CommandPermission::Any;
-}
-
 std::vector<CommandOverloadData> KillCommand::getOverloads() const {
     CommandParamData playerParameter = makePlayerParameter("player", mHandler.getPlayerNames());
     playerParameter.mOptional = true;

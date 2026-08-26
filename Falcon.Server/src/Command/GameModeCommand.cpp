@@ -20,6 +20,30 @@ GameModeCommand::GameModeCommand(ServerNetworkHandler &handler)
         : Command("gamemode", "commands.gamemode.description", "/gamemode <mode> [player]", {"gm"}),
           mHandler(handler) {}
 
+std::vector<CommandOverloadData> GameModeCommand::getOverloads() const {
+    CommandParamData playerParameter = makePlayerParameter("player", mHandler.getPlayerNames());
+    playerParameter.mOptional = true;
+
+    CommandParamData namedMode;
+    namedMode.mName = "gameMode";
+    namedMode.mHasEnumData = true;
+    namedMode.mEnumData.mName = "GameMode";
+    namedMode.mEnumData.mValues = {"survival", "creative", "adventure", "spectator", "s", "c", "a"};
+
+    CommandParamData numericMode;
+    numericMode.mName = "gameMode";
+    numericMode.mHasType = true;
+    numericMode.mType = CommandParamType::Int;
+
+    CommandOverloadData byName;
+    byName.mParameters = {namedMode, playerParameter};
+
+    CommandOverloadData byNumber;
+    byNumber.mParameters = {numericMode, playerParameter};
+
+    return {byName, byNumber};
+}
+
 int GameModeCommand::parseGameMode(const std::string &value) {
     const std::string mode = toLowerCase(value);
 
@@ -36,15 +60,17 @@ int GameModeCommand::parseGameMode(const std::string &value) {
 }
 
 const char *GameModeCommand::getGameModeName(int gameMode) {
+    // The client resolves a leading % inside a translation parameter, so the mode name gets
+    // localised the same way the vanilla command does it.
     switch ((GameType) gameMode) {
         case GameType::Survival:
-            return "Survival";
+            return "%gameMode.survival";
         case GameType::Creative:
-            return "Creative";
+            return "%gameMode.creative";
         case GameType::Adventure:
-            return "Adventure";
+            return "%gameMode.adventure";
         case GameType::Spectator:
-            return "Spectator";
+            return "%gameMode.spectator";
         default:
             return "Unknown";
     }
@@ -62,25 +88,33 @@ bool GameModeCommand::execute(CommandOrigin &sender, const std::vector<std::stri
         return false;
     }
 
-    ServerPlayer *target = arguments.size() > 1
-                           ? mHandler.getPlayerByName(arguments[1])
-                           : sender.asPlayer();
+    std::vector<ServerPlayer *> targets;
 
-    if (target == nullptr) {
-        if (arguments.size() > 1)
-            sender.sendTranslation("commands.generic.player.notFound", {});
-        else
+    if (arguments.size() > 1) {
+        targets = mHandler.resolveTargets(sender, arguments[1]);
+        if (targets.empty()) {
+            sender.sendTranslation("commands.generic.noTargetMatch", {});
+            return false;
+        }
+    } else {
+        ServerPlayer *self = sender.asPlayer();
+        if (self == nullptr) {
             sender.sendTranslation("commands.generic.targetNotPlayer", {});
-        return false;
+            return false;
+        }
+
+        targets.push_back(self);
     }
 
-    mHandler.setPlayerGameMode(*target, gameMode);
-
     const std::string modeName = getGameModeName(gameMode);
-    if (target == sender.asPlayer()) {
-        sender.sendTranslation("commands.gamemode.success.self", {modeName});
-    } else {
-        sender.sendTranslation("commands.gamemode.success.other", {target->getName(), modeName});
+
+    for (ServerPlayer *target: targets) {
+        mHandler.setPlayerGameMode(*target, gameMode);
+
+        if (target == sender.asPlayer())
+            sender.sendTranslation("commands.gamemode.success.self", {modeName});
+        else
+            sender.sendTranslation("commands.gamemode.success.other", {target->getName(), modeName});
     }
 
     return true;
