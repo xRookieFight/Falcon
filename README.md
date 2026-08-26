@@ -15,17 +15,32 @@
 
 ## What is this?
 
-Falcon is a Minecraft: Bedrock Edition server built from the ground up in C++17.
+Falcon is a Minecraft: Bedrock Edition server built from the ground up in C++17. It does not derive
+from any existing server: the protocol, world storage, inventory, movement and gameplay systems are
+all reimplemented by hand.
 
--  **Native C++17** - no runtime to install, the server ships as a single self-contained executable
--  **Own RakNet implementation** - sockets, reliability layer and connection handshake written here
--  **Flat world generation** - sub-chunk encoding with hashed block runtime IDs
--  **Layered architecture** - network, protocol and server concerns stay separate
+- **Native C++17** — no runtime to install, the server ships as a single self-contained executable
+- **Own RakNet implementation** — sockets, reliability layer and connection handshake written here
+- **NetherNet transport** — WebRTC signaling and transport, running alongside RakNet
+- **Vanilla-like world generation** — noise, density functions, aquifers, caves, biomes and features
+- **Behavior pack support** — custom items, blocks, actors and recipes loaded from packs, with a
+  QuickJS scripting engine running pack scripts
+- **Layered architecture** — network, protocol and server concerns stay separate
+
+## Features
+
+**World**
+
+- LevelDB persistence using the Bedrock key layout, including block entities and pending changes
+- Overworld generation with 3D biomes, aquifers, ore veins, caves and surface materials
+- Chunk generation *and* population run on worker threads, never on the tick thread
+- Chunk streaming ordered by field of view then distance, with reference counted unloading
+- Sky light, daylight detector, weather with persistence, and a `dofiretick` game rule
 
 ## Building
 
-Falcon needs CMake 3.16+, a C++17 compiler and zlib. On Windows the reference toolchain is MSYS2
-UCRT64.
+Falcon needs CMake 3.16+, a C++17 compiler, zlib and OpenSSL. On Windows the reference toolchain is
+MSYS2 UCRT64.
 
 ```
 cmake -B build -G Ninja
