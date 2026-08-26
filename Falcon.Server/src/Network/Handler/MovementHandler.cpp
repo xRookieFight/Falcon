@@ -27,6 +27,8 @@ namespace {
     const float PLAYER_HEIGHT = 1.8f;
     const float GROUND_PROBE_DEPTH = 0.5f;
     const float AABB_EPSILON = 0.001f;
+    const float MINIMUM_EXHAUSTING_DISTANCE = 0.05f;
+    const float SPRINT_EXHAUSTION_PER_BLOCK = 0.1f;
 
     void ignitePlayer(ServerPlayer &player) {
         int fireProtectionLevel = 0;
@@ -121,8 +123,8 @@ void MovementHandler::handleMovement(ServerNetworkHandler &owner, ServerPlayer &
         const float requestedX = feetPosition.x - previous.x;
         const float requestedZ = feetPosition.z - previous.z;
         const float horizontalDistance = std::sqrt(requestedX * requestedX + requestedZ * requestedZ);
-        if (horizontalDistance > 0.0f)
-            player.exhaust(0.01f * horizontalDistance);
+        if (horizontalDistance >= MINIMUM_EXHAUSTING_DISTANCE)
+            player.exhaust(SPRINT_EXHAUSTION_PER_BLOCK * horizontalDistance);
     }
 
     player.setPosition(feetPosition);
@@ -204,17 +206,18 @@ void MovementHandler::handlePlayerAuthInput(ServerNetworkHandler &owner, const N
     ActorFlags &flags = player.getFlags();
     const ActorFlags previous = flags;
 
-    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StartSprinting) && player.canSprint())
-        flags.set(ActorFlag::Sprinting, true);
-
-    if (packet.hasInputFlag((int32_t) PlayerAuthInputData::Sprinting) && player.canSprint())
-        flags.set(ActorFlag::Sprinting, true);
+    // Sprinting is the state the client reports every tick, the start and stop flags only mark its
+    // edges. Reacting to the edges alone leaves the flag stuck on whenever a stop edge is missed.
+    bool sprinting = packet.hasInputFlag((int32_t) PlayerAuthInputData::Sprinting)
+                     || packet.hasInputFlag((int32_t) PlayerAuthInputData::StartSprinting);
 
     if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StopSprinting))
-        flags.set(ActorFlag::Sprinting, false);
+        sprinting = false;
 
     if (!player.canSprint())
-        flags.set(ActorFlag::Sprinting, false);
+        sprinting = false;
+
+    flags.set(ActorFlag::Sprinting, sprinting);
 
     if (packet.hasInputFlag((int32_t) PlayerAuthInputData::StartSneaking))
         flags.set(ActorFlag::Sneaking, true);
