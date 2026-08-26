@@ -45,6 +45,8 @@ Vector3f ItemActorHandler::randomDropAroundMotion() {
 namespace {
     const float ITEM_GRAVITY = 0.04f;
     const float ITEM_HORIZONTAL_DRAG = 0.02f;
+    const float ITEM_VERTICAL_DRAG = 0.02f;
+    const float ITEM_GROUND_PROBE_DEPTH = 0.01f;
     const float ITEM_PICKUP_RANGE_SQUARED = 2.25f;
 
     bool isFireBlock(const std::string &identifier) {
@@ -147,9 +149,21 @@ namespace {
         }
     }
 
+    bool hasSupportBelow(ServerNetworkHandler &owner, const ItemActor &actor) {
+        const Vector3f &position = actor.getPosition();
+
+        return owner.getLevel().isSolidAt((int32_t) std::floor(position.x),
+                                          (int32_t) std::floor(position.y - ITEM_GROUND_PROBE_DEPTH),
+                                          (int32_t) std::floor(position.z));
+    }
+
     void moveItemActor(ServerNetworkHandler &owner, ItemActor &actor) {
-        if (actor.isOnGround())
-            return;
+        if (actor.isOnGround()) {
+            if (hasSupportBelow(owner, actor))
+                return;
+
+            actor.setOnGround(false);
+        }
 
         Vector3f motion = actor.getMotion();
         const Vector3f position = actor.getPosition();
@@ -168,6 +182,7 @@ namespace {
             actor.setOnGround(true);
         } else {
             motion.x *= 1.0f - ITEM_HORIZONTAL_DRAG;
+            motion.y *= 1.0f - ITEM_VERTICAL_DRAG;
             motion.z *= 1.0f - ITEM_HORIZONTAL_DRAG;
         }
 
