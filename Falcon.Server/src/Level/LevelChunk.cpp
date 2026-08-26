@@ -16,7 +16,12 @@ LevelChunk::LevelChunk(int32_t x, int32_t z) : mX(x), mZ(z), mBiomeId(1), mDirty
 }
 
 void LevelChunk::invalidateNetworkCaches() {
+    for (std::string &cached: mSubChunkNetworkCache)
+        std::string().swap(cached);
+
     mSubChunkNetworkValid.assign(SUB_CHUNK_COUNT, 0);
+    std::vector<int32_t>().swap(mTopHeightsCache);
+    std::string().swap(mNetworkAnchorCache);
     mTopHeightsValid = false;
     mNetworkAnchorValid = false;
 }

@@ -32,8 +32,8 @@ namespace {
 }
 
 ChunkWorker::ChunkWorker(const OverworldGenerator &generator, LevelStorage &storage)
-        : mGenerator(generator), mStorage(storage), mRunning(false), mGeneratedCount(0), mLoadedCount(0),
-          mSavedCount(0), mPopulatedCount(0) {}
+        : mGenerator(generator), mStorage(storage), mRunning(false), mDiscardGeneration(false), mGeneratedCount(0),
+          mLoadedCount(0), mSavedCount(0), mPopulatedCount(0) {}
 
 ChunkWorker::~ChunkWorker() {
     stop();
@@ -56,10 +56,15 @@ void ChunkWorker::start(size_t threadCount) {
         mSources.push_back(std::unique_ptr<GeneratorChunkSource>(new GeneratorChunkSource(mGenerator.getSeed())));
 
     mRunning.store(true);
+    mDiscardGeneration.store(false);
 
     mThreads.reserve(count);
     for (size_t i = 0; i < count; ++i)
         mThreads.push_back(std::thread(&ChunkWorker::_run, this, i));
+}
+
+void ChunkWorker::discardPendingGeneration() {
+    mDiscardGeneration.store(true);
 }
 
 void ChunkWorker::stop() {
@@ -220,6 +225,11 @@ void ChunkWorker::_run(size_t queueIndex) {
     ChunkTask task;
 
     while (queue.waitPop(task)) {
+        if (task.mKind != ChunkTask::Kind::Save && mDiscardGeneration.load()) {
+            task.mChunk.reset();
+            continue;
+        }
+
         if (task.mKind == ChunkTask::Kind::Load)
             _processLoad(task, queueIndex);
         else if (task.mKind == ChunkTask::Kind::Populate)

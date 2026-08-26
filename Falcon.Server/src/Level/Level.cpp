@@ -74,7 +74,9 @@ void Level::saveAll() {
             continue;
 
         if (async) {
-            mChunkWorker->requestSave(std::unique_ptr<LevelChunk>(new LevelChunk(entry.second)));
+            std::unique_ptr<LevelChunk> copy(new LevelChunk(entry.second));
+            copy->invalidateNetworkCaches();
+            mChunkWorker->requestSave(std::move(copy));
             entry.second.clearDirty();
             saved++;
             continue;
@@ -120,9 +122,13 @@ std::vector<Tag> Level::loadBlockEntities(int32_t chunkX, int32_t chunkZ) {
 
 void Level::closeStorage() {
     if (mChunkWorker != nullptr)
-        mChunkWorker->stop();
+        mChunkWorker->discardPendingGeneration();
 
     saveAll();
+
+    if (mChunkWorker != nullptr)
+        mChunkWorker->stop();
+
     mStorage.close();
 }
 
@@ -340,9 +346,11 @@ size_t Level::processChunkUnloads() {
         }
 
         if (chunk->second.isDirty() && mStorage.isOpen()) {
-            if (mChunkWorker != nullptr && mChunkWorker->isRunning())
-                mChunkWorker->requestSave(std::unique_ptr<LevelChunk>(new LevelChunk(chunk->second)));
-            else
+            if (mChunkWorker != nullptr && mChunkWorker->isRunning()) {
+                std::unique_ptr<LevelChunk> copy(new LevelChunk(chunk->second));
+                copy->invalidateNetworkCaches();
+                mChunkWorker->requestSave(std::move(copy));
+            } else
                 mStorage.saveChunk(chunk->second);
         }
 

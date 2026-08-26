@@ -72,6 +72,8 @@ public:
 
     void requestPopulate(std::unique_ptr<LevelChunk> chunk);
 
+    void discardPendingGeneration();
+
     std::vector<ChunkLoadResult> drainCompleted();
 
     size_t getPendingTaskCount() const;
@@ -104,6 +106,7 @@ private:
 
     std::vector<std::thread> mThreads;
     std::atomic<bool> mRunning;
+    std::atomic<bool> mDiscardGeneration;
     std::atomic<uint64_t> mGeneratedCount;
     std::atomic<uint64_t> mLoadedCount;
     std::atomic<uint64_t> mSavedCount;
