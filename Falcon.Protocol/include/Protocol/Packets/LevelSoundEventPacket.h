@@ -10,6 +10,7 @@ namespace LevelSoundEvent {
     inline constexpr const char *THROW = "throw";
     inline constexpr const char *TELEPORT = "teleport";
     inline constexpr const char *BREAK = "break";
+    inline constexpr const char *GLASS = "glass";
     inline constexpr const char *HIT = "hit";
     inline constexpr const char *PLACE = "place";
     inline constexpr const char *ITEM_USE_ON = "item.use.on";
@@ -46,6 +47,13 @@ namespace LevelSoundEvent {
     inline constexpr const char *PISTON_OUT = "tile.piston.out";
     inline constexpr const char *CHEST_OPEN = "chest.open";
     inline constexpr const char *CHEST_CLOSED = "chest.closed";
+    inline constexpr const char *SHULKER_BOX_OPEN = "random.shulkerboxopen";
+    inline constexpr const char *SHULKER_BOX_CLOSED = "random.shulkerboxclosed";
+    inline constexpr const char *ENDER_CHEST_OPEN = "random.enderchestopen";
+    inline constexpr const char *ENDER_CHEST_CLOSED = "random.enderchestclosed";
+    inline constexpr const char *BARREL_OPEN = "block.barrel.open";
+    inline constexpr const char *BARREL_CLOSED = "block.barrel.close";
+    inline constexpr const char *TOTEM = "random.totem";
     inline constexpr const char *LAUNCH = "launch";
     inline constexpr const char *LARGE_BLAST = "large.blast";
     inline constexpr const char *THUNDER = "ambient.weather.thunder";

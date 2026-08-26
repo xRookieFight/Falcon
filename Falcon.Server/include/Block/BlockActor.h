@@ -21,6 +21,8 @@ public:
 
     virtual Tag saveNbt() const = 0;
 
+    virtual Tag getSpawnCompound() const;
+
     virtual void loadNbt(const Tag &data, const PacketCodecContext &context) = 0;
 
     virtual Container *getContainer() { return nullptr; }

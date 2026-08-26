@@ -10,6 +10,7 @@
 #include "Protocol/Packets/MoveActorAbsolutePacket.h"
 #include "Protocol/Packets/PlaySoundPacket.h"
 #include "Protocol/Packets/LevelSoundEventPacket.h"
+#include "Protocol/Packets/LevelEventPacket.h"
 #include "Protocol/Packets/RemoveActorPacket.h"
 #include "Protocol/Packets/SetActorDataPacket.h"
 #include "Protocol/Packets/SetActorMotionPacket.h"
@@ -34,6 +35,8 @@
 #include "Item/Items/ThrowableItems.h"
 #include "Item/PotionEffects.h"
 #include "Item/StringToItemParser.h"
+#include "Actor/ExperienceValues.h"
+#include "Protocol/Types/StartGameTypes.h"
 
 #include <random>
 #include "Network/Handler/BlockActionHandler.h"
@@ -60,6 +63,7 @@ namespace {
     const float WIND_CHARGE_KNOCKBACK_STRENGTH = 0.2f;
     const float WIND_CHARGE_LIFT = 0.6f;
     const int32_t ACTOR_MAX_DEATH_TICKS = 25;
+    const float ACTOR_SUFFOCATION_DAMAGE = 1.0f;
     const int32_t LINGERING_CLOUD_WAIT_TIME = 10;
     const int32_t LINGERING_CLOUD_DURATION = 600;
     const int32_t LINGERING_CLOUD_APPLY_INTERVAL = 10;
@@ -70,6 +74,13 @@ namespace {
     const float PLAYER_HEIGHT = 1.8f;
     const float PLAYER_EYE_HEIGHT = 1.62f;
     const float PROJECTILE_HIT_GROW = 0.3f;
+    const int32_t EXPERIENCE_ORB_PICKUP_DELAY = 10;
+    const int32_t EXPERIENCE_ORB_MAX_AGE = 6000;
+    const float EXPERIENCE_ORB_ATTRACT_RANGE_SQUARED = 64.0f;
+    const float EXPERIENCE_ORB_GRAVITY = 0.04f;
+    const float EXPERIENCE_ORB_DRAG = 0.02f;
+    const float EXPERIENCE_ORB_GROUND_FRICTION = 0.6f;
+    const float EXPERIENCE_ORB_PICKUP_REACH = 1.0f;
 
     bool intersectsActorBox(const Vector3f &actorPosition, float width, float height, const Vector3f &point) {
         const float halfWidth = width * 0.5f + PROJECTILE_HIT_GROW;
@@ -137,6 +148,136 @@ ServerActor *ServerNetworkHandler::spawnActor(const std::string &identifier, con
 
     broadcastActorSpawn(*result);
     return result;
+}
+
+FallingBlockActor *ServerNetworkHandler::spawnFallingBlock(const BlockState &state, const Vector3f &position) {
+    const uint64_t runtimeId = allocateRuntimeId();
+    const int64_t uniqueId = (int64_t) runtimeId;
+
+    std::unique_ptr<FallingBlockActor> actor(new FallingBlockActor(runtimeId, state));
+    actor->getAttributes() = ActorAttributes::createActorDefaults();
+    actor->setPosition(position);
+    actor->setHighestPosition(position.y);
+
+    FallingBlockActor *result = actor.get();
+    mActors[uniqueId] = std::move(actor);
+
+    broadcastActorSpawn(*result);
+    return result;
+}
+
+void ServerNetworkHandler::spawnExperienceOrbs(const Vector3f &position, int amount) {
+    if (amount <= 0)
+        return;
+
+    static std::mt19937 orbRandom(0x1F123BB5u);
+    std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+
+    for (int value: ExperienceValues::splitIntoOrbSizes(amount)) {
+        ServerActor *orb = spawnActor("minecraft:xp_orb", position);
+        if (orb == nullptr)
+            continue;
+
+        orb->setExperienceValue(value);
+        orb->setPickupDelay(EXPERIENCE_ORB_PICKUP_DELAY);
+        orb->setMotion(Vector3f((unit(orbRandom) * 0.2f - 0.1f) * 2.0f,
+                                unit(orbRandom) * 0.4f,
+                                (unit(orbRandom) * 0.2f - 0.1f) * 2.0f));
+    }
+}
+
+bool ServerNetworkHandler::tickExperienceOrb(ServerActor &orb) {
+    orb.decrementPickupDelay();
+
+    if (orb.getLifetimeTicks() > EXPERIENCE_ORB_MAX_AGE)
+        return true;
+
+    Vector3f motion = orb.getMotion();
+    Vector3f position = orb.getPosition();
+
+    ServerPlayer *closest = nullptr;
+    float closestDistanceSquared = EXPERIENCE_ORB_ATTRACT_RANGE_SQUARED;
+    for (auto &entry: mPlayers) {
+        ServerPlayer &player = entry.second;
+        if (!player.isSpawned() || player.isDead())
+            continue;
+        if (player.getGameType() == (int32_t) GameType::Spectator)
+            continue;
+
+        const Vector3f playerPosition = player.getPosition();
+        const float dx = playerPosition.x - position.x;
+        const float dy = playerPosition.y - position.y;
+        const float dz = playerPosition.z - position.z;
+        const float distanceSquared = dx * dx + dy * dy + dz * dz;
+        if (distanceSquared < closestDistanceSquared) {
+            closest = &player;
+            closestDistanceSquared = distanceSquared;
+        }
+    }
+
+    if (closest != nullptr && orb.getPickupDelay() <= 0) {
+        const Vector3f playerPosition = closest->getPosition();
+        const float dx = std::fabs(playerPosition.x - position.x);
+        const float dz = std::fabs(playerPosition.z - position.z);
+
+        if (dx <= EXPERIENCE_ORB_PICKUP_REACH && dz <= EXPERIENCE_ORB_PICKUP_REACH &&
+            position.y >= playerPosition.y - EXPERIENCE_ORB_PICKUP_REACH &&
+            position.y <= playerPosition.y + PLAYER_HEIGHT) {
+            closest->getExperience().addXp(orb.getExperienceValue());
+            closest->syncExperience();
+            _sendAttributes(*closest);
+            playNamedSound("random.orb", position, 0.1f, 1.0f);
+            return true;
+        }
+    }
+
+    if (closest != nullptr) {
+        const Vector3f playerPosition = closest->getPosition();
+        const float dX = (playerPosition.x - position.x) / 8.0f;
+        const float dY = (playerPosition.y + PLAYER_EYE_HEIGHT * 0.5f - position.y) / 8.0f;
+        const float dZ = (playerPosition.z - position.z) / 8.0f;
+        const float distance = std::sqrt(dX * dX + dY * dY + dZ * dZ);
+        float diff = 1.0f - distance;
+
+        if (diff > 0.0f && distance > 0.0f) {
+            diff = diff * diff;
+            motion.x += dX / distance * diff * 0.1f;
+            motion.y += dY / distance * diff * 0.1f;
+            motion.z += dZ / distance * diff * 0.1f;
+        }
+    }
+
+    motion.y -= EXPERIENCE_ORB_GRAVITY;
+
+    Vector3f next(position.x + motion.x, position.y + motion.y, position.z + motion.z);
+
+    const int32_t blockX = (int32_t) std::floor(next.x);
+    const int32_t blockZ = (int32_t) std::floor(next.z);
+    const int32_t blockY = (int32_t) std::floor(next.y);
+
+    bool onGround = false;
+    if (motion.y < 0.0f && mLevel.isSolidAt(blockX, blockY, blockZ)) {
+        next.y = (float) (blockY + 1);
+        onGround = true;
+    }
+
+    float friction = 1.0f - EXPERIENCE_ORB_DRAG;
+    if (onGround)
+        friction *= EXPERIENCE_ORB_GROUND_FRICTION;
+
+    motion.x *= friction;
+    motion.y *= 1.0f - EXPERIENCE_ORB_DRAG;
+    motion.z *= friction;
+
+    if (onGround)
+        motion.y *= -0.5f;
+
+    orb.setMotion(motion);
+    orb.setPosition(next);
+    orb.setOnGround(onGround);
+
+    broadcastActorMove(orb);
+    return false;
 }
 
 ServerActor *ServerNetworkHandler::getActor(int64_t uniqueId) {
@@ -255,6 +396,26 @@ bool ServerNetworkHandler::onThrownProjectileHit(ServerActor &projectile, const 
         const Vector3f burstPosition(hitPosition.x, hitPosition.y + 1.0f, hitPosition.z);
         spawnParticleEffect("minecraft:wind_explosion_emitter", burstPosition);
         playLevelSound(LevelSoundEvent::WIND_CHARGE_BURST, burstPosition);
+        return true;
+    }
+
+    if (identifier == "minecraft:xp_bottle") {
+        static std::mt19937 bottleRandom(0x3A5F19C7u);
+        std::uniform_int_distribution<int> amount(3, 11);
+
+        spawnExperienceOrbs(hitPosition, amount(bottleRandom));
+
+        LevelEventPacket splash;
+        splash.mEventId = LevelEventPacket::ParticleSplash;
+        splash.mPosition = hitPosition;
+        splash.mData = 0x00385dc6;
+
+        for (auto &entry: mPlayers) {
+            if (entry.second.isSpawned())
+                mNetworkHandler->send(entry.first, splash, mCodecContext);
+        }
+
+        playLevelSound(LevelSoundEvent::GLASS, hitPosition);
         return true;
     }
 
@@ -555,6 +716,7 @@ void ServerNetworkHandler::_sendActorSpawn(ServerPlayer &player, ServerActor &ac
     packet.mMotion = actor.getMotion();
     packet.mRotation = Vector2f(actor.getRotation().x, actor.getRotation().y);
     packet.mProperties = buildActorProperties(actor);
+    actor.fillSpawnMetadata(packet.mMetadata);
 
     mNetworkHandler->send(player.getNetworkIdentifier(), packet, mCodecContext);
 }
@@ -564,6 +726,17 @@ void ServerNetworkHandler::_sendActorRemove(ServerPlayer &player, const ServerAc
     packet.mUniqueActorId = actor.getUniqueId();
 
     mNetworkHandler->send(player.getNetworkIdentifier(), packet, mCodecContext);
+}
+
+void ServerNetworkHandler::refreshContainerViewers(const Vector3i &position, const ServerPlayer *except) {
+    for (auto &entry: mPlayers) {
+        ServerPlayer &player = entry.second;
+        if (&player == except)
+            continue;
+
+        if (player.isSpawned())
+            player.getInventoryManager().refreshOpenContainer(position);
+    }
 }
 
 void ServerNetworkHandler::broadcastActorSpawn(ServerActor &actor) {
@@ -1024,6 +1197,18 @@ void ServerNetworkHandler::tickActors() {
             continue;
         }
 
+        if (std::string(actor.getIdentifier()) == "minecraft:xp_orb") {
+            if (tickExperienceOrb(actor))
+                expired.push_back(actorId);
+            continue;
+        }
+
+        if (!actor.isProjectile()) {
+            const ActorSize size = ActorSizeTable::getSize(actor.getIdentifier());
+            if (_isEyeInsideSolidBlock(actor.getPosition(), size.mHeight))
+                actor.hurt(*this, ACTOR_SUFFOCATION_DAMAGE, nullptr);
+        }
+
         ProfilerScopedSection projectileSection(mProfiler, ProfilerSection::ActorProjectiles,
                                                 actor.isProjectile());
 
@@ -1240,6 +1425,9 @@ void ServerNetworkHandler::tickActors() {
         }
 
         actor.tick(*this);
+
+        if (actor.isExpired())
+            expired.push_back(actorId);
     }
 
     std::vector<int64_t> expiredClouds;

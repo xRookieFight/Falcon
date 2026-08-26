@@ -1,10 +1,11 @@
 #include "Inventory/InventoryManager.h"
 #include "Actor/ItemActor.h"
 #include "Block/Actor/ChestBlockActor.h"
+#include "Block/Actor/ContainerBlockActor.h"
+#include "Block/Actor/EnderChestBlockActor.h"
 #include "Block/Actor/FurnaceBlockActor.h"
 #include "Block/BlockActorStore.h"
 #include "Block/Systems/RedstoneSystem.h"
-#include "Inventory/InventoryManager.h"
 #include "Actor/ServerPlayer.h"
 #include "Block/Block.h"
 #include "Block/Blocks/FurnaceBlock.h"
@@ -17,8 +18,8 @@
 #include "Network/Handler/ServerNetworkHandler.h"
 #include "Network/Handler/BlockActionHandler.h"
 #include "Protocol/BlockStateHasher.h"
+#include "Protocol/Packets/BlockActorDataPacket.h"
 #include "Protocol/Packets/ContainerClosePacket.h"
-#include "Network/Handler/BlockActionHandler.h"
 #include "Protocol/Packets/BlockEventPacket.h"
 #include "Protocol/Packets/LevelSoundEventPacket.h"
 #include "Protocol/Packets/ContainerOpenPacket.h"
@@ -793,7 +794,11 @@ void InventoryManager::onCurrentWindowRemove() {
 
     const int currentWindowId = mFurnaceWindowId != CONTAINER_ID_NONE
                                 ? mFurnaceWindowId
-                                : (mCraftingTableWindowId != CONTAINER_ID_NONE ? mCraftingTableWindowId : mMainInventoryWindowId);
+                                : (mCraftingTableWindowId != CONTAINER_ID_NONE
+                                   ? mCraftingTableWindowId
+                                   : (mContainerWindowId != CONTAINER_ID_NONE
+                                      ? mContainerWindowId
+                                      : mMainInventoryWindowId));
     if (currentWindowId == CONTAINER_ID_NONE) {
         return;
     }
@@ -816,6 +821,9 @@ void InventoryManager::onCurrentWindowRemove() {
         mFurnaceCookTime = 0;
         for (ItemStack &item: mFurnaceObservedItems)
             item = ItemStack::air();
+    } else if (mContainerWindowId == currentWindowId) {
+        _closeBlockContainer();
+        mContainerWindowId = CONTAINER_ID_NONE;
     } else {
         mMainInventoryWindowId = CONTAINER_ID_NONE;
     }
@@ -862,12 +870,99 @@ bool InventoryManager::openContainer(ContainerType type, const Vector3i &positio
     return true;
 }
 
+bool InventoryManager::refreshEnchantInput(const ItemStack &current, int32_t newSeed) {
+    const std::string identifier = current.isAir() || current.mDefinition == nullptr
+                                   ? std::string()
+                                   : current.mDefinition->getIdentifier();
+
+    if (identifier == mEnchantInputId && current.mCount == mEnchantInputCount
+        && current.mDamage == mEnchantInputDamage)
+        return false;
+
+    mEnchantInputId = identifier;
+    mEnchantInputCount = current.mCount;
+    mEnchantInputDamage = current.mDamage;
+    mEnchantSeed = newSeed;
+    return true;
+}
+
+void InventoryManager::refreshOpenContainer(const Vector3i &position) {
+    if (mContainerWindowId == CONTAINER_ID_NONE || !(mContainerPosition == position))
+        return;
+
+    Container *container = getContainer();
+    if (container != nullptr)
+        _sendContentPackets(mContainerWindowId, *container);
+}
+
 Container *InventoryManager::getContainer() {
     if (!isContainerOpen())
         return nullptr;
 
     BlockActor *blockActor = BlockActorStore::getInstance().find(mContainerPosition);
-    return blockActor == nullptr ? nullptr : blockActor->getContainer();
+    if (blockActor == nullptr)
+        return nullptr;
+
+    EnderChestBlockActor *enderChest = dynamic_cast<EnderChestBlockActor *>(blockActor);
+    if (enderChest != nullptr)
+        return mPlayer == nullptr ? nullptr : enderChest->getContainerFor(mPlayer->getUniqueId());
+
+    return blockActor->getContainer();
+}
+
+bool InventoryManager::onClientOpenBlockContainer(const Vector3i &position, ContainerType type) {
+    if (mPlayer == nullptr || mSender == nullptr)
+        return false;
+
+    if (mContainerWindowId != CONTAINER_ID_NONE)
+        return mContainerPosition == position;
+
+    if (mMainInventoryWindowId != CONTAINER_ID_NONE || mCraftingTableWindowId != CONTAINER_ID_NONE
+        || mFurnaceWindowId != CONTAINER_ID_NONE || mHasPendingCloseWindow)
+        return false;
+
+    BlockActor *blockActor = BlockActorStore::getInstance().find(position);
+    if (blockActor == nullptr)
+        return false;
+
+    const int windowId = _getNewWindowId();
+    mContainerWindowId = windowId;
+    mContainerPosition = position;
+    mCurrentWindowType = type;
+
+    BlockActorDataPacket blockActorData;
+    blockActorData.mBlockPosition = position;
+    blockActorData.mData = blockActor->getSpawnCompound();
+    mSender->sendPacketTo(mPlayer->getNetworkIdentifier(), blockActorData);
+
+    ContainerOpenPacket open;
+    open.mWindowId = (int8_t) windowId;
+    open.mType = type;
+    open.mBlockPosition = position;
+    open.mUniqueActorId = -1;
+    mSender->sendPacketTo(mPlayer->getNetworkIdentifier(), open);
+
+    Container *container = getContainer();
+    if (container != nullptr)
+        _sendContentPackets(windowId, *container);
+
+    BarrelBlockActor *barrel = dynamic_cast<BarrelBlockActor *>(blockActor);
+    if (barrel != nullptr) {
+        barrel->addViewer();
+        if (barrel->getViewerCount() == 1)
+            _animateBarrel(position, true);
+    } else if (ShulkerBoxBlockActor *shulkerBox = dynamic_cast<ShulkerBoxBlockActor *>(blockActor)) {
+        shulkerBox->addViewer();
+        if (shulkerBox->getViewerCount() == 1)
+            _animateBlockContainer(position, true, LevelSoundEvent::SHULKER_BOX_OPEN,
+                                   LevelSoundEvent::SHULKER_BOX_CLOSED);
+    } else if (dynamic_cast<EnderChestBlockActor *>(blockActor) != nullptr) {
+        _animateBlockContainer(position, true, LevelSoundEvent::ENDER_CHEST_OPEN,
+                               LevelSoundEvent::ENDER_CHEST_CLOSED);
+    }
+
+    RedstoneSystem::queueRedstoneNotification(position);
+    return true;
 }
 
 bool InventoryManager::onClientOpenChest(const Vector3i &position) {
@@ -889,6 +984,11 @@ bool InventoryManager::onClientOpenChest(const Vector3i &position) {
     mContainerWindowId = windowId;
     mContainerPosition = position;
     mCurrentWindowType = ContainerType::Container;
+
+    BlockActorDataPacket blockActorData;
+    blockActorData.mBlockPosition = position;
+    blockActorData.mData = chest->getSpawnCompound();
+    mSender->sendPacketTo(mPlayer->getNetworkIdentifier(), blockActorData);
 
     ContainerOpenPacket open;
     open.mWindowId = (int8_t) windowId;
@@ -942,6 +1042,82 @@ void InventoryManager::_animateChest(ChestBlockActor &chest, bool open) {
                                            pairEvent);
 }
 
+void InventoryManager::_animateBlockContainer(const Vector3i &position, bool open, const char *openSound,
+                                               const char *closeSound) {
+    if (mOwner == nullptr)
+        return;
+
+    const Vector3f center((float) position.x + 0.5f, (float) position.y + 0.5f, (float) position.z + 0.5f);
+
+    BlockEventPacket event;
+    event.mBlockPosition = position;
+    event.mEventType = CHEST_ANIMATION_EVENT_TYPE;
+    event.mEventData = open ? 2 : 0;
+    BlockActionHandler::broadcastToViewers(*mOwner, center, event);
+    mOwner->playLevelSound(open ? openSound : closeSound, center);
+}
+
+void InventoryManager::_animateBarrel(const Vector3i &position, bool open) {
+    if (mOwner == nullptr)
+        return;
+
+    const BlockState state = mOwner->getLevel().getBlockState(position.x, position.y, position.z);
+    if (state.mName != "minecraft:barrel")
+        return;
+
+    const Tag *current = state.mStates.get("open_bit");
+    const bool currentlyOpen = current != nullptr && current->getType() == Tag::Type::Byte
+                               && current->asByte() != 0;
+    if (currentlyOpen == open)
+        return;
+
+    Tag states = state.mStates;
+    states.putByte("open_bit", open ? 1 : 0);
+    RedstoneSystem::setBlockState(*mOwner, position, BlockState(state.mName, states));
+
+    const Vector3f center((float) position.x + 0.5f, (float) position.y + 0.5f, (float) position.z + 0.5f);
+    mOwner->playLevelSound(open ? LevelSoundEvent::BARREL_OPEN : LevelSoundEvent::BARREL_CLOSED, center);
+}
+
+void InventoryManager::_closeBlockContainer() {
+    BlockActor *blockActor = BlockActorStore::getInstance().find(mContainerPosition);
+    if (blockActor == nullptr)
+        return;
+
+    ChestBlockActor *chest = dynamic_cast<ChestBlockActor *>(blockActor);
+    if (chest != nullptr) {
+        const bool wasLastViewer = chest->getViewerCount() == 1;
+        chest->removeViewer();
+        RedstoneSystem::queueRedstoneNotification(mContainerPosition);
+        if (wasLastViewer)
+            _animateChest(*chest, false);
+        return;
+    }
+
+    BarrelBlockActor *barrel = dynamic_cast<BarrelBlockActor *>(blockActor);
+    if (barrel != nullptr) {
+        const bool wasLastViewer = barrel->getViewerCount() == 1;
+        barrel->removeViewer();
+        if (wasLastViewer)
+            _animateBarrel(mContainerPosition, false);
+        return;
+    }
+
+    ShulkerBoxBlockActor *shulkerBox = dynamic_cast<ShulkerBoxBlockActor *>(blockActor);
+    if (shulkerBox != nullptr) {
+        const bool wasLastViewer = shulkerBox->getViewerCount() == 1;
+        shulkerBox->removeViewer();
+        if (wasLastViewer)
+            _animateBlockContainer(mContainerPosition, false, LevelSoundEvent::SHULKER_BOX_OPEN,
+                                   LevelSoundEvent::SHULKER_BOX_CLOSED);
+        return;
+    }
+
+    if (dynamic_cast<EnderChestBlockActor *>(blockActor) != nullptr)
+        _animateBlockContainer(mContainerPosition, false, LevelSoundEvent::ENDER_CHEST_OPEN,
+                               LevelSoundEvent::ENDER_CHEST_CLOSED);
+}
+
 bool InventoryManager::onClientOpenFurnace(const Vector3i &position, FurnaceKind kind, ContainerType type) {
     if (mPlayer == nullptr || mSender == nullptr) {
         return false;
@@ -966,6 +1142,12 @@ bool InventoryManager::onClientOpenFurnace(const Vector3i &position, FurnaceKind
     FurnaceBlockActor &state = BlockActorStore::getInstance()
             .getOrCreate<FurnaceBlockActor>(Vector3i(key.x, key.y, key.z));
     state.mKind = kind;
+
+    BlockActorDataPacket blockActorData;
+    blockActorData.mBlockPosition = position;
+    blockActorData.mData = state.getSpawnCompound();
+    mSender->sendPacketTo(mPlayer->getNetworkIdentifier(), blockActorData);
+
     mFurnaceBurnTime = state.mBurnTime;
     mFurnaceMaxBurnTime = state.mMaxBurnTime;
     mFurnaceCookTime = state.mCookTime;
@@ -994,7 +1176,8 @@ void InventoryManager::onClientOpenMainInventory() {
         return;
     }
 
-    if (mCraftingTableWindowId != CONTAINER_ID_NONE || mFurnaceWindowId != CONTAINER_ID_NONE) {
+    if (mCraftingTableWindowId != CONTAINER_ID_NONE || mContainerWindowId != CONTAINER_ID_NONE
+        || mFurnaceWindowId != CONTAINER_ID_NONE) {
         mHasPendingOpenMainInventory = true;
         onCurrentWindowRemove();
         return;
@@ -1035,15 +1218,7 @@ void InventoryManager::onClientRemoveWindow(int windowId) {
     }
 
     if (windowId == mContainerWindowId) {
-        ChestBlockActor *chest = BlockActorStore::getInstance().find<ChestBlockActor>(mContainerPosition);
-        if (chest != nullptr) {
-            const bool wasLastViewer = chest->getViewerCount() == 1;
-            chest->removeViewer();
-            RedstoneSystem::queueRedstoneNotification(mContainerPosition);
-
-            if (wasLastViewer)
-                _animateChest(*chest, false);
-        }
+        _closeBlockContainer();
         mContainerWindowId = CONTAINER_ID_NONE;
     }
     if (windowId == mFurnaceWindowId) {

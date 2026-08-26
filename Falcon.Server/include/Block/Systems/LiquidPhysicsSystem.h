@@ -10,6 +10,7 @@
 #include <limits>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -44,15 +45,21 @@ public:
     Vector3f getFlowVector(const Vector3i &position);
 
     void schedule(const Vector3i &position, int64_t delay = 1);
+    void processImmediately(const Vector3i &position);
     void tick();
 
     void activateColumn(int32_t chunkX, int32_t chunkZ);
 
     static bool needsInitialTick(const LevelChunk &chunk, int32_t localX, int32_t y, int32_t localZ);
 
-    void setTimeBudgetMs(double milliseconds) { mTimeBudgetMs = milliseconds; }
+    void setTimeBudgetMs(double milliseconds) {
+        mBaselineBudgetMs = milliseconds;
+        mTimeBudgetMs = milliseconds;
+    }
 
     double getTimeBudgetMs() const { return mTimeBudgetMs; }
+
+    void updateAdaptiveBudget(double millisecondsPerTick);
 
     size_t getScheduledCount() const { return mSchedule.size(); }
 
@@ -94,6 +101,7 @@ private:
     bool _isActive(int32_t x, int32_t z) const;
 
     void _deferRemaining(const std::vector<Position> &positions, size_t from, int64_t bucketTick);
+    void _enqueueImmediate(const Position &position);
 
     void scheduleNeighbors(int32_t x, int32_t y, int32_t z);
     void scheduleLoaded(LevelChunk &chunk);
@@ -107,13 +115,24 @@ private:
     static constexpr size_t MAX_UPDATES_PER_TICK = 4096;
     static constexpr size_t BUDGET_CHECK_INTERVAL = 8;
 
+    static constexpr double ADAPTIVE_LOW_MSPT = 30.0;
+    static constexpr double ADAPTIVE_HIGH_MSPT = 42.0;
+    static constexpr double ADAPTIVE_STEP_MS = 2.0;
+    static constexpr double ADAPTIVE_MAX_FINITE_MS = 45.0;
+    static constexpr int64_t ADAPTIVE_INTERVAL_TICKS = 20;
+
     Level &mLevel;
     std::map<int64_t, std::vector<Position>> mBuckets;
     std::unordered_map<int64_t, std::vector<Position>> mParked;
     int64_t mTick = 0;
-    double mTimeBudgetMs = 10.0;
+    double mTimeBudgetMs = 20.0;
+    double mBaselineBudgetMs = 20.0;
+    int64_t mAdaptiveCounter = 0;
     size_t mLastProcessed = 0;
     size_t mLastDeferred = 0;
     std::unordered_map<Position, int64_t, PositionHash> mSchedule;
     std::vector<LiquidChange> mChanges;
+    bool mImmediatePropagation = false;
+    std::vector<Position> mImmediateQueue;
+    std::unordered_set<Position, PositionHash> mImmediatePending;
 };

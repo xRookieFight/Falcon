@@ -2,6 +2,8 @@
 
 #include "Core/Debug/BedrockLog.h"
 #include "Inventory/BundleInventory.h"
+#include "Item/EnchantmentHelper.h"
+#include "Item/ItemEnchantments.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -42,6 +44,9 @@ namespace {
         bool mCreatedOutputActive = false;
         const PacketCodecContext *mCodecContext = nullptr;
         std::vector<std::unique_ptr<BundleView>> mBundles;
+        int32_t mPlayerXpLevel = 0;
+        bool mCreativeMode = false;
+        int32_t mEnchantLevelsConsumed = 0;
     };
 
     ItemStack *findBundleOwner(PlayerInventory &inventory, RequestContext &context, int32_t bundleId,
@@ -133,7 +138,9 @@ namespace {
         if (container == ContainerSlotType::CreatedOutput) {
             return (slot == 0 || slot == 50) ? &context.mCreatedOutput : nullptr;
         }
-        if (container == ContainerSlotType::LevelEntity) {
+        if (container == ContainerSlotType::LevelEntity || container == ContainerSlotType::Barrel
+            || container == ContainerSlotType::ShulkerBox
+            || container == ContainerSlotType::CrafterBlockContainer) {
             if (context.mOpenContainer == nullptr || slot < 0
                 || (size_t) slot >= context.mContainerSlots.size()) {
                 return nullptr;
@@ -434,11 +441,59 @@ namespace {
         return false;
     }
 
-    bool craftRecipe(PlayerInventory &inventory, RequestContext &context, const ItemStackRequestAction &action) {
+    bool craftEnchant(PlayerInventory &inventory, RequestContext &context, const ItemStackRequestAction &action,
+                      std::vector<TouchedSlot> &touched) {
+        std::vector<EnchantmentInstance> enchantments;
+        int32_t consumeCost = 0;
+        int32_t requiredLevel = 0;
+        if (!EnchantmentHelper::takeOption(action.mRecipeNetworkId, enchantments, consumeCost, requiredLevel))
+            return false;
+
+        ItemStack *input = inventory.resolveSlot(ContainerSlotType::EnchantingInput, 0);
+        if (input == nullptr || input->isAir())
+            return false;
+
+        ItemStack *lapis = inventory.resolveSlot(ContainerSlotType::EnchantingMaterial, 0);
+
+        if (!context.mCreativeMode) {
+            if (context.mPlayerXpLevel < requiredLevel)
+                return false;
+
+            if (lapis == nullptr || lapis->isAir() || lapis->mCount < consumeCost)
+                return false;
+        }
+
+        ItemEnchantments::write(*input, enchantments);
+
+        FullContainerName inputName;
+        inputName.mContainer = ContainerSlotType::EnchantingInput;
+        markTouched(touched, inputName, 0);
+
+        if (!context.mCreativeMode) {
+            lapis->mCount -= consumeCost;
+            if (lapis->mCount <= 0)
+                *lapis = ItemStack::air();
+
+            FullContainerName lapisName;
+            lapisName.mContainer = ContainerSlotType::EnchantingMaterial;
+            markTouched(touched, lapisName, 0);
+
+            context.mEnchantLevelsConsumed = consumeCost;
+        }
+
+        return true;
+    }
+
+    bool craftRecipe(PlayerInventory &inventory, RequestContext &context, const ItemStackRequestAction &action,
+                     std::vector<TouchedSlot> &touched) {
         if (context.mCraftRecipeSeen) {
             return false;
         }
         context.mCraftRecipeSeen = true;
+
+        if (action.mRecipeNetworkId >= EnchantmentHelper::RECIPE_ID_BASE) {
+            return craftEnchant(inventory, context, action, touched);
+        }
 
         if (context.mRecipeOutputs == nullptr) {
             return false;
@@ -525,7 +580,7 @@ namespace {
 
             case ItemStackRequestActionType::CraftRecipe:
             case ItemStackRequestActionType::CraftRecipeAuto:
-                return craftRecipe(inventory, context, action);
+                return craftRecipe(inventory, context, action, touched);
 
             case ItemStackRequestActionType::Create:
             case ItemStackRequestActionType::CraftResultsDeprecated:
@@ -553,7 +608,10 @@ ItemStackResponseEntry ItemStackRequestHandler::execute(PlayerInventory &invento
                                                        Container *openContainer,
                                                        std::vector<ItemStack> *outDroppedItems,
                                                        const PacketCodecContext *codecContext,
-                                                       std::vector<BundleSyncData> *outBundles) {
+                                                       std::vector<BundleSyncData> *outBundles,
+                                                       int32_t playerXpLevel,
+                                                       bool creativeMode,
+                                                       int32_t *outEnchantLevelsConsumed) {
     ItemStackResponseEntry entry;
     entry.mRequestId = request.mRequestId;
     entry.mResult = RESULT_OK;
@@ -572,6 +630,8 @@ ItemStackResponseEntry ItemStackRequestHandler::execute(PlayerInventory &invento
     context.mFurnaceOpen = furnaceOpen;
     context.mOpenContainer = openContainer;
     context.mCodecContext = codecContext;
+    context.mPlayerXpLevel = playerXpLevel;
+    context.mCreativeMode = creativeMode;
 
     if (openContainer != nullptr) {
         const int containerSize = openContainer->getContainerSize();
@@ -641,6 +701,9 @@ ItemStackResponseEntry ItemStackRequestHandler::execute(PlayerInventory &invento
         outDroppedItems->insert(outDroppedItems->end(), localDroppedItems.begin(), localDroppedItems.end());
     }
 
+    if (outEnchantLevelsConsumed != nullptr)
+        *outEnchantLevelsConsumed = context.mEnchantLevelsConsumed;
+
     for (const TouchedSlot &slot: touched) {
         if (slot.mContainerName.mContainer == ContainerSlotType::CreatedOutput) {
             continue;
@@ -664,7 +727,10 @@ ItemStackResponseEntry ItemStackRequestHandler::execute(PlayerInventory &invento
             continue;
         }
 
-        if (slot.mContainerName.mContainer == ContainerSlotType::LevelEntity) {
+        if (slot.mContainerName.mContainer == ContainerSlotType::LevelEntity
+            || slot.mContainerName.mContainer == ContainerSlotType::Barrel
+            || slot.mContainerName.mContainer == ContainerSlotType::ShulkerBox
+            || slot.mContainerName.mContainer == ContainerSlotType::CrafterBlockContainer) {
             if (openContainer == nullptr || slot.mSlot < 0
                 || (size_t) slot.mSlot >= context.mContainerSlots.size()) {
                 continue;

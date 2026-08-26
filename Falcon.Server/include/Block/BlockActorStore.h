@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 class PacketCodecContext;
@@ -44,9 +45,20 @@ public:
 
     std::vector<Tag> saveChunk(int32_t chunkX, int32_t chunkZ) const;
 
+    std::string encodeChunkNetwork(int32_t chunkX, int32_t chunkZ) const;
+
+    std::string encodeSubChunkNetwork(int32_t chunkX, int32_t sectionY, int32_t chunkZ) const;
+
+    static std::string encodeNetwork(const std::vector<Tag> &blockActors);
+
+    static std::string encodeNetworkForSection(const std::vector<Tag> &blockActors, int32_t sectionY);
+
+    bool isChunkLoaded(int32_t chunkX, int32_t chunkZ) const;
+
     void unloadChunk(int32_t chunkX, int32_t chunkZ);
 
-    void loadChunk(const std::vector<Tag> &blockActors, const PacketCodecContext &context);
+    void loadChunk(int32_t chunkX, int32_t chunkZ, const std::vector<Tag> &blockActors,
+                   const PacketCodecContext &context);
 
     static std::unique_ptr<BlockActor> create(const std::string &blockActorId);
 
@@ -63,4 +75,5 @@ public:
 
 private:
     std::unordered_map<int64_t, std::unique_ptr<BlockActor>> mBlockActors;
+    std::unordered_set<int64_t> mLoadedChunks;
 };

@@ -32,5 +32,8 @@ public:
                                           Container *openContainer = nullptr,
                                           std::vector<ItemStack> *outDroppedItems = nullptr,
                                           const PacketCodecContext *codecContext = nullptr,
-                                          std::vector<BundleSyncData> *outBundles = nullptr);
+                                          std::vector<BundleSyncData> *outBundles = nullptr,
+                                          int32_t playerXpLevel = 0,
+                                          bool creativeMode = false,
+                                          int32_t *outEnchantLevelsConsumed = nullptr);
 };

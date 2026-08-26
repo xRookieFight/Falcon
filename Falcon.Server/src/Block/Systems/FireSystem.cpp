@@ -365,7 +365,7 @@ void FireSystem::onScheduledUpdate(ServerNetworkHandler &owner, const Vector3i &
 
     const Vector3i below = relative(position, 0, -1, 0);
     const BlockState belowState = stateAt(owner, below);
-    const bool forever = burnsForever(belowState.mName);
+    const bool forever = state.mName == "minecraft:soul_fire" || burnsForever(belowState.mName);
     const int age = stateInt(state, "age", 0);
 
     if (age < MAX_AGE)

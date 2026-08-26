@@ -3,6 +3,7 @@
 #include "Actor/DynamicPropertyStore.h"
 #include "Actor/ActorSizeTable.h"
 #include "Actor/ServerActor.h"
+#include "Block/Inventory/EnderChestInventoryStore.h"
 #include "Inventory/ItemStackNbt.h"
 #include "Inventory/InventoryManager.h"
 #include "Item/ItemData.h"
@@ -42,6 +43,7 @@ namespace {
     const char *TAG_NAME = "NameTag";
     const char *TAG_INVENTORY = "Inventory";
     const char *TAG_OFF_INVENTORY = "OffInventory";
+    const char *TAG_ENDER_ITEMS = "EnderItems";
     const char *TAG_SELECTED_SLOT = "SelectedInventorySlot";
     const char *TAG_FOOD_LEVEL = "foodLevel";
     const char *TAG_FOOD_EXHAUSTION_LEVEL = "foodExhaustionLevel";
@@ -651,6 +653,12 @@ Tag ServerPlayer::saveNbt(const std::string &levelName) const {
     data.put(TAG_OFF_INVENTORY, ItemStackNbt::write(mInventory.getOffhand(), 0));
     data.putInt(TAG_SELECTED_SLOT, mInventory.getSelectedSlot());
 
+    const SimpleContainerInventory *enderChest = EnderChestInventoryStore::getInstance().find(getUniqueId());
+    if (enderChest != nullptr)
+        data.put(TAG_ENDER_ITEMS, enderChest->saveItems());
+    else
+        data.put(TAG_ENDER_ITEMS, Tag::ofList(Tag::Type::Compound));
+
     Tag activeEffects = Tag::ofList(Tag::Type::Compound);
     for (const auto &entry: getEffects().getAll()) {
         const MobEffectInstance &effect = entry.second;
@@ -730,6 +738,13 @@ void ServerPlayer::loadNbt(const Tag &data, const PacketCodecContext &context) {
         mInventory.setOffhand(ItemStackNbt::read(*offhand, context));
 
     mInventory.setSelectedSlot(data.getInt(TAG_SELECTED_SLOT, 0));
+
+    SimpleContainerInventory &enderChest = EnderChestInventoryStore::getInstance().get(getUniqueId());
+    enderChest.clear();
+
+    const Tag *enderItems = data.get(TAG_ENDER_ITEMS);
+    if (enderItems != nullptr && enderItems->getType() == Tag::Type::List)
+        enderChest.loadItems(*enderItems, context);
 
     getEffects().clear();
     const Tag *activeEffects = data.get(TAG_ACTIVE_EFFECTS);

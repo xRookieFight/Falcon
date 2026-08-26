@@ -33,7 +33,11 @@ public:
 
     const BlockState &getBlock(int x, int32_t y, int z) const;
 
+    const BlockState &getBlock(int x, int32_t y, int z, int layer) const;
+
     void setBlock(int x, int32_t y, int z, const BlockState &state);
+
+    void setBlock(int x, int32_t y, int z, int layer, const BlockState &state);
 
     void forEachBlock(const std::function<void(int32_t, int32_t, int32_t, const BlockState &)> &callback) const;
 

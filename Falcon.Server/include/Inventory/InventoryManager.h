@@ -5,6 +5,8 @@
 #include "Protocol/Types/ContainerType.h"
 #include "Protocol/Types/ItemStack.h"
 
+#include <string>
+
 #include <cstdint>
 #include <array>
 #include <vector>
@@ -14,6 +16,7 @@ class PacketSender;
 class ServerPlayer;
 class ServerNetworkHandler;
 class ChestBlockActor;
+class ContainerBlockActor;
 enum class FurnaceKind : uint8_t;
 
 class InventoryManager {
@@ -87,13 +90,23 @@ public:
 
     bool onClientOpenChest(const Vector3i &position);
 
+    bool onClientOpenBlockContainer(const Vector3i &position, ContainerType type);
+
     bool isContainerOpen() const { return mContainerWindowId != CONTAINER_ID_NONE; }
 
     int getContainerWindowId() const { return mContainerWindowId; }
 
     const Vector3i &getContainerPosition() const { return mContainerPosition; }
 
+    ContainerType getCurrentWindowType() const { return mCurrentWindowType; }
+
+    bool refreshEnchantInput(const ItemStack &current, int32_t newSeed);
+
+    int32_t getEnchantSeed() const { return mEnchantSeed; }
+
     Container *getContainer();
+
+    void refreshOpenContainer(const Vector3i &position);
 
     void syncCraftingTableState(const std::vector<ItemStack> &recipeOutputs,
                                 const std::vector<uint32_t> &recipeSourceIndices);
@@ -110,7 +123,11 @@ public:
                ? mFurnaceWindowId
                : (mCraftingTableWindowId != CONTAINER_ID_NONE
                       ? mCraftingTableWindowId
-                      : (mMainInventoryWindowId != CONTAINER_ID_NONE ? mMainInventoryWindowId : mLastInventoryNetworkId));
+                      : (mContainerWindowId != CONTAINER_ID_NONE
+                             ? mContainerWindowId
+                             : (mMainInventoryWindowId != CONTAINER_ID_NONE
+                                    ? mMainInventoryWindowId
+                                    : mLastInventoryNetworkId)));
     }
 
 private:
@@ -121,6 +138,13 @@ private:
     int _getSize(InventoryId inventory) const;
 
     void _animateChest(ChestBlockActor &chest, bool open);
+
+    void _animateBlockContainer(const Vector3i &position, bool open, const char *openSound,
+                                const char *closeSound);
+
+    void _animateBarrel(const Vector3i &position, bool open);
+
+    void _closeBlockContainer();
 
     void _sendContentPackets(int containerId, const Container &container);
 
@@ -142,6 +166,10 @@ private:
     Vector3i mCraftingTablePosition;
     int mContainerWindowId = CONTAINER_ID_NONE;
     Vector3i mContainerPosition;
+    std::string mEnchantInputId;
+    int32_t mEnchantInputCount = 0;
+    int32_t mEnchantInputDamage = 0;
+    int32_t mEnchantSeed = 0;
     int mFurnaceWindowId;
     Vector3i mFurnacePosition;
     FurnaceKind mFurnaceKind;

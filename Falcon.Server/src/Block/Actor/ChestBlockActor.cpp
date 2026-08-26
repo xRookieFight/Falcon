@@ -24,6 +24,15 @@ Tag ChestBlockActor::saveNbt() const {
     return data;
 }
 
+Tag ChestBlockActor::getSpawnCompound() const {
+    Tag data = BlockActor::getSpawnCompound();
+    if (mPaired) {
+        data.putInt(TAG_PAIR_X, mPairPosition.x);
+        data.putInt(TAG_PAIR_Z, mPairPosition.z);
+    }
+    return data;
+}
+
 void ChestBlockActor::loadNbt(const Tag &data, const PacketCodecContext &context) {
     mPaired = data.get(TAG_PAIR_X) != nullptr && data.get(TAG_PAIR_Z) != nullptr;
     if (mPaired) {

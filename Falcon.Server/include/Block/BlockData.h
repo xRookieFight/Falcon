@@ -61,6 +61,7 @@ struct BlockData {
     const BlockStateValue *mStates;
     size_t mStateCount;
     const char *mBehaviorIdentifier = nullptr;
+    int32_t mMaxStackSize = 64;
 };
 
 class BlockDataTable {

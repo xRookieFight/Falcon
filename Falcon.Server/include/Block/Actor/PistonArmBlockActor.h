@@ -19,7 +19,7 @@ public:
 
     void loadNbt(const Tag &data, const PacketCodecContext &context) override;
 
-    Tag getSpawnCompound() const;
+    Tag getSpawnCompound() const override;
 
     bool isMoving() const { return !mFinished; }
 

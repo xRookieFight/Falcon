@@ -117,6 +117,8 @@ private:
     std::vector<ItemStack> mFurnace;
     ItemStack mOffhand;
     ItemStack mCursor;
+    ItemStack mEnchantingInput;
+    ItemStack mEnchantingMaterial;
     int mSelectedSlot;
     int32_t mNextNetId;
 };

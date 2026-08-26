@@ -1,6 +1,7 @@
 #include "Actor/ServerActor.h"
 
 #include "Actor/DynamicPropertyStore.h"
+#include "Actor/ExperienceValues.h"
 #include "Actor/MobLootTable.h"
 #include "Block/Systems/LiquidBlocksFetch.h"
 #include "Server/Profiler.h"
@@ -223,6 +224,10 @@ bool ServerActor::hurt(ServerNetworkHandler &owner, float amount, ServerPlayer *
         const Vector3f dropPosition = getPosition();
         for (const MobDrop &drop: MobLootTable::getMobDrops(mIdentifier, isOnFire()))
             owner.spawnItemActor(drop.mItemIdentifier, drop.mCount, dropPosition);
+
+        const int experience = ExperienceValues::getMobDropExperience(mIdentifier);
+        if (experience > 0)
+            owner.spawnExperienceOrbs(dropPosition, experience);
 
         setDead(true);
         setMotion(Vector3f(0.0f, 0.0f, 0.0f));

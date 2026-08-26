@@ -10,6 +10,9 @@
 #include "Inventory/BundleInventory.h"
 #include "Inventory/ItemStackRequestHandler.h"
 #include "Inventory/PlayerInventory.h"
+#include "Item/EnchantmentHelper.h"
+#include "Protocol/Packets/PlayerEnchantOptionsPacket.h"
+#include "Protocol/Types/StartGameTypes.h"
 #include "Network/Handler/BadPacketHandler.h"
 #include "Network/Handler/BlockActionHandler.h"
 #include "Network/Handler/NetworkHandler.h"
@@ -204,6 +207,11 @@ void InventoryHandler::handleItemStackRequest(ServerNetworkHandler &owner, const
     }
 
     for (const ItemStackRequest &request: packet.mRequests) {
+        const int32_t gameType = player.getGameType();
+        const bool creativeMode = gameType == (int32_t) GameType::Creative
+                                  || gameType == (int32_t) GameType::Spectator;
+        int32_t enchantLevelsConsumed = 0;
+
         ItemStackResponseEntry entry = ItemStackRequestHandler::execute(inventory, request, owner.getCreativeItems(),
                                                                        owner.getRecipeOutputs(),
                                                                        owner.getRecipeSourceIndices(),
@@ -212,7 +220,17 @@ void InventoryHandler::handleItemStackRequest(ServerNetworkHandler &owner, const
                                                                        player.getInventoryManager().getContainer(),
                                                                        &droppedItems,
                                                                        &owner.getCodecContext(),
-                                                                       &bundles);
+                                                                       &bundles,
+                                                                       player.getExperience().getXpLevel(),
+                                                                       creativeMode,
+                                                                       &enchantLevelsConsumed);
+
+        if (entry.mResult == ItemStackRequestHandler::RESULT_OK && enchantLevelsConsumed > 0) {
+            player.getExperience().subtractXpLevels(enchantLevelsConsumed);
+            player.syncExperience();
+            owner._sendAttributes(player);
+        }
+
         if (entry.mResult != ItemStackRequestHandler::RESULT_OK) {
             needsResync = true;
             playBundleSounds(owner, player, request, false);
@@ -246,6 +264,11 @@ void InventoryHandler::handleItemStackRequest(ServerNetworkHandler &owner, const
         player.getInventoryManager().syncContents(InventoryManager::InventoryId::FurnaceInput);
     }
 
+    _updateEnchantOptions(owner, player);
+
+    if (player.getInventoryManager().isContainerOpen())
+        owner.refreshContainerViewers(player.getInventoryManager().getContainerPosition(), &player);
+
     if (response.mEntries.empty())
         return;
 
@@ -253,6 +276,28 @@ void InventoryHandler::handleItemStackRequest(ServerNetworkHandler &owner, const
 
     if (needsResync)
         owner._sendInventory(player);
+}
+
+void InventoryHandler::_updateEnchantOptions(ServerNetworkHandler &owner, ServerPlayer &player) {
+    InventoryManager &manager = player.getInventoryManager();
+    if (manager.getCurrentWindowType() != ContainerType::Enchantment || !manager.isContainerOpen())
+        return;
+
+    const ItemStack *input = player.getInventory().resolveSlot(ContainerSlotType::EnchantingInput, 0);
+    const ItemStack empty;
+    const ItemStack &current = input == nullptr ? empty : *input;
+
+    const int32_t seed = (int32_t) (owner.getCurrentTick() * 31 + manager.getContainerPosition().x * 7
+                                    + manager.getContainerPosition().z);
+    if (!manager.refreshEnchantInput(current, seed))
+        return;
+
+    PlayerEnchantOptionsPacket packet;
+    if (!current.isAir())
+        packet.mOptions = EnchantmentHelper::getEnchantOptions(owner.getLevel(), manager.getContainerPosition(),
+                                                               current, manager.getEnchantSeed());
+
+    owner.getNetworkHandler().send(player.getNetworkIdentifier(), packet, owner.getCodecContext());
 }
 
 void InventoryHandler::handleTransaction(ServerNetworkHandler &owner, ServerPlayer &player,

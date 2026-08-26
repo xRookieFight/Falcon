@@ -1,6 +1,7 @@
 #include "Server.h"
 
 #include "BuildInfo.h"
+#include "Server/VersionChecker.h"
 #include "Core/Utility/UUID.h"
 #include "Core/Debug/BedrockLog.h"
 #include "Core/Debug/ContentLogEndPoint.h"
@@ -200,6 +201,8 @@ void startServer(const ServerSettings &settings) {
     logTransportNotice(transport);
     logTelemetryNotice();
     BedrockLog::flush();
+
+    VersionChecker::checkForUpdatesAsync();
 
     std::thread consoleThread([&networkHandler]() {
         std::string line;

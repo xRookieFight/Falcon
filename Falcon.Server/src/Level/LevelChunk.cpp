@@ -95,6 +95,15 @@ const BlockState &LevelChunk::getBlock(int x, int32_t y, int z) const {
     return mSubChunks[subChunkIndexFor(y)].getBlock(x, y & 15, z);
 }
 
+const BlockState &LevelChunk::getBlock(int x, int32_t y, int z, int layer) const {
+    static const BlockState air;
+
+    if (y < MIN_Y || y > MAX_Y)
+        return air;
+
+    return mSubChunks[subChunkIndexFor(y)].getBlock(x, y & 15, z, layer);
+}
+
 void LevelChunk::setBlock(int x, int32_t y, int z, const BlockState &state) {
     if (y < MIN_Y || y > MAX_Y)
         return;
@@ -104,6 +113,21 @@ void LevelChunk::setBlock(int x, int32_t y, int z, const BlockState &state) {
     mSubChunkNetworkValid[(size_t) index] = 0;
     mTopHeightsValid = false;
     mNetworkAnchorValid = false;
+    mDirty = true;
+}
+
+void LevelChunk::setBlock(int x, int32_t y, int z, int layer, const BlockState &state) {
+    if (y < MIN_Y || y > MAX_Y)
+        return;
+
+    if (layer <= 0) {
+        setBlock(x, y, z, state);
+        return;
+    }
+
+    const int index = subChunkIndexFor(y);
+    mSubChunks[index].setBlock(x, y & 15, z, layer, state);
+    mSubChunkNetworkValid[(size_t) index] = 0;
     mDirty = true;
 }
 

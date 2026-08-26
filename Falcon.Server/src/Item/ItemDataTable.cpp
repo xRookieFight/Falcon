@@ -495,7 +495,7 @@ const ItemData gItemDataTable[] = {
         {ItemTypeIds::SHEEP_SPAWN_EGG, "minecraft:sheep_spawn_egg", "Sheep Spawn Egg", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::SHELTER_POTTERY_SHERD, "minecraft:shelter_pottery_sherd", "Shelter Pottery Sherd", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::SHIELD, "minecraft:shield", "Shield", 1, 337, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
-        {ItemTypeIds::SHULKER_BOX, "minecraft:shulker_box", "Shulker Box", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
+        {ItemTypeIds::SHULKER_BOX, "minecraft:shulker_box", "Shulker Box", 1, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::SHULKER_SHELL, "minecraft:shulker_shell", "Shulker Shell", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::SHULKER_SPAWN_EGG, "minecraft:shulker_spawn_egg", "Shulker Spawn Egg", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
         {ItemTypeIds::SILENCE_ARMOR_TRIM_SMITHING_TEMPLATE, "minecraft:silence_armor_trim_smithing_template", "Silence Armor Trim Smithing Template", 64, 0, ToolType::None, 0, 0, 0, ArmorSlot::None, 0, 0, 0, 0, 0.0f},
@@ -659,7 +659,9 @@ const ItemComponents &ItemDataTable::getComponents(const std::string &identifier
 
     const ItemData *data = find(identifier);
     if (data == nullptr) {
-        if (identifier.find("netherite") != std::string::npos || identifier == "minecraft:ancient_debris") {
+        const bool fireResistant = identifier.find("netherite") != std::string::npos
+                                   || identifier == "minecraft:ancient_debris";
+        if (fireResistant) {
             ItemComponents value;
             value.emplace<FireResistantItemComponent>();
             auto result = components.emplace(identifier, std::move(value));

@@ -1,0 +1,268 @@
+#include "Block/Blocks/ContainerBlock.h"
+
+#include "Actor/ServerPlayer.h"
+#include "Block/Actor/ContainerBlockActor.h"
+#include "Block/Actor/EnderChestBlockActor.h"
+#include "Block/Actor/HopperBlockActor.h"
+#include "Block/BlockActorStore.h"
+#include "Inventory/Container/BlockContainerManagerModel.h"
+#include "Network/Handler/ItemActorHandler.h"
+#include "Network/Handler/ServerNetworkHandler.h"
+
+#include <utility>
+
+namespace {
+    const char *TAG_ITEMS = "Items";
+
+    const ContainerBlockDefinition DEFINITIONS[] = {
+            {ContainerBlockKind::Barrel,            BarrelBlockActor::BLOCK_ACTOR_ID,            ContainerType::Container,    true,  true},
+            {ContainerBlockKind::ShulkerBox,        ShulkerBoxBlockActor::BLOCK_ACTOR_ID,        ContainerType::Container,    true,  false},
+            {ContainerBlockKind::EnderChest,        EnderChestBlockActor::BLOCK_ACTOR_ID,        ContainerType::Container,    true,  false},
+            {ContainerBlockKind::Hopper,            HopperBlockActor::BLOCK_ACTOR_ID,            ContainerType::Hopper,       true,  true},
+            {ContainerBlockKind::Dispenser,         DispenserBlockActor::BLOCK_ACTOR_ID,         ContainerType::Dispenser,    true,  true},
+            {ContainerBlockKind::Dropper,           DropperBlockActor::BLOCK_ACTOR_ID,           ContainerType::Dropper,      true,  true},
+            {ContainerBlockKind::BrewingStand,      BrewingStandBlockActor::BLOCK_ACTOR_ID,      ContainerType::BrewingStand, true,  true},
+            {ContainerBlockKind::Beacon,            BeaconBlockActor::BLOCK_ACTOR_ID,            ContainerType::Beacon,       true,  true},
+            {ContainerBlockKind::EnchantTable,      EnchantTableBlockActor::BLOCK_ACTOR_ID,      ContainerType::Enchantment,  true,  true},
+            {ContainerBlockKind::Crafter,           CrafterBlockActor::BLOCK_ACTOR_ID,           ContainerType::Crafter,      true,  true},
+            {ContainerBlockKind::Campfire,          CampfireBlockActor::BLOCK_ACTOR_ID,          ContainerType::None,         false, true},
+            {ContainerBlockKind::Lectern,           LecternBlockActor::BLOCK_ACTOR_ID,           ContainerType::None,         false, true},
+            {ContainerBlockKind::ChiseledBookshelf, ChiseledBookshelfBlockActor::BLOCK_ACTOR_ID, ContainerType::None,         false, true},
+            {ContainerBlockKind::DecoratedPot,      DecoratedPotBlockActor::BLOCK_ACTOR_ID,      ContainerType::None,         false, true},
+            {ContainerBlockKind::Jukebox,           JukeboxBlockActor::BLOCK_ACTOR_ID,           ContainerType::None,         false, true},
+            {ContainerBlockKind::Shelf,             ShelfBlockActor::BLOCK_ACTOR_ID,             ContainerType::None,         false, true}
+    };
+
+    const ContainerBlockDefinition &definitionOf(ContainerBlockKind kind) {
+        for (const ContainerBlockDefinition &definition: DEFINITIONS) {
+            if (definition.mKind == kind)
+                return definition;
+        }
+
+        return DEFINITIONS[0];
+    }
+
+    bool endsWith(const std::string &value, const std::string &suffix) {
+        if (value.size() < suffix.size())
+            return false;
+
+        return value.compare(value.size() - suffix.size(), suffix.size(), suffix) == 0;
+    }
+
+    bool kindOf(const std::string &identifier, ContainerBlockKind &outKind) {
+        if (identifier == "minecraft:barrel") {
+            outKind = ContainerBlockKind::Barrel;
+            return true;
+        }
+        if (endsWith(identifier, "_shulker_box")) {
+            outKind = ContainerBlockKind::ShulkerBox;
+            return true;
+        }
+        if (identifier == "minecraft:ender_chest") {
+            outKind = ContainerBlockKind::EnderChest;
+            return true;
+        }
+        if (identifier == "minecraft:hopper") {
+            outKind = ContainerBlockKind::Hopper;
+            return true;
+        }
+        if (identifier == "minecraft:dispenser") {
+            outKind = ContainerBlockKind::Dispenser;
+            return true;
+        }
+        if (identifier == "minecraft:dropper") {
+            outKind = ContainerBlockKind::Dropper;
+            return true;
+        }
+        if (identifier == "minecraft:brewing_stand") {
+            outKind = ContainerBlockKind::BrewingStand;
+            return true;
+        }
+        if (identifier == "minecraft:beacon") {
+            outKind = ContainerBlockKind::Beacon;
+            return true;
+        }
+        if (identifier == "minecraft:enchanting_table") {
+            outKind = ContainerBlockKind::EnchantTable;
+            return true;
+        }
+        if (identifier == "minecraft:crafter") {
+            outKind = ContainerBlockKind::Crafter;
+            return true;
+        }
+        if (identifier == "minecraft:campfire" || identifier == "minecraft:soul_campfire") {
+            outKind = ContainerBlockKind::Campfire;
+            return true;
+        }
+        if (identifier == "minecraft:lectern") {
+            outKind = ContainerBlockKind::Lectern;
+            return true;
+        }
+        if (identifier == "minecraft:chiseled_bookshelf") {
+            outKind = ContainerBlockKind::ChiseledBookshelf;
+            return true;
+        }
+        if (identifier == "minecraft:decorated_pot") {
+            outKind = ContainerBlockKind::DecoratedPot;
+            return true;
+        }
+        if (identifier == "minecraft:jukebox") {
+            outKind = ContainerBlockKind::Jukebox;
+            return true;
+        }
+        if (endsWith(identifier, "_shelf")) {
+            outKind = ContainerBlockKind::Shelf;
+            return true;
+        }
+
+        return false;
+    }
+}
+
+ContainerBlock::ContainerBlock(const Block &base) : Block(base) {
+}
+
+bool ContainerBlock::matches(const std::string &identifier) {
+    ContainerBlockKind kind = ContainerBlockKind::Barrel;
+    return kindOf(identifier, kind);
+}
+
+const ContainerBlockDefinition *ContainerBlock::findDefinition(const std::string &identifier) {
+    ContainerBlockKind kind = ContainerBlockKind::Barrel;
+    if (!kindOf(identifier, kind))
+        return nullptr;
+
+    return &definitionOf(kind);
+}
+
+std::unique_ptr<BlockActor> ContainerBlock::createBlockActor(ContainerBlockKind kind) {
+    switch (kind) {
+        case ContainerBlockKind::Barrel:
+            return std::unique_ptr<BlockActor>(new BarrelBlockActor());
+        case ContainerBlockKind::ShulkerBox:
+            return std::unique_ptr<BlockActor>(new ShulkerBoxBlockActor());
+        case ContainerBlockKind::EnderChest:
+            return std::unique_ptr<BlockActor>(new EnderChestBlockActor());
+        case ContainerBlockKind::Hopper:
+            return std::unique_ptr<BlockActor>(new HopperBlockActor());
+        case ContainerBlockKind::Dispenser:
+            return std::unique_ptr<BlockActor>(new DispenserBlockActor());
+        case ContainerBlockKind::Dropper:
+            return std::unique_ptr<BlockActor>(new DropperBlockActor());
+        case ContainerBlockKind::BrewingStand:
+            return std::unique_ptr<BlockActor>(new BrewingStandBlockActor());
+        case ContainerBlockKind::Beacon:
+            return std::unique_ptr<BlockActor>(new BeaconBlockActor());
+        case ContainerBlockKind::EnchantTable:
+            return std::unique_ptr<BlockActor>(new EnchantTableBlockActor());
+        case ContainerBlockKind::Crafter:
+            return std::unique_ptr<BlockActor>(new CrafterBlockActor());
+        case ContainerBlockKind::Campfire:
+            return std::unique_ptr<BlockActor>(new CampfireBlockActor());
+        case ContainerBlockKind::Lectern:
+            return std::unique_ptr<BlockActor>(new LecternBlockActor());
+        case ContainerBlockKind::ChiseledBookshelf:
+            return std::unique_ptr<BlockActor>(new ChiseledBookshelfBlockActor());
+        case ContainerBlockKind::DecoratedPot:
+            return std::unique_ptr<BlockActor>(new DecoratedPotBlockActor());
+        case ContainerBlockKind::Jukebox:
+            return std::unique_ptr<BlockActor>(new JukeboxBlockActor());
+        case ContainerBlockKind::Shelf:
+            return std::unique_ptr<BlockActor>(new ShelfBlockActor());
+    }
+
+    return nullptr;
+}
+
+bool ContainerBlock::onInteract(ServerNetworkHandler &owner, ServerPlayer &player, const Vector3i &position,
+                                const BlockState &state) const {
+    const ContainerBlockDefinition *definition = findDefinition(state.mName);
+    if (definition == nullptr || !definition->mOpensWindow)
+        return false;
+
+    if (BlockActorStore::getInstance().find(position) == nullptr) {
+        std::unique_ptr<BlockActor> created = createBlockActor(definition->mKind);
+        if (created == nullptr)
+            return false;
+
+        created->setPosition(position);
+        BlockActorStore::getInstance().insert(std::move(created));
+    }
+
+    BlockContainerManagerModel model(definition->mContainerType);
+    return model.open(owner, player, position);
+}
+
+void ContainerBlock::onPlaced(ServerNetworkHandler &owner, const Vector3i &position, const std::string &identifier,
+                              const ItemStack &usedItem, int blockFace) {
+    const ContainerBlockDefinition *definition = findDefinition(identifier);
+    if (definition == nullptr)
+        return;
+
+    BlockActorStore::getInstance().remove(position);
+
+    std::unique_ptr<BlockActor> created = createBlockActor(definition->mKind);
+    if (created == nullptr)
+        return;
+
+    created->setPosition(position);
+
+    if (definition->mKind == ContainerBlockKind::ShulkerBox) {
+        ShulkerBoxBlockActor *shulker = dynamic_cast<ShulkerBoxBlockActor *>(created.get());
+        if (shulker != nullptr) {
+            if (blockFace >= 0 && blockFace <= 5)
+                shulker->setFacing((int8_t) blockFace);
+
+            const Tag *items = usedItem.mTag.getType() == Tag::Type::Compound
+                               ? usedItem.mTag.get(TAG_ITEMS)
+                               : nullptr;
+            if (items != nullptr)
+                shulker->getInventory().loadItems(*items, owner.getCodecContext());
+        }
+    }
+
+    BlockActorStore::getInstance().insert(std::move(created));
+}
+
+void ContainerBlock::onBroken(ServerNetworkHandler &owner, const Vector3i &position, const std::string &identifier) {
+    const ContainerBlockDefinition *definition = findDefinition(identifier);
+    if (definition == nullptr)
+        return;
+
+    if (definition->mDropsContentsOnBreak) {
+        ContainerBlockActor *actor = BlockActorStore::getInstance().find<ContainerBlockActor>(position);
+        if (actor != nullptr) {
+            const Vector3f dropPosition((float) position.x + 0.5f, (float) position.y + 0.5f,
+                                        (float) position.z + 0.5f);
+            SimpleContainerInventory &inventory = actor->getInventory();
+
+            for (int slot = 0; slot < inventory.getContainerSize(); ++slot) {
+                const ItemStack &item = inventory.getContainerItem(slot);
+                if (!item.isAir() && item.mCount > 0) {
+                    ItemActorHandler::dropItem(owner, dropPosition, item, ItemActorHandler::randomDropMotion(),
+                                               ItemActorHandler::DROP_PICKUP_DELAY);
+                }
+            }
+
+            inventory.clear();
+        }
+    }
+
+    BlockActorStore::getInstance().remove(position);
+}
+
+bool ContainerBlock::keepsContentsInItem(const std::string &identifier) {
+    const ContainerBlockDefinition *definition = findDefinition(identifier);
+    return definition != nullptr && definition->mKind == ContainerBlockKind::ShulkerBox;
+}
+
+void ContainerBlock::writeContentsToItem(const Vector3i &position, ItemStack &item) {
+    ContainerBlockActor *actor = BlockActorStore::getInstance().find<ContainerBlockActor>(position);
+    if (actor == nullptr || actor->getInventory().isEmpty())
+        return;
+
+    if (item.mTag.getType() != Tag::Type::Compound)
+        item.mTag = Tag::ofCompound();
+
+    item.mTag.put(TAG_ITEMS, actor->getInventory().saveItems());
+}

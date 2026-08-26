@@ -13,6 +13,8 @@ public:
 
     Tag saveNbt() const override;
 
+    Tag getSpawnCompound() const override;
+
     void loadNbt(const Tag &data, const PacketCodecContext &context) override;
 
     bool isPaired() const { return mPaired; }

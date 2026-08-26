@@ -161,15 +161,23 @@ public:
 
     void setBlockState(int32_t x, int32_t y, int32_t z, const BlockState &state);
 
+    BlockState getBlockStateAtLayer(int32_t x, int32_t y, int32_t z, int layer);
+
+    void setBlockStateAtLayer(int32_t x, int32_t y, int32_t z, int layer, const BlockState &state);
+
     LiquidInfo getLiquidInfo(int32_t x, int32_t y, int32_t z);
 
     Vector3f getLiquidFlowVector(const Vector3i &position);
 
     void scheduleFluidTick(const Vector3i &position, int64_t delay = 1);
 
+    void processFluidImmediately(const Vector3i &position);
+
     void tickFluids();
 
     void setFluidTimeBudgetMs(double milliseconds) { mLiquidPhysics.setTimeBudgetMs(milliseconds); }
+
+    void updateFluidBudget(double millisecondsPerTick) { mLiquidPhysics.updateAdaptiveBudget(millisecondsPerTick); }
 
     void setActiveColumns(std::vector<int64_t> columns);
 

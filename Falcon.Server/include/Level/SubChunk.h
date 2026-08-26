@@ -18,9 +18,15 @@ public:
 
     const BlockState &getBlock(int x, int y, int z) const;
 
+    const BlockState &getBlock(int x, int y, int z, int layer) const;
+
     void setBlock(int x, int y, int z, const BlockState &state);
 
+    void setBlock(int x, int y, int z, int layer, const BlockState &state);
+
     bool isEmpty() const;
+
+    bool isLayerEmpty(int layer) const;
 
     uint32_t getBiome(int x, int y, int z) const;
 
@@ -41,17 +47,28 @@ private:
 
     static int _bitsPerBlock(size_t paletteSize);
 
-    void _writeStorage(BinaryStream &stream, bool persistent) const;
+    void _writeStorage(BinaryStream &stream, bool persistent,
+                       const std::vector<BlockState> &palette,
+                       const std::vector<uint16_t> &blocks) const;
 
     void _writeEmptyStorage(BinaryStream &stream, bool persistent) const;
 
+    bool _readStorage(ReadOnlyBinaryStream &stream, std::vector<BlockState> &palette,
+                      std::vector<uint16_t> &blocks, bool *replacedUnknown);
+
+    void _ensureLayer1();
+
     uint16_t _paletteIndexFor(const BlockState &state);
+
+    uint16_t _paletteIndexForLayer1(const BlockState &state);
 
     uint16_t _biomePaletteIndexFor(uint32_t biomeId);
 
     int8_t mY;
     std::vector<BlockState> mPalette;
     std::vector<uint16_t> mBlocks;
+    std::vector<BlockState> mPalette2;
+    std::vector<uint16_t> mBlocks2;
     std::vector<uint32_t> mBiomePalette;
     std::vector<uint16_t> mBiomes;
 };

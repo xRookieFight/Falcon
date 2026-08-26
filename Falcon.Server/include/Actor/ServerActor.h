@@ -4,6 +4,7 @@
 #include "Actor/DynamicPropertyValue.h"
 #include "Core/Math/Vector3f.h"
 #include "Core/NBT/Tag.h"
+#include "Protocol/Types/EntityDataMap.h"
 #include "Protocol/Types/ItemStack.h"
 
 #include <cstdint>
@@ -40,7 +41,13 @@ class ServerActor : public Actor {
 public:
     ServerActor(uint64_t runtimeId, const std::string &identifier);
 
-    void tick(ServerNetworkHandler &owner);
+    ~ServerActor() override = default;
+
+    virtual void tick(ServerNetworkHandler &owner);
+
+    virtual bool isExpired() const { return false; }
+
+    virtual void fillSpawnMetadata(EntityDataMap &metadata) const { (void) metadata; }
 
     bool hurt(ServerNetworkHandler &owner, float amount, ServerPlayer *source);
 
@@ -106,6 +113,19 @@ public:
 
     void addLifetimeTick() { mLifetimeTicks++; }
 
+    void setExperienceValue(int32_t value) { mExperienceValue = value; }
+
+    int32_t getExperienceValue() const { return mExperienceValue; }
+
+    void setPickupDelay(int32_t delay) { mPickupDelay = delay; }
+
+    int32_t getPickupDelay() const { return mPickupDelay; }
+
+    void decrementPickupDelay() {
+        if (mPickupDelay > 0)
+            mPickupDelay--;
+    }
+
     int32_t getDeathTicks() const { return mDeathTicks; }
 
     void addDeathTick() { mDeathTicks++; }
@@ -114,11 +134,11 @@ public:
 
     void setNameTag(const std::string &nameTag) { mNameTag = nameTag; }
 
-    bool shouldSave() const { return isAlive() && !mIsProjectile && !hasOwnerPlayer(); }
+    virtual bool shouldSave() const { return isAlive() && !mIsProjectile && !hasOwnerPlayer(); }
 
-    Tag saveNbt() const;
+    virtual Tag saveNbt() const;
 
-    void loadNbt(const Tag &data);
+    virtual void loadNbt(const Tag &data);
 
 private:
     std::string mIdentifier;
@@ -128,6 +148,8 @@ private:
     uint32_t mOwnerPlayerHandle = 0xFFFFFFFF;
     int32_t mLifetimeTicks = 0;
     int32_t mDeathTicks = 0;
+    int32_t mExperienceValue = 0;
+    int32_t mPickupDelay = 0;
     ProjectileData mProjectileData;
     std::string mNameTag;
 

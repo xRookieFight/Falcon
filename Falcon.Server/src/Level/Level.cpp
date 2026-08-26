@@ -573,6 +573,30 @@ void Level::setBlockState(int32_t x, int32_t y, int32_t z, const BlockState &sta
     mLiquidPhysics.onBlockChanged(x, y, z);
 }
 
+BlockState Level::getBlockStateAtLayer(int32_t x, int32_t y, int32_t z, int layer) {
+    if (layer <= 0)
+        return getBlockState(x, y, z);
+
+    return getChunk(x >> 4, z >> 4).getBlock(x & 15, y, z & 15, layer);
+}
+
+void Level::setBlockStateAtLayer(int32_t x, int32_t y, int32_t z, int layer, const BlockState &state) {
+    if (y < LevelChunk::MIN_Y || y > LevelChunk::MAX_Y)
+        return;
+
+    if (layer <= 0) {
+        setBlockState(x, y, z, state);
+        return;
+    }
+
+    LevelChunk &chunk = getChunk(x >> 4, z >> 4);
+    if (chunk.getBlock(x & 15, y, z & 15, layer) == state)
+        return;
+
+    chunk.setBlock(x & 15, y, z & 15, layer, state);
+    mChunkNetworkCache.erase(_packChunk(x >> 4, z >> 4));
+}
+
 void Level::setBlock(int32_t x, int32_t y, int32_t z, int32_t blockHash) {
     if (blockHash == mGenerator->getAirHash()) {
         setBlockState(x, y, z, VanillaBlocks::AIR().toBlockState());
@@ -592,6 +616,10 @@ Vector3f Level::getLiquidFlowVector(const Vector3i &position) {
 
 void Level::scheduleFluidTick(const Vector3i &position, int64_t delay) {
     mLiquidPhysics.schedule(position, delay);
+}
+
+void Level::processFluidImmediately(const Vector3i &position) {
+    mLiquidPhysics.processImmediately(position);
 }
 
 void Level::tickFluids() {

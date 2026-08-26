@@ -2229,7 +2229,7 @@ namespace {
             {"minecraft:daylight_detector", 114, true, 0, nullptr, 0},
             {"minecraft:repeater", 114, false, 0, nullptr, 0},
             {"minecraft:comparator", 114, false, 0, nullptr, 0},
-            {"minecraft:hopper", 114, false, 0, nullptr, 0},
+            {"minecraft:hopper", 114, true, 0, nullptr, 0},
             {"minecraft:dropper", 114, true, 0, nullptr, 0},
             {"minecraft:dispenser", 114, true, 0, nullptr, 0},
             {"minecraft:crafter", 114, true, 0, nullptr, 0},

@@ -38,6 +38,10 @@ namespace {
         return identifier == "minecraft:bed" || endsWith(identifier, "_bed");
     }
 
+    bool isShelf(std::string_view identifier) {
+        return endsWith(identifier, "_shelf");
+    }
+
     bool isTrapdoor(std::string_view identifier) {
         return identifier == "minecraft:trapdoor" || endsWith(identifier, "_trapdoor");
     }
@@ -201,7 +205,8 @@ namespace {
     }
 
     int cardinalFacing(std::string_view identifier, int playerFacing, int oppositeFacing) {
-        if (isFenceGate(identifier) || isDoor(identifier) || isCampfire(identifier) || isBed(identifier))
+        if (isFenceGate(identifier) || isDoor(identifier) || isCampfire(identifier) || isBed(identifier)
+            || isShelf(identifier))
             return playerFacing;
 
         return oppositeFacing;
@@ -321,7 +326,7 @@ BlockState BlockPlacementComponent::apply(const BlockState &state, Level *level,
         states.putString("minecraft:block_face", faceName(face));
 
     if (states.contains("facing_direction")) {
-        states.putInt("facing_direction", isPiston(identifier)
+        states.putInt("facing_direction", isFacingMachine(identifier)
                                           ? pistonFacing
                                           : facingDirection(identifier, oppositeFacing, face));
     }

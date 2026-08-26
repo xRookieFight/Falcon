@@ -1,6 +1,7 @@
 #include "Network/Handler/SubChunkRequestHandler.h"
 
 #include "Actor/ServerPlayer.h"
+#include "Block/BlockActorStore.h"
 #include "Level/Level.h"
 #include "Level/LevelChunk.h"
 #include "Network/Handler/ServerNetworkHandler.h"
@@ -114,9 +115,17 @@ void SubChunkRequestHandler::handleRequest(ServerNetworkHandler &owner, ServerPl
             continue;
         }
 
+        BlockActorStore &blockActors = BlockActorStore::getInstance();
+        std::string blockEntities;
+        if (blockActors.isChunkLoaded(chunkX, chunkZ))
+            blockEntities = blockActors.encodeSubChunkNetwork(chunkX, subChunkY, chunkZ);
+        else
+            blockEntities = BlockActorStore::encodeNetworkForSection(level.loadBlockEntities(chunkX, chunkZ),
+                                                                     subChunkY);
+
         entry.mResult = SubChunkRequestResult::Success;
         entry.mHasData = true;
-        entry.mData = chunk->encodeSubChunkNetwork(index);
+        entry.mData = chunk->encodeSubChunkNetwork(index) + blockEntities;
         entries.push_back(entry);
     }
 

@@ -105,7 +105,7 @@ public:
 
     void loadNbt(const Tag &tag, const PacketCodecContext &context) override;
 
-    Tag getSpawnCompound() const;
+    Tag getSpawnCompound() const override;
 
     CommandBlockActorMode mMode = CommandBlockActorMode::Normal;
     std::string mCommand;

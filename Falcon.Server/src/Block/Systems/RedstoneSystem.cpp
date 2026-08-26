@@ -5,6 +5,7 @@
 #include "Block/BlockData.h"
 #include "Block/Blocks/CommandBlock.h"
 #include "Block/Systems/CommandBlockSystem.h"
+#include "Block/Systems/FallingBlockSystem.h"
 #include "Block/Systems/FireSystem.h"
 #include "Block/Systems/PistonSystem.h"
 #include "Level/Level.h"
@@ -1317,6 +1318,9 @@ void RedstoneSystem::onUpdate(ServerNetworkHandler &owner, const Vector3i &posit
     } else if (FireSystem::matches(identifier)) {
         if (type == RedstoneUpdateType::Normal)
             FireSystem::onNormalUpdate(owner, position, state);
+    } else if (FallingBlockSystem::matches(identifier)) {
+        if (type == RedstoneUpdateType::Normal)
+            FallingBlockSystem::onNormalUpdate(owner, position, state);
     }
 
     --gDepth;
@@ -1376,6 +1380,13 @@ void RedstoneSystem::onBlockPlaced(ServerNetworkHandler &owner, const Vector3i &
                                    const BlockState &state)
 {
     const std::string &identifier = state.mName;
+
+    if (FallingBlockSystem::matches(identifier)) {
+        updateAroundNormal(owner, position);
+        updateAroundRedstone(owner, position);
+        FallingBlockSystem::onBlockPlaced(owner, position, state);
+        return;
+    }
 
     if (isWire(identifier)) {
         updateSurroundingRedstone(owner, position, true);

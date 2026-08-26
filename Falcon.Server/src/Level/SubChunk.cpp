@@ -151,6 +151,18 @@ const BlockState &SubChunk::getBlock(int x, int y, int z) const {
     return mPalette[mBlocks[_index(x, y, z)]];
 }
 
+const BlockState &SubChunk::getBlock(int x, int y, int z, int layer) const {
+    static const BlockState air;
+
+    if (layer <= 0)
+        return getBlock(x, y, z);
+
+    if (mBlocks2.empty())
+        return air;
+
+    return mPalette2[mBlocks2[_index(x, y, z)]];
+}
+
 uint16_t SubChunk::_paletteIndexFor(const BlockState &state) {
     for (size_t i = 0; i < mPalette.size(); i++) {
         if (mPalette[i] == state)
@@ -161,19 +173,68 @@ uint16_t SubChunk::_paletteIndexFor(const BlockState &state) {
     return (uint16_t) (mPalette.size() - 1);
 }
 
+uint16_t SubChunk::_paletteIndexForLayer1(const BlockState &state) {
+    for (size_t i = 0; i < mPalette2.size(); i++) {
+        if (mPalette2[i] == state)
+            return (uint16_t) i;
+    }
+
+    mPalette2.push_back(state);
+    return (uint16_t) (mPalette2.size() - 1);
+}
+
 void SubChunk::setBlock(int x, int y, int z, const BlockState &state) {
     mBlocks[_index(x, y, z)] = _paletteIndexFor(state);
 }
 
-bool SubChunk::isEmpty() const {
-    if (mPalette.size() == 1)
-        return mPalette[0].mName == "minecraft:air";
+void SubChunk::_ensureLayer1() {
+    if (!mBlocks2.empty())
+        return;
 
-    return false;
+    mPalette2.push_back(BlockState("minecraft:air"));
+    mBlocks2.assign(BLOCK_COUNT, 0);
 }
 
-void SubChunk::_writeStorage(BinaryStream &stream, bool persistent) const {
-    const int bitsPerBlock = _bitsPerBlock(mPalette.size());
+void SubChunk::setBlock(int x, int y, int z, int layer, const BlockState &state) {
+    if (layer <= 0) {
+        setBlock(x, y, z, state);
+        return;
+    }
+
+    _ensureLayer1();
+    mBlocks2[_index(x, y, z)] = _paletteIndexForLayer1(state);
+}
+
+bool SubChunk::isEmpty() const {
+    if (mPalette.size() != 1 || mPalette[0].mName != "minecraft:air")
+        return false;
+
+    return isLayerEmpty(1);
+}
+
+bool SubChunk::isLayerEmpty(int layer) const {
+    if (layer <= 0) {
+        if (mPalette.size() != 1)
+            return false;
+
+        return mPalette[0].mName == "minecraft:air";
+    }
+
+    if (mBlocks2.empty())
+        return true;
+
+    for (uint16_t index: mBlocks2) {
+        if (mPalette2[index].mName != "minecraft:air")
+            return false;
+    }
+
+    return true;
+}
+
+void SubChunk::_writeStorage(BinaryStream &stream, bool persistent,
+                            const std::vector<BlockState> &palette,
+                            const std::vector<uint16_t> &blocks) const {
+    const int bitsPerBlock = _bitsPerBlock(palette.size());
     const int blocksPerWord = 32 / bitsPerBlock;
     const int wordCount = (BLOCK_COUNT + blocksPerWord - 1) / blocksPerWord;
 
@@ -183,21 +244,21 @@ void SubChunk::_writeStorage(BinaryStream &stream, bool persistent) const {
     for (int word = 0; word < wordCount; word++) {
         uint32_t packed = 0;
         for (int slot = 0; slot < blocksPerWord && blockIndex < BLOCK_COUNT; slot++) {
-            packed |= ((uint32_t) mBlocks[blockIndex]) << (slot * bitsPerBlock);
+            packed |= ((uint32_t) blocks[blockIndex]) << (slot * bitsPerBlock);
             blockIndex++;
         }
         stream.putLInt(packed);
     }
 
     if (persistent) {
-        stream.putLInt((uint32_t) mPalette.size());
-        for (const BlockState &state: mPalette)
+        stream.putLInt((uint32_t) palette.size());
+        for (const BlockState &state: palette)
             NbtIo::writeTag(stream, state.toNbt(), NbtVariant::LittleEndian);
         return;
     }
 
-    stream.putVarInt((int32_t) mPalette.size());
-    for (const BlockState &state: mPalette)
+    stream.putVarInt((int32_t) palette.size());
+    for (const BlockState &state: palette)
         stream.putVarInt(state.getHash());
 }
 
@@ -206,8 +267,12 @@ void SubChunk::writeNetwork(BinaryStream &stream) const {
     stream.putByte(LAYER_COUNT);
     stream.putByte((unsigned char) (signed char) mY);
 
-    _writeStorage(stream, false);
-    _writeEmptyStorage(stream, false);
+    _writeStorage(stream, false, mPalette, mBlocks);
+
+    if (isLayerEmpty(1))
+        _writeEmptyStorage(stream, false);
+    else
+        _writeStorage(stream, false, mPalette2, mBlocks2);
 }
 
 void SubChunk::_writeEmptyStorage(BinaryStream &stream, bool persistent) const {
@@ -233,8 +298,66 @@ void SubChunk::writePersistent(BinaryStream &stream) const {
     stream.putByte(LAYER_COUNT);
     stream.putByte((unsigned char) (signed char) mY);
 
-    _writeStorage(stream, true);
-    _writeEmptyStorage(stream, true);
+    _writeStorage(stream, true, mPalette, mBlocks);
+
+    if (isLayerEmpty(1))
+        _writeEmptyStorage(stream, true);
+    else
+        _writeStorage(stream, true, mPalette2, mBlocks2);
+}
+
+bool SubChunk::_readStorage(ReadOnlyBinaryStream &stream, std::vector<BlockState> &palette,
+                           std::vector<uint16_t> &blocks, bool *replacedUnknown) {
+    const unsigned char header = stream.getByte();
+    const int bitsPerBlock = header >> 1;
+    if (bitsPerBlock <= 0 || bitsPerBlock > 16)
+        return false;
+
+    const int blocksPerWord = 32 / bitsPerBlock;
+    const int wordCount = (BLOCK_COUNT + blocksPerWord - 1) / blocksPerWord;
+    const uint32_t mask = bitsPerBlock == 32 ? 0xffffffffu : ((1u << bitsPerBlock) - 1u);
+
+    blocks.assign(BLOCK_COUNT, 0);
+
+    int blockIndex = 0;
+    for (int word = 0; word < wordCount; word++) {
+        const uint32_t packed = stream.getLInt();
+        for (int slot = 0; slot < blocksPerWord && blockIndex < BLOCK_COUNT; slot++) {
+            blocks[blockIndex] = (uint16_t) ((packed >> (slot * bitsPerBlock)) & mask);
+            blockIndex++;
+        }
+    }
+
+    const uint32_t paletteSize = stream.getLInt();
+    if (paletteSize == 0 || paletteSize > BLOCK_COUNT)
+        return false;
+
+    palette.clear();
+    palette.reserve(paletteSize);
+
+    for (uint32_t i = 0; i < paletteSize; i++) {
+        const Tag tag = NbtIo::readTag(stream, NbtVariant::LittleEndian);
+        const std::string name = tag.getString("name", "minecraft:air");
+        const Tag *states = tag.get("states");
+
+        if (VanillaBlocks::fromIdentifier(name) == nullptr &&
+            !CustomContentRegistry::getInstance().isCustomBlock(name)) {
+            LOG_WARN(LogAreaID::Level, "Replaced unknown block %s with air while loading chunk data", name.c_str());
+            palette.push_back(BlockState("minecraft:air"));
+            if (replacedUnknown != nullptr)
+                *replacedUnknown = true;
+            continue;
+        }
+
+        palette.push_back(states == nullptr ? BlockState(name) : BlockState(name, *states));
+    }
+
+    for (uint16_t &index: blocks) {
+        if (index >= palette.size())
+            index = 0;
+    }
+
+    return true;
 }
 
 bool SubChunk::readPersistent(ReadOnlyBinaryStream &stream, bool *replacedUnknown) {
@@ -247,53 +370,30 @@ bool SubChunk::readPersistent(ReadOnlyBinaryStream &stream, bool *replacedUnknow
     if (layers == 0)
         return false;
 
-    const unsigned char header = stream.getByte();
-    const int bitsPerBlock = header >> 1;
-    if (bitsPerBlock <= 0 || bitsPerBlock > 16)
+    if (!_readStorage(stream, mPalette, mBlocks, replacedUnknown))
         return false;
 
-    const int blocksPerWord = 32 / bitsPerBlock;
-    const int wordCount = (BLOCK_COUNT + blocksPerWord - 1) / blocksPerWord;
-    const uint32_t mask = bitsPerBlock == 32 ? 0xffffffffu : ((1u << bitsPerBlock) - 1u);
+    mPalette2.clear();
+    mBlocks2.clear();
 
-    mBlocks.assign(BLOCK_COUNT, 0);
+    if (layers >= 2) {
+        std::vector<BlockState> palette;
+        std::vector<uint16_t> blocks;
+        if (!_readStorage(stream, palette, blocks, replacedUnknown))
+            return false;
 
-    int blockIndex = 0;
-    for (int word = 0; word < wordCount; word++) {
-        const uint32_t packed = stream.getLInt();
-        for (int slot = 0; slot < blocksPerWord && blockIndex < BLOCK_COUNT; slot++) {
-            mBlocks[blockIndex] = (uint16_t) ((packed >> (slot * bitsPerBlock)) & mask);
-            blockIndex++;
-        }
-    }
-
-    const uint32_t paletteSize = stream.getLInt();
-    if (paletteSize == 0 || paletteSize > BLOCK_COUNT)
-        return false;
-
-    mPalette.clear();
-    mPalette.reserve(paletteSize);
-
-    for (uint32_t i = 0; i < paletteSize; i++) {
-        const Tag tag = NbtIo::readTag(stream, NbtVariant::LittleEndian);
-        const std::string name = tag.getString("name", "minecraft:air");
-        const Tag *states = tag.get("states");
-
-        if (VanillaBlocks::fromIdentifier(name) == nullptr &&
-            !CustomContentRegistry::getInstance().isCustomBlock(name)) {
-            LOG_WARN(LogAreaID::Level, "Replaced unknown block %s with air while loading chunk data", name.c_str());
-            mPalette.push_back(BlockState("minecraft:air"));
-            if (replacedUnknown != nullptr)
-                *replacedUnknown = true;
-            continue;
+        bool hasContent = false;
+        for (uint16_t index: blocks) {
+            if (palette[index].mName != "minecraft:air") {
+                hasContent = true;
+                break;
+            }
         }
 
-        mPalette.push_back(states == nullptr ? BlockState(name) : BlockState(name, *states));
-    }
-
-    for (uint16_t &index: mBlocks) {
-        if (index >= mPalette.size())
-            index = 0;
+        if (hasContent) {
+            mPalette2 = std::move(palette);
+            mBlocks2 = std::move(blocks);
+        }
     }
 
     return true;

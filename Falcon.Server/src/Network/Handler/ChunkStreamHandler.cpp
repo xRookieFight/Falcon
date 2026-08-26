@@ -1,6 +1,7 @@
 #include "Network/Handler/ChunkStreamHandler.h"
 
 #include "Actor/ServerPlayer.h"
+#include "Block/BlockActorStore.h"
 #include "Level/Level.h"
 #include "Level/LevelChunk.h"
 #include "Network/Handler/ServerNetworkHandler.h"
@@ -232,6 +233,14 @@ namespace {
                 chunk.mSubChunksLength = (uint32_t) level.getChunkSubChunkCount(chunkX, chunkZ);
                 chunk.mRequestSubChunks = false;
                 chunk.mData = level.getChunkData(chunkX, chunkZ);
+            }
+
+            if (!requestMode) {
+                BlockActorStore &blockActors = BlockActorStore::getInstance();
+                if (blockActors.isChunkLoaded(chunkX, chunkZ))
+                    chunk.mData += blockActors.encodeChunkNetwork(chunkX, chunkZ);
+                else
+                    chunk.mData += BlockActorStore::encodeNetwork(level.loadBlockEntities(chunkX, chunkZ));
             }
 
             owner.getNetworkHandler().send(id, chunk, owner.getCodecContext());

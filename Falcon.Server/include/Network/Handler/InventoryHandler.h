@@ -38,4 +38,6 @@ public:
 
     static void handleCraftingEvent(ServerNetworkHandler &owner, ServerPlayer &player,
                                      const CraftingEventPacket &packet);
+
+    static void _updateEnchantOptions(ServerNetworkHandler &owner, ServerPlayer &player);
 };

@@ -1,5 +1,6 @@
 #include "Inventory/PlayerInventory.h"
 
+#include "Block/BlockData.h"
 #include "Item/ItemData.h"
 #include "Scripting/Content/CustomContentRegistry.h"
 
@@ -179,6 +180,12 @@ const ItemStack *PlayerInventory::resolveSlot(ContainerSlotType container, int s
             }
             return &mCursor;
 
+        case ContainerSlotType::EnchantingInput:
+            return &mEnchantingInput;
+
+        case ContainerSlotType::EnchantingMaterial:
+            return &mEnchantingMaterial;
+
         case ContainerSlotType::CraftingInput:
             if (slot >= CRAFTING_NETWORK_SLOT_FIRST
                 && slot < CRAFTING_NETWORK_SLOT_FIRST + CRAFTING_SIZE) {
@@ -244,10 +251,22 @@ int PlayerInventory::getMaxStackSize(const ItemStack &item) {
     if (item.isAir())
         return DEFAULT_MAX_STACK_SIZE;
 
-    const ItemData *data = ItemDataTable::find(item.mDefinition->getIdentifier());
+    const std::string &identifier = item.mDefinition->getIdentifier();
+    const MaxStackSizeItemComponent *component =
+            ItemDataTable::getComponents(identifier).get<MaxStackSizeItemComponent>();
+    if (component != nullptr && component->getValue() > 0)
+        return component->getValue();
+
+    const ItemData *data = ItemDataTable::find(identifier);
     if (data == nullptr) {
+        if (item.mBlockDefinition != nullptr) {
+            const BlockData *blockData = BlockDataTable::find(item.mBlockDefinition->getIdentifier().c_str());
+            if (blockData != nullptr && blockData->mMaxStackSize > 0)
+                return blockData->mMaxStackSize;
+        }
+
         const int32_t customMax = CustomContentRegistry::getInstance().getItemMaxStackSize(
-                item.mDefinition->getIdentifier());
+                identifier);
         return customMax > 0 ? customMax : DEFAULT_MAX_STACK_SIZE;
     }
 

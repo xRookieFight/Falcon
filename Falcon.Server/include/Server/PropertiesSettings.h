@@ -79,7 +79,7 @@ public:
 
     int getMaxThreads() const { return getInt("max-threads", 8); }
 
-    int getFluidBudgetMs() const { return getInt("fluid-budget-ms", 10); }
+    int getFluidBudgetMs() const { return getInt("fluid-budget-ms", 20); }
 
     std::string getLevelName() const { return getString("level-name", "Bedrock level"); }
 

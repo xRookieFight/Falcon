@@ -20,6 +20,7 @@
 #include "Server/Profiler.h"
 #include "Server/PropertiesSettings.h"
 #include "Server/ResourcePackManager.h"
+#include "Actor/FallingBlockActor.h"
 #include "Actor/ItemActor.h"
 #include "Actor/ServerActor.h"
 #include "Actor/ServerPlayer.h"
@@ -115,6 +116,12 @@ public:
 
     ServerActor *spawnActor(const std::string &identifier, const Vector3f &position);
 
+    FallingBlockActor *spawnFallingBlock(const BlockState &state, const Vector3f &position);
+
+    void spawnExperienceOrbs(const Vector3f &position, int amount);
+
+    bool tickExperienceOrb(ServerActor &orb);
+
     ServerActor *spawnProjectile(ServerPlayer &player, const std::string &identifier, float speed);
 
     bool onThrownProjectileHit(ServerActor &projectile, const Vector3f &hitPosition, ServerPlayer *hitPlayer);
@@ -150,6 +157,8 @@ public:
     void removeActor(int64_t uniqueId);
 
     void broadcastActorSpawn(ServerActor &actor);
+
+    void refreshContainerViewers(const Vector3i &position, const ServerPlayer *except = nullptr);
 
     void sendActorsTo(ServerPlayer &player);
 
@@ -479,6 +488,10 @@ private:
     void _savePlayerData(const ServerPlayer &player);
 
     void _handleVoidDamage(ServerPlayer &player);
+
+    void _handleSuffocationDamage(ServerPlayer &player);
+
+    bool _isEyeInsideSolidBlock(const Vector3f &position, float height);
 
     void _dropInventoryOnDeath(ServerPlayer &player);
 

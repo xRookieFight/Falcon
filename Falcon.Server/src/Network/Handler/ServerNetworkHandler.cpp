@@ -43,6 +43,9 @@
 #include "Protocol/Packets/SubChunkRequestPacket.h"
 #include "Core/Utility/ReadOnlyBinaryStream.h"
 #include "Level/LevelChunk.h"
+#include "Block/BlockData.h"
+#include "Block/BlockShape.h"
+#include "Block/Inventory/EnderChestInventoryStore.h"
 #include "Protocol/MinecraftPackets.h"
 #include "Protocol/Packets/DisconnectPacket.h"
 #include "Protocol/Packets/LevelChunkPacket.h"
@@ -109,6 +112,7 @@
 #include "Protocol/Packets/PlayerHotbarPacket.h"
 #include "Block/Components/CreativeContentTable.h"
 #include "Block/Block.h"
+#include "Block/Actor/HopperBlockActor.h"
 #include "Block/Systems/FurnaceSystem.h"
 #include "Block/Systems/CommandBlockSystem.h"
 #include "Block/Systems/FireSystem.h"
@@ -159,6 +163,10 @@ static const float DEFAULT_MAX_HEALTH = 20.0f;
 static const float ITEM_DROP_HEIGHT = 1.3f;
 
 namespace {
+    const float EYE_HEIGHT_FACTOR = 0.9f;
+    const float PLAYER_COLLISION_HEIGHT = 1.8f;
+    const float SUFFOCATION_DAMAGE = 1.0f;
+
     float maxHealthOf(const Actor &actor) {
         for (const AttributeData &attribute: actor.getAttributes().getAll()) {
             if (attribute.mName == HEALTH_ATTRIBUTE)
@@ -522,6 +530,20 @@ void ServerNetworkHandler::setProperties(const PropertiesSettings &properties) {
     if (mNetherNetInstance != nullptr) {
         mNetherNetInstance->setTlsCertificate(properties.getNetherNetTlsCertificate(),
                                               properties.getNetherNetTlsPrivateKey());
+
+        mNetherNetInstance->setServerDataProvider([this]() {
+            nethernet::ServerData data;
+            data.mServerName = mProperties.getServerName();
+            data.mProtocol = mAnnouncement.mProtocolVersion;
+            data.mGameVersion = mAnnouncement.mGameVersion;
+            data.mLevelName = mProperties.getLevelName();
+            data.mGameType = (int32_t) mProperties.getGameType();
+            data.mPlayerCount = getActivePlayerCount();
+            data.mMaxPlayerCount = mProperties.getMaxPlayers();
+            data.mAcceptsOnlineAuth = mProperties.getOnlineMode();
+            data.mAcceptsSelfSignedAuth = !mProperties.getOnlineMode();
+            return data;
+        });
     }
 
     mLevel = Level(properties.getLevelName(), _getServerViewDistance(),
@@ -534,7 +556,7 @@ void ServerNetworkHandler::setProperties(const PropertiesSettings &properties) {
     _logPackStack();
 
     const int fluidBudget = properties.getFluidBudgetMs();
-    mLevel.setFluidTimeBudgetMs(fluidBudget < 1 ? 1.0 : (double) fluidBudget);
+    mLevel.setFluidTimeBudgetMs(fluidBudget < 0 ? -1.0 : (fluidBudget < 1 ? 1.0 : (double) fluidBudget));
 
     switch (properties.getGameType()) {
         case GameType::Creative:
@@ -804,6 +826,8 @@ void ServerNetworkHandler::tick() {
         }
     }
 
+    mLevel.updateFluidBudget(getMillisecondsPerTick());
+
     mProfiler.beginSection(ProfilerSection::Fluids);
     mLevel.tickFluids();
     mProfiler.endSection(ProfilerSection::Fluids);
@@ -853,6 +877,7 @@ void ServerNetworkHandler::tick() {
         }
 
         _handleVoidDamage(player);
+        _handleSuffocationDamage(player);
         MovementHandler::tickFluidEffects(*this, player);
 
         const bool fireTickDamage = !player.isDead() && player.tickFire();
@@ -937,6 +962,8 @@ void ServerNetworkHandler::tick() {
     FurnaceSystem::tickStored(*this);
     mProfiler.endSection(ProfilerSection::Furnaces);
 
+    HopperBlockActor::tickAll(*this);
+
     mProfiler.beginSection(ProfilerSection::ItemActors);
     ItemActorHandler::tickItemActors(*this);
     mProfiler.endSection(ProfilerSection::ItemActors);
@@ -1001,6 +1028,7 @@ void ServerNetworkHandler::onConnectionClosed(const NetworkIdentifier &id, Disco
                                    : id.toString();
     if (player != nullptr && !player->getName().empty()) {
         _savePlayerData(*player);
+        EnderChestInventoryStore::getInstance().remove(player->getUniqueId());
 
         if (player->isSpawned()) {
             broadcastTranslation("multiplayer.player.left", {player->getName()});
@@ -1116,7 +1144,12 @@ void ServerNetworkHandler::loadActorsForChunk(int32_t chunkX, int32_t chunkZ) {
         const uint64_t runtimeId = allocateRuntimeId();
         const int64_t uniqueId = (int64_t) runtimeId;
 
-        std::unique_ptr<ServerActor> actor(new ServerActor(runtimeId, identifier));
+        std::unique_ptr<ServerActor> actor;
+        if (identifier == FallingBlockActor::IDENTIFIER)
+            actor.reset(new FallingBlockActor(runtimeId, BlockState()));
+        else
+            actor.reset(new ServerActor(runtimeId, identifier));
+
         actor->getAttributes() = ActorAttributes::createActorDefaults();
 
         const CustomActorDefinition *definition = CustomContentRegistry::getInstance().getActorDefinition(identifier);
@@ -1135,7 +1168,7 @@ void ServerNetworkHandler::loadActorsForChunk(int32_t chunkX, int32_t chunkZ) {
 }
 
 void ServerNetworkHandler::loadBlockActorsForChunk(int32_t chunkX, int32_t chunkZ) {
-    BlockActorStore::getInstance().loadChunk(mLevel.loadBlockEntities(chunkX, chunkZ), mCodecContext);
+    BlockActorStore::getInstance().loadChunk(chunkX, chunkZ, mLevel.loadBlockEntities(chunkX, chunkZ), mCodecContext);
 }
 
 void ServerNetworkHandler::saveBlockActorsForChunk(int32_t chunkX, int32_t chunkZ, bool cull) {
@@ -1455,6 +1488,40 @@ void ServerNetworkHandler::_handleVoidDamage(ServerPlayer &player) {
     applyDamage(player, 10.0f, "death.attack.outOfWorld", {player.getName()});
 }
 
+bool ServerNetworkHandler::_isEyeInsideSolidBlock(const Vector3f &position, float height) {
+    const float eyeY = position.y + height * EYE_HEIGHT_FACTOR;
+    const int32_t blockX = (int32_t) std::floor(position.x);
+    const int32_t blockY = (int32_t) std::floor(eyeY);
+    const int32_t blockZ = (int32_t) std::floor(position.z);
+
+    if (blockY < LevelChunk::MIN_Y || blockY > LevelChunk::MAX_Y)
+        return false;
+
+    const BlockState *state = mLevel.peekBlockPtr(blockX, blockY, blockZ);
+    if (state == nullptr)
+        return false;
+
+    const BlockData *data = BlockDataTable::find(state->mName.c_str());
+    if (data == nullptr || !data->mSolid || data->mTransparent)
+        return false;
+
+    return BlockShape::isPositionInside(*state, blockX, blockY, blockZ, position.x, eyeY, position.z);
+}
+
+void ServerNetworkHandler::_handleSuffocationDamage(ServerPlayer &player) {
+    if (!player.isSpawned() || player.isDead())
+        return;
+
+    const int32_t gameType = player.getGameType();
+    if (gameType == (int32_t) GameType::Creative || gameType == (int32_t) GameType::Spectator)
+        return;
+
+    if (!_isEyeInsideSolidBlock(player.getPosition(), PLAYER_COLLISION_HEIGHT))
+        return;
+
+    applyDamage(player, SUFFOCATION_DAMAGE, "death.attack.inWall", {player.getName()});
+}
+
 void ServerNetworkHandler::applyDamage(ServerPlayer &player, float amount, const std::string &deathMessageKey,
                                        const std::vector<std::string> &deathMessageParameters, bool applyArmor,
                                        bool respectCooldown) {
@@ -1523,6 +1590,16 @@ void ServerNetworkHandler::killPlayer(ServerPlayer &player, const std::string &d
 
     if (!mKeepInventory && player.getGameType() != (int32_t) GameType::Creative)
         _dropInventoryOnDeath(player);
+
+    if (player.getGameType() != (int32_t) GameType::Creative) {
+        const int droppedExperience = player.getExperience().getXpDropAmount();
+        if (droppedExperience > 0)
+            spawnExperienceOrbs(player.getPosition(), droppedExperience);
+    }
+
+    player.getExperience().reset();
+    player.syncExperience();
+    _sendAttributes(player);
 
     _sendHealth(player);
     _broadcastEntityEvent(player, (uint8_t) EntityEventType::DeathAnimation);

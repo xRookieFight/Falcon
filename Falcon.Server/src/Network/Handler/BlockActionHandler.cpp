@@ -1,17 +1,21 @@
 #include "Network/Handler/BlockActionHandler.h"
 
 #include "Block/BlockData.h"
+#include "Block/Actor/FurnaceBlockActor.h"
 #include "Block/Components/BlockPlacementComponent.h"
 #include "Block/Blocks/BaseRailBlock.h"
 #include "Block/Blocks/BedBlock.h"
 #include "Block/Blocks/ChestBlock.h"
+#include "Block/Blocks/ContainerBlock.h"
 #include "Block/Blocks/DoorBlock.h"
 #include "Block/Blocks/CraftingTableBlock.h"
 #include "Block/Blocks/FurnaceBlock.h"
 #include "Block/Blocks/VanillaBlocks.h"
+#include "Block/BlockActorStore.h"
 #include "Block/Systems/PistonSystem.h"
 #include "Block/Systems/RedstoneSystem.h"
 #include "Actor/ServerPlayer.h"
+#include "Actor/ExperienceValues.h"
 #include "Item/ItemData.h"
 #include "Item/VanillaItems.h"
 #include "Scripting/Content/CustomContentRegistry.h"
@@ -29,6 +33,7 @@
 #include "Protocol/Packets/LevelEventPacket.h"
 #include "Protocol/Packets/LevelSoundEventPacket.h"
 #include "Protocol/Packets/UpdateBlockPacket.h"
+#include "Protocol/Packets/BlockActorDataPacket.h"
 #include "Protocol/Types/ItemUseTransaction.h"
 #include "Protocol/Types/PlacedBlockAliases.h"
 #include "Protocol/Types/StartGameTypes.h"
@@ -357,7 +362,18 @@ void BlockActionHandler::breakBlock(ServerNetworkHandler &owner, ServerPlayer &p
         InventoryManager::onFurnaceBroken(owner, position);
 
     const int32_t airHash = level.getAirHash();
-    level.setBlockState(position.x, position.y, position.z, BlockState("minecraft:air"));
+
+    const BlockState overlay = level.getBlockStateAtLayer(position.x, position.y, position.z, 1);
+    const bool collapseWater = overlay.mName == "minecraft:water" || overlay.mName == "minecraft:flowing_water";
+
+    int32_t replacementHash = airHash;
+    if (collapseWater) {
+        level.setBlockState(position.x, position.y, position.z, overlay);
+        level.setBlockStateAtLayer(position.x, position.y, position.z, 1, BlockState("minecraft:air"));
+        replacementHash = BlockStateHasher::hash(overlay.mName, overlay.mStates);
+    } else {
+        level.setBlockState(position.x, position.y, position.z, BlockState("minecraft:air"));
+    }
 
     PlayerBreakBlockAfterEvent brokenEvent(player, position, brokenIdentifier);
     owner.getEventBus().after().mPlayerBreakBlock.emit(brokenEvent);
@@ -398,17 +414,29 @@ void BlockActionHandler::breakBlock(ServerNetworkHandler &owner, ServerPlayer &p
                 drop.mBlockDefinition = owner.getBlockDefinitions().getDefinition(parsedItem.getIdentifier());
                 drop.mCount = dropCount;
 
+                if (ContainerBlock::keepsContentsInItem(brokenIdentifier))
+                    ContainerBlock::writeContentsToItem(position, drop);
+
                 const Vector3f dropPosition((float) position.x + 0.5f, (float) position.y + 0.5f,
                                             (float) position.z + 0.5f);
                 owner.dropItem(dropPosition, drop, ItemActorHandler::randomDropMotion(),
                                ItemActorHandler::DROP_PICKUP_DELAY);
             }
         }
+
+        if (!silkTouch) {
+            const int experience = ExperienceValues::getOreDropExperience(brokenState.mName);
+            if (experience > 0) {
+                const Vector3f orbPosition((float) position.x + 0.5f, (float) position.y + 0.5f,
+                                           (float) position.z + 0.5f);
+                owner.spawnExperienceOrbs(orbPosition, experience);
+            }
+        }
     }
 
     UpdateBlockPacket update;
     update.mBlockPosition = position;
-    update.mRuntimeId = (uint32_t) airHash;
+    update.mRuntimeId = (uint32_t) replacementHash;
     update.mFlags = UpdateBlockPacket::Flag::All;
     update.mDataLayer = 0;
 
@@ -420,8 +448,20 @@ void BlockActionHandler::breakBlock(ServerNetworkHandler &owner, ServerPlayer &p
     broadcastToViewers(owner, destroy.mPosition, update);
     broadcastToViewers(owner, destroy.mPosition, destroy);
 
+    if (collapseWater) {
+        UpdateBlockPacket overlayUpdate;
+        overlayUpdate.mBlockPosition = position;
+        overlayUpdate.mRuntimeId = (uint32_t) airHash;
+        overlayUpdate.mFlags = UpdateBlockPacket::Flag::All;
+        overlayUpdate.mDataLayer = 1;
+        broadcastToViewers(owner, destroy.mPosition, overlayUpdate);
+    }
+
     if (ChestBlock::matches(brokenState.mName))
         ChestBlock::onBroken(owner, position);
+
+    if (ContainerBlock::matches(brokenIdentifier))
+        ContainerBlock::onBroken(owner, position, brokenIdentifier);
 
     if (PistonSystem::isPiston(brokenState.mName))
         PistonSystem::onBlockBroken(owner, position, brokenState);
@@ -739,11 +779,25 @@ void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &p
     if (BaseRailBlock::matches(placedState.mName))
         BaseRailBlock::onPlace(owner, target, placedState);
 
+    const bool replacedWater = targetState.mName == "minecraft:water"
+                               || targetState.mName == "minecraft:flowing_water";
+    const bool waterlogsTarget = replacedWater && placedData != nullptr
+                                 && placedData->mWaterloggingLevel > 0;
+
     const int32_t blockHash = BlockStateHasher::hash(placedState.mName, placedState.mStates);
     level.setBlockState(target.x, target.y, target.z, placedState);
 
+    if (waterlogsTarget) {
+        Tag waterStates = Tag::ofCompound();
+        waterStates.putInt("liquid_depth", 0);
+        level.setBlockStateAtLayer(target.x, target.y, target.z, 1,
+                                   BlockState("minecraft:water", waterStates));
+    }
+
     PlayerPlaceBlockAfterEvent placeEvent(player, target, placedState.mName);
     owner.getEventBus().after().mPlayerPlaceBlock.emit(placeEvent);
+
+    const ItemStack placedWithItem = heldItem;
 
     if (player.getGameType() != (int32_t) GameType::Creative) {
         ItemStack remaining = heldItem;
@@ -767,10 +821,39 @@ void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &p
     const Vector3f targetCenter((float) target.x + 0.5f, (float) target.y + 0.5f, (float) target.z + 0.5f);
     broadcastToViewers(owner, targetCenter, update);
 
+    if (waterlogsTarget) {
+        Tag waterStates = Tag::ofCompound();
+        waterStates.putInt("liquid_depth", 0);
+        const int32_t waterHash = BlockStateHasher::hash("minecraft:water", waterStates);
+
+        UpdateBlockPacket waterUpdate;
+        waterUpdate.mBlockPosition = target;
+        waterUpdate.mRuntimeId = (uint32_t) waterHash;
+        waterUpdate.mFlags = UpdateBlockPacket::Flag::All;
+        waterUpdate.mDataLayer = 1;
+        broadcastToViewers(owner, targetCenter, waterUpdate);
+    }
+
     owner.playLevelSound(LevelSoundEvent::PLACE, targetCenter, "", (int32_t) blockHash);
 
     if (ChestBlock::matches(placedState.mName))
         ChestBlock::onPlaced(owner.getLevel(), target);
+
+    if (ContainerBlock::matches(placedState.mName))
+        ContainerBlock::onPlaced(owner, target, placedState.mName, placedWithItem, (int) transaction.mBlockFace);
+
+    if (FurnaceBlock::matches(placedState)) {
+        FurnaceBlockActor &furnace = BlockActorStore::getInstance().getOrCreate<FurnaceBlockActor>(target);
+        furnace.mKind = FurnaceBlock::kind(placedState);
+    }
+
+    BlockActor *blockActor = BlockActorStore::getInstance().find(target);
+    if (blockActor != nullptr) {
+        BlockActorDataPacket data;
+        data.mBlockPosition = target;
+        data.mData = blockActor->getSpawnCompound();
+        broadcastToViewers(owner, targetCenter, data);
+    }
 
     if (DoorBlock::matches(placedState.mName))
         DoorBlock::onPlaced(owner, target, placedState);
