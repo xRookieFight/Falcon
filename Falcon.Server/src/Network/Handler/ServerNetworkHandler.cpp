@@ -11,6 +11,7 @@
 #include "Command/KillCommand.h"
 #include "Command/TimeCommand.h"
 #include "Command/ProfilerCommand.h"
+#include "Command/AboutCommand.h"
 #include "Command/GameRuleCommand.h"
 #include "Command/LocateCommand.h"
 #include "Command/WeatherCommand.h"
@@ -454,6 +455,7 @@ ServerNetworkHandler::ServerNetworkHandler(const std::string &serverName, const 
     mCommands.registerCommand(std::make_shared<CameraCommand>(*this));
     mCommands.registerCommand(std::make_shared<ClearCommand>(*this));
     mCommands.registerCommand(std::make_shared<LocateCommand>(*this));
+    mCommands.registerCommand(std::make_shared<AboutCommand>(*this));
 
     mResourcePacks.loadFromDirectory("resource_packs");
     mResourcePacks.loadBundledAddonsFrom("behavior_packs");
