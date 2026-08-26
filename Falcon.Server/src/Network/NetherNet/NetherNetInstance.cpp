@@ -5,6 +5,7 @@
 #include "Network/NetherNet/NetherNetSignal.h"
 
 #include <openssl/evp.h>
+#include <openssl/rand.h>
 
 #include <chrono>
 #include <condition_variable>
@@ -83,6 +84,22 @@ bool NetherNetInstance::host(const ConnectionDefinition &definition) {
     if (!mSignaling.start(definition.mIPv4Address, definition.mPort, handler))
         return false;
 
+    unsigned char rawId[8];
+    RAND_bytes(rawId, sizeof(rawId));
+    mNetworkId = 0;
+    for (size_t i = 0; i < sizeof(rawId); i++)
+        mNetworkId |= ((uint64_t) rawId[i]) << (i * 8);
+
+    const nethernet::DiscoveryListener::ServerDataProvider dataProvider =
+            [this]() {
+                if (mServerDataProvider)
+                    return mServerDataProvider();
+
+                return nethernet::ServerData();
+            };
+
+    mDiscovery.start(mNetworkId, dataProvider, handler);
+
     mIsHosting = true;
     return true;
 }
@@ -91,6 +108,7 @@ void NetherNetInstance::disconnect() {
     if (!mIsHosting)
         return;
 
+    mDiscovery.stop();
     mSignaling.stop();
 
     std::vector<std::shared_ptr<nethernet::Connection>> connections;

@@ -3,10 +3,13 @@
 #include "Network/Connector.h"
 #include "Network/NetherNet/NetherNetConnection.h"
 #include "Network/NetherNet/NetherNetCredentials.h"
+#include "Network/NetherNet/NetherNetDiscovery.h"
 #include "Network/NetherNet/NetherNetIdentity.h"
 #include "Network/NetherNet/NetherNetSignalingServer.h"
 #include "Network/RakPeerHelper.h"
 
+#include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
@@ -36,6 +39,10 @@ public:
 
     void setTlsCertificate(const std::string &certificatePath, const std::string &privateKeyPath);
 
+    void setServerDataProvider(const std::function<nethernet::ServerData()> &provider) {
+        mServerDataProvider = provider;
+    }
+
     const ConnectionDefinition &getConnectionDefinition() const { return mConnectionDefinition; }
 
 private:
@@ -44,8 +51,11 @@ private:
     RakPeerHelper::IPSupportInterface &mIpSupport;
     ConnectionDefinition mConnectionDefinition;
     nethernet::SignalingServer mSignaling;
+    nethernet::DiscoveryListener mDiscovery;
     nethernet::Identity mIdentity;
     nethernet::Credentials mCredentials;
+    std::function<nethernet::ServerData()> mServerDataProvider;
+    uint64_t mNetworkId = 0;
 
     std::mutex mMutex;
     std::vector<std::shared_ptr<nethernet::Connection>> mPending;
