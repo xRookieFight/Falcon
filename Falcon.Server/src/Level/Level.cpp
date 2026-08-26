@@ -565,10 +565,7 @@ void Level::setBlockState(int32_t x, int32_t y, int32_t z, const BlockState &sta
         return;
 
     chunk.setBlock(x & 15, y, z & 15, state);
-    chunk.clearSkyLightOnly();
-
-    if (chunk.hasHeight(x & 15, z & 15))
-        SkyLightSystem::updateHeightAt(chunk, x & 15, z & 15);
+    SkyLightSystem::onBlockChanged(*this, x, y, z);
     mChunkNetworkCache.erase(_packChunk(x >> 4, z >> 4));
     mLiquidPhysics.onBlockChanged(x, y, z);
 }
