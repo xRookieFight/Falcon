@@ -3,6 +3,8 @@
 #include "Block/BlockTypeIds.h"
 
 #include <cstring>
+#include <string_view>
+#include <unordered_map>
 
 namespace {
     const BlockStateValue STATES_2[] = {
@@ -4986,19 +4988,27 @@ size_t BlockDataTable::getCount() {
 }
 
 const BlockData *BlockDataTable::find(const char *identifier) {
-    for (size_t index = 0; index < getCount(); ++index) {
-        if (std::strcmp(ENTRIES[index].mIdentifier, identifier) == 0)
-            return &ENTRIES[index];
-    }
+    static const std::unordered_map<std::string_view, const BlockData *> byIdentifier = []() {
+        std::unordered_map<std::string_view, const BlockData *> index;
+        index.reserve(getCount());
+        for (size_t entry = 0; entry < getCount(); ++entry)
+            index.emplace(ENTRIES[entry].mIdentifier, &ENTRIES[entry]);
+        return index;
+    }();
 
-    return nullptr;
+    const auto match = byIdentifier.find(std::string_view(identifier));
+    return match == byIdentifier.end() ? nullptr : match->second;
 }
 
 const BlockData *BlockDataTable::findByTypeId(int32_t typeId) {
-    for (size_t index = 0; index < getCount(); ++index) {
-        if (ENTRIES[index].mTypeId == typeId)
-            return &ENTRIES[index];
-    }
+    static const std::unordered_map<int32_t, const BlockData *> byTypeId = []() {
+        std::unordered_map<int32_t, const BlockData *> index;
+        index.reserve(getCount());
+        for (size_t entry = 0; entry < getCount(); ++entry)
+            index.emplace(ENTRIES[entry].mTypeId, &ENTRIES[entry]);
+        return index;
+    }();
 
-    return nullptr;
+    const auto match = byTypeId.find(typeId);
+    return match == byTypeId.end() ? nullptr : match->second;
 }

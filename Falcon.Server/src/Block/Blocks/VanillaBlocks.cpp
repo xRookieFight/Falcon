@@ -12,6 +12,9 @@
 #include "Block/Blocks/RedstoneDiodeBlock.h"
 #include "Block/BlockTypeIds.h"
 
+#include <string_view>
+#include <unordered_map>
+
 namespace {
     Block buildFromTypeId(int32_t typeId) {
         const BlockData *data = BlockDataTable::findByTypeId(typeId);
@@ -5626,19 +5629,27 @@ const std::vector<std::unique_ptr<Block>> &VanillaBlocks::getAll() {
 }
 
 const Block *VanillaBlocks::fromIdentifier(const std::string &identifier) {
-    for (const std::unique_ptr<Block> &block: getAll()) {
-        if (block->getIdentifier() == identifier)
-            return block.get();
-    }
+    static const std::unordered_map<std::string_view, const Block *> byIdentifier = []() {
+        std::unordered_map<std::string_view, const Block *> index;
+        index.reserve(getAll().size());
+        for (const std::unique_ptr<Block> &block: getAll())
+            index.emplace(block->getIdentifier(), block.get());
+        return index;
+    }();
 
-    return nullptr;
+    const auto match = byIdentifier.find(std::string_view(identifier));
+    return match == byIdentifier.end() ? nullptr : match->second;
 }
 
 const Block *VanillaBlocks::fromTypeId(int32_t typeId) {
-    for (const std::unique_ptr<Block> &block: getAll()) {
-        if (block->getTypeId() == typeId)
-            return block.get();
-    }
+    static const std::unordered_map<int32_t, const Block *> byTypeId = []() {
+        std::unordered_map<int32_t, const Block *> index;
+        index.reserve(getAll().size());
+        for (const std::unique_ptr<Block> &block: getAll())
+            index.emplace(block->getTypeId(), block.get());
+        return index;
+    }();
 
-    return nullptr;
+    const auto match = byTypeId.find(typeId);
+    return match == byTypeId.end() ? nullptr : match->second;
 }
