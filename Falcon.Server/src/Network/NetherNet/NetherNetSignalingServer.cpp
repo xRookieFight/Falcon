@@ -24,11 +24,11 @@
 #ifdef _WIN32
 typedef SOCKET FalconSignalingSocket;
 #define FALCON_SIGNALING_INVALID_SOCKET INVALID_SOCKET
-#define FALCON_SIGNALING_CLOSE_SOCKET closesocket
+#define FALCON_SIGNALING_CLOSE_SOCKET ::closesocket
 #else
 typedef int FalconSignalingSocket;
 #define FALCON_SIGNALING_INVALID_SOCKET (-1)
-#define FALCON_SIGNALING_CLOSE_SOCKET close
+#define FALCON_SIGNALING_CLOSE_SOCKET ::close
 #endif
 
 namespace nethernet {

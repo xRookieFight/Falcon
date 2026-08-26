@@ -26,11 +26,11 @@
 #ifdef _WIN32
 typedef SOCKET FalconWebSocket;
 #define FALCON_WEBSOCKET_INVALID INVALID_SOCKET
-#define FALCON_WEBSOCKET_CLOSE closesocket
+#define FALCON_WEBSOCKET_CLOSE ::closesocket
 #else
 typedef int FalconWebSocket;
 #define FALCON_WEBSOCKET_INVALID (-1)
-#define FALCON_WEBSOCKET_CLOSE close
+#define FALCON_WEBSOCKET_CLOSE ::close
 #endif
 
 namespace nethernet {

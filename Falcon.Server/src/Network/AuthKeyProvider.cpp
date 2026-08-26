@@ -38,11 +38,11 @@
 #ifdef _WIN32
 typedef SOCKET FalconSocket;
 #define FALCON_INVALID_SOCKET INVALID_SOCKET
-#define FALCON_CLOSE_SOCKET closesocket
+#define FALCON_CLOSE_SOCKET ::closesocket
 #else
 typedef int FalconSocket;
 #define FALCON_INVALID_SOCKET (-1)
-#define FALCON_CLOSE_SOCKET close
+#define FALCON_CLOSE_SOCKET ::close
 #endif
 
 namespace {
