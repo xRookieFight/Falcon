@@ -66,6 +66,11 @@ namespace LevelSoundEvent {
     inline constexpr const char *GHAST_FIREBALL = "mob.ghast.fireball";
     inline constexpr const char *POWER_ON = "power.on";
     inline constexpr const char *POWER_OFF = "power.off";
+    inline constexpr const char *ITEM_FRAME_PLACE = "item_frame.place";
+    inline constexpr const char *ITEM_FRAME_BREAK = "item_frame.break";
+    inline constexpr const char *ITEM_FRAME_ADD_ITEM = "item_frame.add_item";
+    inline constexpr const char *ITEM_FRAME_REMOVE_ITEM = "item_frame.remove_item";
+    inline constexpr const char *ITEM_FRAME_ROTATE_ITEM = "item_frame.rotate_item";
 }
 
 class LevelSoundEventPacket : public Packet {

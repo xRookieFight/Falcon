@@ -7,6 +7,7 @@
 #include "Block/Blocks/ChestBlock.h"
 #include "Block/Blocks/ContainerBlock.h"
 #include "Block/Blocks/DaylightDetectorBlock.h"
+#include "Block/Blocks/ItemFrameBlock.h"
 #include "Block/Blocks/LeverBlock.h"
 #include "Block/Blocks/RedstoneDiodeBlock.h"
 #include "Block/BlockTypeIds.h"
@@ -40,6 +41,9 @@ namespace {
 
         if (ContainerBlock::matches(identifier))
             return std::make_unique<ContainerBlock>(block);
+
+        if (ItemFrameBlock::matches(identifier))
+            return std::make_unique<ItemFrameBlock>(block);
 
         if (DaylightDetectorBlock::matches(identifier))
             return std::make_unique<DaylightDetectorBlock>(block);

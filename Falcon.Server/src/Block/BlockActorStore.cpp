@@ -6,6 +6,7 @@
 #include "Block/Actor/EnderChestBlockActor.h"
 #include "Block/Actor/FurnaceBlockActor.h"
 #include "Block/Actor/HopperBlockActor.h"
+#include "Block/Actor/ItemFrameBlockActor.h"
 #include "Block/Actor/PistonArmBlockActor.h"
 #include "Core/NBT/NbtIo.h"
 #include "Core/Utility/BinaryStream.h"
@@ -195,6 +196,10 @@ std::unique_ptr<BlockActor> BlockActorStore::create(const std::string &blockActo
         return std::unique_ptr<BlockActor>(new JukeboxBlockActor());
     if (blockActorId == ShelfBlockActor::BLOCK_ACTOR_ID)
         return std::unique_ptr<BlockActor>(new ShelfBlockActor());
+    if (blockActorId == ItemFrameBlockActor::BLOCK_ACTOR_ID)
+        return std::unique_ptr<BlockActor>(new ItemFrameBlockActor());
+    if (blockActorId == GlowItemFrameBlockActor::BLOCK_ACTOR_ID)
+        return std::unique_ptr<BlockActor>(new GlowItemFrameBlockActor());
 
     return nullptr;
 }

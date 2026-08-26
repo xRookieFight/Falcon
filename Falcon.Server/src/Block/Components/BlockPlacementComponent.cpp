@@ -82,6 +82,10 @@ namespace {
         return identifier == "minecraft:ladder";
     }
 
+    bool isItemFrame(std::string_view identifier) {
+        return equalsAny(identifier, {"minecraft:frame", "minecraft:glow_frame"});
+    }
+
     bool isWallMounted(std::string_view identifier) {
         return equalsAny(identifier, {"minecraft:wall_sign", "minecraft:wall_banner"})
                || endsWith(identifier, "_wall_sign");
@@ -264,7 +268,8 @@ namespace {
         if (isFacingMachine(identifier))
             return face == FACE_DOWN ? FACE_DOWN : face ^ 1;
 
-        if (isAmethystBud(identifier) || isShulkerBox(identifier) || isMobHead(identifier))
+        if (isAmethystBud(identifier) || isShulkerBox(identifier) || isMobHead(identifier)
+            || isItemFrame(identifier))
             return face;
 
         if (isTorch(identifier))

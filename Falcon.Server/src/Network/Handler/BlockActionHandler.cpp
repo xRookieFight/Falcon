@@ -10,6 +10,7 @@
 #include "Block/Blocks/DoorBlock.h"
 #include "Block/Blocks/CraftingTableBlock.h"
 #include "Block/Blocks/FurnaceBlock.h"
+#include "Block/Blocks/ItemFrameBlock.h"
 #include "Block/Blocks/VanillaBlocks.h"
 #include "Block/BlockActorStore.h"
 #include "Block/Systems/PistonSystem.h"
@@ -483,6 +484,9 @@ void BlockActionHandler::breakBlock(ServerNetworkHandler &owner, ServerPlayer &p
     if (ContainerBlock::matches(brokenIdentifier))
         ContainerBlock::onBroken(owner, position, brokenIdentifier);
 
+    if (ItemFrameBlock::matches(brokenIdentifier))
+        ItemFrameBlock::onBroken(owner, position);
+
     if (PistonSystem::isPiston(brokenState.mName))
         PistonSystem::onBlockBroken(owner, position, brokenState);
 
@@ -510,6 +514,9 @@ void BlockActionHandler::startBreakingBlock(ServerNetworkHandler &owner, ServerP
     if (state.mName == "minecraft:air") {
         return;
     }
+
+    if (ItemFrameBlock::matches(state.mName) && ItemFrameBlock::onPunch(owner, player, position, state))
+        return;
 
     const BlockData *blockData = BlockDataTable::find(state.mName.c_str());
     const bool creative = player.getGameType() == (int32_t) GameType::Creative;
@@ -796,6 +803,12 @@ void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &p
             player.getRotation().y, player.getRotation().x, transaction.mBlockFace,
             transaction.mClickPosition, player.getPosition(), target);
 
+    if (ItemFrameBlock::matches(placedState.mName)
+        && !ItemFrameBlock::canPlaceOn(level, target, transaction.mBlockFace)) {
+        sendCurrentBlockState(owner, target);
+        return;
+    }
+
     if (BaseRailBlock::matches(placedState.mName))
         BaseRailBlock::onPlace(owner, target, placedState);
 
@@ -861,6 +874,9 @@ void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &p
 
     if (ContainerBlock::matches(placedState.mName))
         ContainerBlock::onPlaced(owner, target, placedState.mName, placedWithItem, (int) transaction.mBlockFace);
+
+    if (ItemFrameBlock::matches(placedState.mName))
+        ItemFrameBlock::onPlaced(owner, target, placedState);
 
     if (FurnaceBlock::matches(placedState)) {
         FurnaceBlockActor &furnace = BlockActorStore::getInstance().getOrCreate<FurnaceBlockActor>(target);
