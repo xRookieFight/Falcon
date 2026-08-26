@@ -13,9 +13,6 @@ void LiquidPhysicsSystem::moveStateFrom(LiquidPhysicsSystem &&other) {
     if (this == &other)
         return;
     mChanges = std::move(other.mChanges);
-    mImmediatePropagation = other.mImmediatePropagation;
-    mImmediateQueue = std::move(other.mImmediateQueue);
-    mImmediatePending = std::move(other.mImmediatePending);
 }
 
 const BlockState &LiquidPhysicsSystem::_stateAt(int32_t x, int32_t y, int32_t z) {
@@ -119,24 +116,6 @@ void LiquidPhysicsSystem::schedule(const Vector3i &position, int64_t delay) {
 
 void LiquidPhysicsSystem::onScheduledUpdate(const Vector3i &position) {
     process(position);
-}
-
-void LiquidPhysicsSystem::processImmediately(const Vector3i &position) {
-    _enqueueImmediate(Position{position.x, position.y, position.z});
-    if (mImmediatePropagation)
-        return;
-
-    mImmediatePropagation = true;
-
-    while (!mImmediateQueue.empty()) {
-        const Position current = mImmediateQueue.back();
-        mImmediateQueue.pop_back();
-        mImmediatePending.erase(current);
-        mLevel.getBlockUpdateScheduler().cancel(Vector3i(current.x, current.y, current.z));
-        process(Vector3i(current.x, current.y, current.z));
-    }
-
-    mImmediatePropagation = false;
 }
 
 std::vector<LiquidChange> LiquidPhysicsSystem::consumeChanges() {
@@ -275,14 +254,6 @@ void LiquidPhysicsSystem::setFluidState(const Vector3i &position, const BlockSta
         return;
     mLevel.setBlockState(position.x, position.y, position.z, state);
     mChanges.push_back(LiquidChange{position, state});
-
-    if (mImmediatePropagation) {
-        static const int offsets[7][3] = {
-                {0, 0, 0}, {0, -1, 0}, {0, 1, 0}, {-1, 0, 0}, {1, 0, 0}, {0, 0, -1}, {0, 0, 1}
-        };
-        for (const auto &offset: offsets)
-            _enqueueImmediate(Position{position.x + offset[0], position.y + offset[1], position.z + offset[2]});
-    }
 }
 
 void LiquidPhysicsSystem::harden(const Vector3i &position) {
@@ -493,16 +464,6 @@ void LiquidPhysicsSystem::process(const Vector3i &position) {
         if (newDecay != current.getDecay() || current.isFalling())
             setFluidState(position, makeState(lava, newDecay, false));
     }
-}
-
-void LiquidPhysicsSystem::_enqueueImmediate(const Position &position) {
-    if (position.y < LevelChunk::MIN_Y || position.y > LevelChunk::MAX_Y)
-        return;
-    if (!_isLoaded(position.x, position.z))
-        return;
-    if (!mImmediatePending.insert(position).second)
-        return;
-    mImmediateQueue.push_back(position);
 }
 
 bool LiquidPhysicsSystem::_canBeFlowedInto(const BlockState &state) const {

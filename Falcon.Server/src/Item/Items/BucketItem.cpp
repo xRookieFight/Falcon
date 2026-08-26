@@ -300,9 +300,7 @@ bool BucketItem::use(ServerNetworkHandler &owner, ServerPlayer &player, const It
                                        ? BlockState("minecraft:powder_snow")
                                        : makeLiquidState(content);
         level.setBlockState(target.x, target.y, target.z, placedState);
-        if (content == Content::Water)
-            level.processFluidImmediately(target);
-        else if (content == Content::Lava)
+        if (content == Content::Water || content == Content::Lava)
             level.scheduleFluidTick(target, LiquidBlock(placedState).getTickRate());
         sendBlockUpdate(owner, target, placedState);
     }

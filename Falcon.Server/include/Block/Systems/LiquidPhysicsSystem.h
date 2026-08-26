@@ -45,7 +45,6 @@ public:
     Vector3f getFlowVector(const Vector3i &position);
 
     void schedule(const Vector3i &position, int64_t delay = 1);
-    void processImmediately(const Vector3i &position);
 
     void onScheduledUpdate(const Vector3i &position);
 
@@ -84,7 +83,6 @@ private:
     bool _isLoaded(int32_t x, int32_t z) const;
 
 
-    void _enqueueImmediate(const Position &position);
 
     bool _canBeFlowedInto(const BlockState &state) const;
     int _calculateFlowCost(int32_t x, int32_t y, int32_t z, int accumulatedCost, int maxCost,
@@ -107,7 +105,4 @@ private:
     Level &mLevel;
     std::unordered_map<Position, int8_t, PositionHash> mFlowCostVisited;
     std::vector<LiquidChange> mChanges;
-    bool mImmediatePropagation = false;
-    std::vector<Position> mImmediateQueue;
-    std::unordered_set<Position, PositionHash> mImmediatePending;
 };

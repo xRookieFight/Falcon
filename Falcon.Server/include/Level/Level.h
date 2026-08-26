@@ -175,8 +175,6 @@ public:
 
     void scheduleFluidTick(const Vector3i &position, int64_t delay = 1);
 
-    void processFluidImmediately(const Vector3i &position);
-
     void tick();
 
     void scheduleBlockUpdate(const Vector3i &position, int64_t delay = 1);

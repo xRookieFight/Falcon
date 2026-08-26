@@ -463,23 +463,15 @@ namespace {
                 return false;
         }
 
-        ItemEnchantments::write(*input, enchantments);
+        ItemStack enchanted = *input;
+        enchanted.mCount = 1;
+        ItemEnchantments::write(enchanted, enchantments);
 
-        FullContainerName inputName;
-        inputName.mContainer = ContainerSlotType::EnchantingInput;
-        markTouched(touched, inputName, 0);
+        context.mCreatedOutput = std::move(enchanted);
+        context.mCreatedOutputActive = true;
 
-        if (!context.mCreativeMode) {
-            lapis->mCount -= consumeCost;
-            if (lapis->mCount <= 0)
-                *lapis = ItemStack::air();
-
-            FullContainerName lapisName;
-            lapisName.mContainer = ContainerSlotType::EnchantingMaterial;
-            markTouched(touched, lapisName, 0);
-
+        if (!context.mCreativeMode)
             context.mEnchantLevelsConsumed = consumeCost;
-        }
 
         return true;
     }

@@ -616,10 +616,6 @@ void Level::scheduleFluidTick(const Vector3i &position, int64_t delay) {
     mLiquidPhysics.schedule(position, delay);
 }
 
-void Level::processFluidImmediately(const Vector3i &position) {
-    mLiquidPhysics.processImmediately(position);
-}
-
 void Level::tick() {
     mBlockUpdateScheduler.tick(
             [this](const Vector3i &position) {
