@@ -6,6 +6,7 @@
 #include "Core/Debug/BedrockLog.h"
 #include "Core/Debug/ContentLogEndPoint.h"
 #include "Core/Debug/FileLogEndPoint.h"
+#include "Block/BlockPaletteRegistry.h"
 #include "Level/Generator/Biome/BiomeChunkGenDataRegistry.h"
 #include "Network/Handler/ServerNetworkHandler.h"
 #include "Network/TransportFactory.h"
@@ -179,6 +180,7 @@ void startServer(const ServerSettings &settings) {
     setupServerLogging();
 
     BiomeChunkGenDataRegistry::initialize();
+    BlockPaletteRegistry::getInstance().initialize();
 
     PropertiesSettings properties(PROPERTIES_FILE);
     logStartupBanner(properties);

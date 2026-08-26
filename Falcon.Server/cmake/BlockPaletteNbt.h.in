@@ -1,0 +1,11 @@
+#pragma once
+
+#include <cstddef>
+
+namespace FalconBlockPaletteData {
+    inline constexpr unsigned char kBlockPaletteNbt[] = {
+@FALCON_BLOCK_PALETTE_BYTES@
+    };
+
+    inline constexpr std::size_t kBlockPaletteNbtSize = sizeof(kBlockPaletteNbt);
+}

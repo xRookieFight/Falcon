@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Core/NBT/Tag.h"
+#include "Core/Math/Vector3f.h"
+#include "Core/Math/Vector3i.h"
 #include "Block/BlockState.h"
 
 #include <cstdint>
@@ -10,9 +12,23 @@
 struct BlockData;
 class Actor;
 class BlockBehavior;
+class Level;
 class ServerNetworkHandler;
 class ServerPlayer;
-struct Vector3i;
+
+struct BlockPlacementContext {
+    Level *mLevel;
+    float mYaw;
+    float mPitch;
+    int mFace;
+    Vector3f mClickPosition;
+    Vector3f mPlayerPosition;
+    Vector3i mBlockPosition;
+    int mPlayerFacing;
+    int mOppositeFacing;
+    int mOrdinal;
+    int mPistonFacing;
+};
 
 class Block {
 public:
@@ -26,6 +42,9 @@ public:
         (void) state;
         return false;
     }
+
+    virtual BlockState applyPlacementOrientation(const BlockState &state,
+                                                 const BlockPlacementContext &context) const;
 
     Block() : mTypeId(0), mIdentifier("minecraft:air"), mName("Air"), mStates(Tag::ofCompound()) {}
 

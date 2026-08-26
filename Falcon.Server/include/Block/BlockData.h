@@ -31,13 +31,6 @@ enum class BlockDropKind : uint8_t {
     Other = 2
 };
 
-struct BlockStateValue {
-    const char *mKey;
-    uint8_t mTagType;
-    int32_t mIntValue;
-    const char *mStringValue;
-};
-
 struct BlockData {
     int32_t mTypeId;
     const char *mIdentifier;
@@ -58,8 +51,6 @@ struct BlockData {
     const char *mDropIdentifier;
     uint8_t mDropMin;
     uint8_t mDropMax;
-    const BlockStateValue *mStates;
-    size_t mStateCount;
     const char *mBehaviorIdentifier = nullptr;
     int32_t mMaxStackSize = 64;
 };

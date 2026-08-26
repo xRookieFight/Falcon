@@ -4,6 +4,7 @@
 #include "Block/Actor/ItemFrameBlockActor.h"
 #include "Block/BlockActorStore.h"
 #include "Block/BlockData.h"
+#include "Block/Components/PlacementOrientation.h"
 #include "Level/Level.h"
 #include "Network/Handler/BlockActionHandler.h"
 #include "Network/Handler/ItemActorHandler.h"
@@ -79,6 +80,20 @@ namespace {
 }
 
 ItemFrameBlock::ItemFrameBlock(const Block &base) : Block(base) {
+}
+
+BlockState ItemFrameBlock::applyPlacementOrientation(const BlockState &state,
+                                                     const BlockPlacementContext &context) const {
+    BlockState result = Block::applyPlacementOrientation(state, context);
+    Tag states = result.mStates;
+
+    if (states.contains("facing_direction"))
+        states.putInt("facing_direction", context.mFace);
+
+    if (states.contains("minecraft:facing_direction"))
+        states.putString("minecraft:facing_direction", PlacementOrientation::faceName(context.mFace));
+
+    return BlockState(result.mName, states);
 }
 
 bool ItemFrameBlock::matches(const std::string &identifier) {

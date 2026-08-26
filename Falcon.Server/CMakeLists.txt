@@ -7,11 +7,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(FALCON_RECIPES_JSON "${CMAKE_CURRENT_SOURCE_DIR}/resources/recipes.json")
 set(FALCON_ITEM_TAGS_JSON "${CMAKE_CURRENT_SOURCE_DIR}/resources/item_tags.json")
 set(FALCON_BIOME_DEFINITIONS_NBT "${CMAKE_CURRENT_SOURCE_DIR}/resources/biome_definitions.nbt")
+set(FALCON_BLOCK_PALETTE_NBT "${CMAKE_CURRENT_SOURCE_DIR}/resources/block_palette.nbt")
 if(NOT EXISTS "${FALCON_RECIPES_JSON}" OR NOT EXISTS "${FALCON_ITEM_TAGS_JSON}")
     message(FATAL_ERROR "Falcon crafting data files are missing")
 endif()
 if(NOT EXISTS "${FALCON_BIOME_DEFINITIONS_NBT}")
     message(FATAL_ERROR "Falcon biome definitions file is missing")
+endif()
+if(NOT EXISTS "${FALCON_BLOCK_PALETTE_NBT}")
+    message(FATAL_ERROR "Falcon block palette file is missing")
 endif()
 
 file(READ "${FALCON_RECIPES_JSON}" FALCON_RECIPES_JSON_CONTENT)
@@ -25,6 +29,12 @@ string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," FALCON_BIOME_DEFINITIONS_BYTE
 string(REGEX REPLACE "(0x..,0x..,0x..,0x..,0x..,0x..,0x..,0x..,0x..,0x..,0x..,0x..,)" "\\1\n"
         FALCON_BIOME_DEFINITIONS_BYTES "${FALCON_BIOME_DEFINITIONS_BYTES}")
 configure_file(cmake/BiomeDefinitionsNbt.h.in "${FALCON_GENERATED_DIR}/BiomeDefinitionsNbt.h" @ONLY)
+
+file(READ "${FALCON_BLOCK_PALETTE_NBT}" FALCON_BLOCK_PALETTE_HEX HEX)
+string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," FALCON_BLOCK_PALETTE_BYTES "${FALCON_BLOCK_PALETTE_HEX}")
+string(REGEX REPLACE "(0x..,0x..,0x..,0x..,0x..,0x..,0x..,0x..,0x..,0x..,0x..,0x..,)" "\\1\n"
+        FALCON_BLOCK_PALETTE_BYTES "${FALCON_BLOCK_PALETTE_BYTES}")
+configure_file(cmake/BlockPaletteNbt.h.in "${FALCON_GENERATED_DIR}/BlockPaletteNbt.h" @ONLY)
 
 if(NOT FALCON_BUILD_VERSION)
     set(FALCON_BUILD_VERSION "1.26.40.01")
@@ -53,7 +63,8 @@ else()
 endif()
 configure_file(cmake/BuildInfo.h.in "${FALCON_GENERATED_DIR}/BuildInfo.h" @ONLY)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-        "${FALCON_RECIPES_JSON}" "${FALCON_ITEM_TAGS_JSON}" "${FALCON_BIOME_DEFINITIONS_NBT}")
+        "${FALCON_RECIPES_JSON}" "${FALCON_ITEM_TAGS_JSON}" "${FALCON_BIOME_DEFINITIONS_NBT}"
+        "${FALCON_BLOCK_PALETTE_NBT}")
 
 file(GLOB_RECURSE FALCON_SERVER_SOURCES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")

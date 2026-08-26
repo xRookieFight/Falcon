@@ -5,6 +5,7 @@
 #include "Block/Actor/EnderChestBlockActor.h"
 #include "Block/Actor/HopperBlockActor.h"
 #include "Block/BlockActorStore.h"
+#include "Block/Components/PlacementOrientation.h"
 #include "Inventory/Container/BlockContainerManagerModel.h"
 #include "Network/Handler/ItemActorHandler.h"
 #include "Network/Handler/ServerNetworkHandler.h"
@@ -265,4 +266,57 @@ void ContainerBlock::writeContentsToItem(const Vector3i &position, ItemStack &it
         item.mTag = Tag::ofCompound();
 
     item.mTag.put(TAG_ITEMS, actor->getInventory().saveItems());
+}
+
+BlockState ContainerBlock::applyPlacementOrientation(const BlockState &state,
+                                                     const BlockPlacementContext &context) const {
+    using namespace PlacementOrientation;
+
+    BlockState result = Block::applyPlacementOrientation(state, context);
+    Tag states = result.mStates;
+
+    const ContainerBlockDefinition *definition = findDefinition(result.mName);
+    if (definition == nullptr)
+        return BlockState(result.mName, states);
+
+    const bool hasIntFacing = states.contains("facing_direction");
+    const bool hasStringFacing = states.contains("minecraft:facing_direction");
+
+    switch (definition->mKind) {
+        case ContainerBlockKind::Hopper: {
+            const int facing = context.mFace == FACE_DOWN
+                               ? FACE_DOWN
+                               : (context.mFace == FACE_UP ? FACE_DOWN : context.mFace ^ 1);
+            if (hasIntFacing)
+                states.putInt("facing_direction", facing);
+            if (hasStringFacing)
+                states.putString("minecraft:facing_direction", faceName(facing));
+            break;
+        }
+        case ContainerBlockKind::Dispenser:
+        case ContainerBlockKind::Dropper: {
+            if (hasIntFacing)
+                states.putInt("facing_direction", context.mPistonFacing);
+            if (hasStringFacing)
+                states.putString("minecraft:facing_direction", faceName(context.mPistonFacing));
+            break;
+        }
+        case ContainerBlockKind::ShulkerBox: {
+            if (hasIntFacing)
+                states.putInt("facing_direction", context.mFace);
+            if (hasStringFacing)
+                states.putString("minecraft:facing_direction", faceName(context.mFace));
+            break;
+        }
+        case ContainerBlockKind::Shelf:
+        case ContainerBlockKind::Campfire: {
+            if (states.contains("minecraft:cardinal_direction"))
+                states.putString("minecraft:cardinal_direction", cardinalName(context.mPlayerFacing));
+            break;
+        }
+        default:
+            break;
+    }
+
+    return BlockState(result.mName, states);
 }

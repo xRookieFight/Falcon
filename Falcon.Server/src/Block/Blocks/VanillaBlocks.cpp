@@ -9,8 +9,14 @@
 #include "Block/Blocks/DaylightDetectorBlock.h"
 #include "Block/Blocks/ItemFrameBlock.h"
 #include "Block/Blocks/LeverBlock.h"
+#include "Block/Blocks/OrientationBlocks.h"
 #include "Block/Blocks/RedstoneDiodeBlock.h"
+#include "Block/BlockPaletteRegistry.h"
 #include "Block/BlockTypeIds.h"
+#include "Core/Debug/BedrockLog.h"
+
+#include <string>
+#include <unordered_set>
 
 #include <string_view>
 #include <unordered_map>
@@ -63,33 +69,48 @@ namespace {
         if (RedstoneComparatorBlock::matches(identifier))
             return std::make_unique<RedstoneComparatorBlock>(block);
 
+        if (DoorOrientationBlock::matches(identifier))
+            return std::make_unique<DoorOrientationBlock>(block);
+
+        if (TrapdoorOrientationBlock::matches(identifier))
+            return std::make_unique<TrapdoorOrientationBlock>(block);
+
+        if (FacingMachineBlock::matches(identifier))
+            return std::make_unique<FacingMachineBlock>(block);
+
+        if (TorchOrientationBlock::matches(identifier))
+            return std::make_unique<TorchOrientationBlock>(block);
+
+        if (WallAttachedBlock::matches(identifier))
+            return std::make_unique<WallAttachedBlock>(block);
+
+        if (BellOrientationBlock::matches(identifier))
+            return std::make_unique<BellOrientationBlock>(block);
+
+        if (FaceAttachedBlock::matches(identifier))
+            return std::make_unique<FaceAttachedBlock>(block);
+
+        if (CardinalPlayerBlock::matches(identifier))
+            return std::make_unique<CardinalPlayerBlock>(block);
+
         return std::make_unique<Block>(block);
     }
 }
 
 Block VanillaBlocks::fromData(const BlockData &data) {
-    Tag states = Tag::ofCompound();
+    const std::string identifier = data.mIdentifier;
+    BlockPaletteRegistry &registry = BlockPaletteRegistry::getInstance();
+    registry.initialize();
+    const Tag *defaultStates = registry.getDefaultStates(identifier);
 
-    for (size_t index = 0; index < data.mStateCount; ++index) {
-        const BlockStateValue &state = data.mStates[index];
+    if (defaultStates != nullptr)
+        return Block(data.mTypeId, data.mIdentifier, data.mName, *defaultStates);
 
-        switch (state.mTagType) {
-            case 1:
-                states.putByte(state.mKey, (int8_t) state.mIntValue);
-                break;
-            case 2:
-                states.putShort(state.mKey, (int16_t) state.mIntValue);
-                break;
-            case 3:
-                states.putInt(state.mKey, state.mIntValue);
-                break;
-            default:
-                states.putString(state.mKey, state.mStringValue);
-                break;
-        }
-    }
+    static std::unordered_set<std::string> warnedIdentifiers;
+    if (warnedIdentifiers.insert(identifier).second)
+        LOG_WARN(LogAreaID::Server, "Block palette has no default states for %s", identifier.c_str());
 
-    return Block(data.mTypeId, data.mIdentifier, data.mName, states);
+    return Block(data.mTypeId, data.mIdentifier, data.mName, Tag::ofCompound());
 }
 
 Block VanillaBlocks::CYAN_TERRACOTTA() {

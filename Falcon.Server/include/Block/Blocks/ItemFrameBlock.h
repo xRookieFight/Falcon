@@ -25,6 +25,8 @@ public:
     bool onInteract(ServerNetworkHandler &owner, ServerPlayer &player, const Vector3i &position,
                     const BlockState &state) const override;
 
+    BlockState applyPlacementOrientation(const BlockState &state, const BlockPlacementContext &context) const override;
+
     static bool onPunch(ServerNetworkHandler &owner, ServerPlayer &player, const Vector3i &position,
                         const BlockState &state);
 
