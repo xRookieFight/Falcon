@@ -21,6 +21,11 @@
 #include <random>
 #include <thread>
 
+#ifndef _WIN32
+#include <poll.h>
+#include <unistd.h>
+#endif
+
 static const char *PROPERTIES_FILE = "server.properties";
 static const char *PROFILER_CONFIG_FILE = "bootstrap.json";
 static const char *CDN_CONFIG_FILE = "cdn_config.json";
@@ -38,6 +43,24 @@ static std::atomic<bool> gRunning(true);
 static void requestShutdown(int signalNumber) {
     (void) signalNumber;
     gRunning.store(false);
+}
+
+static const int CONSOLE_POLL_INTERVAL = 200;
+
+// Blocking on std::cin keeps the stdin lock held, which deadlocks the stream flush that runs while
+// the process exits. Waiting on the descriptor first leaves the lock free until a line is ready.
+static bool waitForConsoleInput(int timeoutMilliseconds) {
+#ifdef _WIN32
+    (void) timeoutMilliseconds;
+    return true;
+#else
+    struct pollfd input;
+    input.fd = STDIN_FILENO;
+    input.events = POLLIN;
+    input.revents = 0;
+
+    return poll(&input, 1, timeoutMilliseconds) > 0;
+#endif
 }
 
 static bool fileExists(const char *path);
@@ -206,7 +229,13 @@ void startServer(const ServerSettings &settings) {
 
     std::thread consoleThread([&networkHandler]() {
         std::string line;
-        while (std::getline(std::cin, line)) {
+        while (gRunning.load()) {
+            if (!waitForConsoleInput(CONSOLE_POLL_INTERVAL))
+                continue;
+
+            if (!std::getline(std::cin, line))
+                break;
+
             if (!line.empty())
                 networkHandler.queueConsoleCommand(line);
         }
