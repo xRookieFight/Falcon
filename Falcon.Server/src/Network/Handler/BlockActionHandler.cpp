@@ -80,6 +80,9 @@ namespace {
             return 0.05;
         }
 
+        if (player.getGameType() == (int32_t) GameType::Creative)
+            return 0.0;
+
         if (blockData->mHardness < 0.0f)
             return -1.0;
 
@@ -125,14 +128,20 @@ namespace {
 
         const MobEffectInstance *haste = player.getEffect(MobEffectId::Haste);
         const MobEffectInstance *fatigue = player.getEffect(MobEffectId::MiningFatigue);
-        if (haste)
-            speedMultiplier *= 1.0 + 0.2 * (double) haste->level();
+        const bool hasConduitPower = player.getEffect(MobEffectId::ConduitPower) != nullptr;
+
+        int32_t hasteLevel = haste == nullptr ? 0 : haste->level();
+        if (hasConduitPower)
+            hasteLevel = std::max(hasteLevel, 2);
+
+        if (hasteLevel > 0)
+            speedMultiplier *= 1.0 + 0.2 * (double) hasteLevel;
         if (fatigue)
             speedMultiplier *= std::pow(0.3, (double) fatigue->level());
 
         seconds /= (double) speedMultiplier;
 
-        if (!player.isOnGround() && !player.isFlying())
+        if (player.getTicksSinceInAir() < 5 && !player.isFlying())
             seconds *= 5.0;
 
         const bool inWater = player.getFlags().get(ActorFlag::Swimming);
@@ -140,7 +149,7 @@ namespace {
                 ItemEnchantments::getLevel(player.getInventory().getArmor(PlayerInventory::ARMOR_HEAD),
                                            EnchantmentIds::AQUA_AFFINITY) > 0;
         if (inWater && !hasAquaAffinity)
-            seconds *= 5.0;
+            seconds *= hasConduitPower && blockHardness >= 0.5 ? 2.5 : 5.0;
 
         return seconds;
     }

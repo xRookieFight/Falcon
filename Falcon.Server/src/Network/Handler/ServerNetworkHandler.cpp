@@ -667,6 +667,7 @@ void ServerNetworkHandler::changePlayerDimension(ServerPlayer &player, Dimension
     player.getChunkStreamState() = ChunkStreamState();
 
     player.setPosition(position);
+    player.clearPendingMove();
 
     ChangeDimensionPacket change;
     change.mDimension = Dimension::toId(dimension);
@@ -973,6 +974,7 @@ void ServerNetworkHandler::tick() {
         ProfiledPlayerScope playerScope(mProfiler, player);
 
         const bool wasOnFire = player.isOnFire();
+        player.tickGroundTracking();
         player.tickCombat(1);
         player.tickItemCooldowns(mCurrentTick);
         player.tickSpinAttack(*this);
@@ -1711,7 +1713,7 @@ void ServerNetworkHandler::killPlayer(ServerPlayer &player, const std::string &d
 
     player.getInventoryManager().onCurrentWindowRemove();
 
-    if (!mKeepInventory && player.getGameType() != (int32_t) GameType::Creative)
+    if (!mKeepInventory)
         _dropInventoryOnDeath(player);
 
     if (player.getGameType() != (int32_t) GameType::Creative) {
@@ -1801,6 +1803,9 @@ void ServerNetworkHandler::_respawnPlayer(ServerPlayer &player) {
         return;
 
     const Vector3f spawn = mLevel.getSpawnPositionForPlayer();
+
+    if (player.getDimension() != DimensionType::Overworld)
+        changePlayerDimension(player, DimensionType::Overworld, spawn);
 
     player.setDead(false);
     player.getAttributes().set(HEALTH_ATTRIBUTE, maxHealthOf(player));

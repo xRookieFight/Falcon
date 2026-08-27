@@ -456,6 +456,7 @@ void ServerPlayer::tickSpinAttack(ServerNetworkHandler &owner) {
 void ServerPlayer::teleport(ServerNetworkHandler &owner, const Vector3f &position,
                              MovePlayerTeleportationCause cause) {
     Actor::teleport(position);
+    clearPendingMove();
 
     MovePlayerPacket packet;
     packet.mRuntimeActorId = getUniqueId();

@@ -3,6 +3,7 @@
 #include "Actor/ServerPlayer.h"
 #include "Block/BlockData.h"
 #include "Block/BlockState.h"
+#include "Core/Debug/BedrockLog.h"
 #include "Inventory/InventoryManager.h"
 #include "Inventory/PlayerInventory.h"
 #include "Level/Level.h"
@@ -765,7 +766,7 @@ void PortalForcer::tickPlayer(ServerNetworkHandler &owner, ServerPlayer &player)
 
         const DimensionType current = level.getDimensionType();
 
-        if (current == DimensionType::Overworld) {
+        if (current != DimensionType::TheEnd) {
             Level &end = owner.getDimension(DimensionType::TheEnd);
             const Vector3i platform(END_PLATFORM_X, END_PLATFORM_Y, END_PLATFORM_Z);
             spawnObsidianPlatform(end, platform, &owner);
@@ -797,7 +798,11 @@ void PortalForcer::tickPlayer(ServerNetworkHandler &owner, ServerPlayer &player)
     const int32_t ticks = player.getPortalTicks() + 1;
     player.setPortalTicks(ticks);
 
-    if (ticks < PORTAL_DELAY_TICKS)
+    const int32_t requiredTicks = player.getGameType() == (int32_t) GameType::Creative
+                                  ? 1
+                                  : PORTAL_DELAY_TICKS;
+
+    if (ticks < requiredTicks)
         return;
 
     player.setPortalTicks(0);

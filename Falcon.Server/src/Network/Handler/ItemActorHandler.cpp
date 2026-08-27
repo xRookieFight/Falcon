@@ -170,16 +170,41 @@ namespace {
 
         motion.y -= ITEM_GRAVITY;
 
-        Vector3f next(position.x + motion.x, position.y + motion.y, position.z + motion.z);
+        Level &level = owner.getLevel();
+        Vector3f next = position;
+
+        const int32_t currentY = (int32_t) std::floor(position.y);
+        const int32_t currentZ = (int32_t) std::floor(position.z);
+
+        if (motion.x != 0.0f) {
+            const float candidateX = position.x + motion.x;
+            if (level.isSolidAt((int32_t) std::floor(candidateX), currentY, currentZ))
+                motion.x = 0.0f;
+            else
+                next.x = candidateX;
+        }
+
+        if (motion.z != 0.0f) {
+            const float candidateZ = position.z + motion.z;
+            if (level.isSolidAt((int32_t) std::floor(next.x), currentY, (int32_t) std::floor(candidateZ)))
+                motion.z = 0.0f;
+            else
+                next.z = candidateZ;
+        }
+
+        next.y = position.y + motion.y;
 
         const int32_t blockX = (int32_t) std::floor(next.x);
         const int32_t blockZ = (int32_t) std::floor(next.z);
         const int32_t blockY = (int32_t) std::floor(next.y);
 
-        if (motion.y < 0.0f && owner.getLevel().isSolidAt(blockX, blockY, blockZ)) {
+        if (motion.y < 0.0f && level.isSolidAt(blockX, blockY, blockZ)) {
             next.y = (float) (blockY + 1);
             motion = Vector3f(0.0f, 0.0f, 0.0f);
             actor.setOnGround(true);
+        } else if (motion.y > 0.0f && level.isSolidAt(blockX, blockY, blockZ)) {
+            next.y = position.y;
+            motion.y = 0.0f;
         } else {
             motion.x *= 1.0f - ITEM_HORIZONTAL_DRAG;
             motion.y *= 1.0f - ITEM_VERTICAL_DRAG;

@@ -5,6 +5,7 @@
 #include "Block/BlockActorStore.h"
 #include "Block/BlockData.h"
 #include "Block/Components/PlacementOrientation.h"
+#include "Core/Debug/BedrockLog.h"
 #include "Level/Level.h"
 #include "Network/Handler/BlockActionHandler.h"
 #include "Network/Handler/ItemActorHandler.h"
@@ -112,19 +113,26 @@ std::unique_ptr<BlockActor> ItemFrameBlock::createBlockActor(const std::string &
 }
 
 bool ItemFrameBlock::canPlaceOn(Level &level, const Vector3i &position, int blockFace) {
-    if (blockFace < 0 || blockFace >= 6)
+    if (blockFace < 0 || blockFace >= 6) {
+        LOG_WARN(LogAreaID::Server, "frame: bad face %d", blockFace);
         return false;
+    }
 
     const Vector3i support(position.x - FACE_OFFSETS[blockFace][0],
                            position.y - FACE_OFFSETS[blockFace][1],
                            position.z - FACE_OFFSETS[blockFace][2]);
 
     const BlockState state = level.getBlockState(support.x, support.y, support.z);
+    const BlockData *data = BlockDataTable::find(state.mName.c_str());
+    const bool solid = data != nullptr && data->mSolid;
+
+    LOG_WARN(LogAreaID::Server, "frame: face=%d support=%s solid=%d selfMatch=%d",
+             blockFace, state.mName.c_str(), solid ? 1 : 0, matches(state.mName) ? 1 : 0);
+
     if (matches(state.mName))
         return false;
 
-    const BlockData *data = BlockDataTable::find(state.mName.c_str());
-    return data != nullptr && data->mSolid;
+    return solid;
 }
 
 bool ItemFrameBlock::onInteract(ServerNetworkHandler &owner, ServerPlayer &player, const Vector3i &position,

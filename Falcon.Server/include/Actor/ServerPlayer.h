@@ -166,6 +166,15 @@ public:
 
     void setPortalCooldown(int32_t ticks) { mPortalCooldown = ticks; }
 
+    int32_t getTicksSinceInAir() const { return mTicksSinceInAir; }
+
+    void tickGroundTracking() {
+        if (isOnGround())
+            mTicksSinceInAir++;
+        else
+            mTicksSinceInAir = 0;
+    }
+
     int32_t getPortalTicks() const { return mPortalTicks; }
 
     void setPortalTicks(int32_t ticks) { mPortalTicks = ticks; }
@@ -322,6 +331,7 @@ private:
     bool mAwaitingDimensionAck = false;
     int32_t mPortalCooldown = 0;
     int32_t mPortalTicks = 0;
+    int32_t mTicksSinceInAir = 0;
     bool mAwaitingConsumableRelease = false;
     int64_t mLastEarlyConsumableReleaseTick = 0;
     bool mHasLastRightClick = false;

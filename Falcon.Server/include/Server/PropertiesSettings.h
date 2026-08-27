@@ -109,6 +109,23 @@ public:
 
     bool getDisableCustomSkins() const { return getBool("disable-custom-skins", false); }
 
+    float getPlayerPositionAcceptanceThreshold() const {
+        return getFloat("player-position-acceptance-threshold", 0.5f);
+    }
+
+    float getPlayerPositionAcceptanceThresholdScaled() const {
+        return getPlayerPositionAcceptanceThreshold() / 100.0f;
+    }
+
+    float getPlayerPositionAcceptanceThresholdSquared() const {
+        const float scaled = getPlayerPositionAcceptanceThresholdScaled();
+        return scaled * scaled;
+    }
+
+    float getPlayerMovementActionDirectionThreshold() const {
+        return getFloat("player-movement-action-direction-threshold", 0.85f);
+    }
+
     TransportLayer getTransportLayer() const;
 
     std::string getNetherNetTlsCertificate() const { return getString("nethernet-tls-certificate"); }

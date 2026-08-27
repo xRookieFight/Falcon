@@ -191,7 +191,8 @@ void MovementHandler::tickFluidEffects(ServerNetworkHandler &owner, ServerPlayer
 
 void MovementHandler::handlePlayerAuthInput(ServerNetworkHandler &owner, const NetworkIdentifier &id,
                                             ServerPlayer &player, const PlayerAuthInputPacket &packet) {
-    const Vector3f feetPosition(packet.mPosition.x, packet.mPosition.y - PLAYER_BASE_OFFSET, packet.mPosition.z);
+    const Vector3f feetPosition(packet.mPosition.x, packet.mPosition.y - PLAYER_BASE_OFFSET,
+                                packet.mPosition.z);
     player.queueMove(feetPosition, packet.mRotation);
     player.setMotion(packet.mDelta);
 

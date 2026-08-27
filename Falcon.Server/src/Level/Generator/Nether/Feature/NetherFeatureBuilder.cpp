@@ -32,7 +32,7 @@
 
 namespace {
     const std::vector<IFeaturePtr> &netherFeatures() {
-        static const std::vector<IFeaturePtr> features = {
+        static thread_local const std::vector<IFeaturePtr> features = {
                 std::make_shared<GlowStoneFeature>(),
                 std::make_shared<SoulSandOreFeature>(),
                 std::make_shared<MagmaOreFeature>(),
