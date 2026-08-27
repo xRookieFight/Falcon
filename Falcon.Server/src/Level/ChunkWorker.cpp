@@ -3,7 +3,7 @@
 #include "Block/Blocks/LiquidBlock.h"
 #include "Block/Systems/LiquidPhysicsSystem.h"
 #include "Level/Generator/GeneratorChunkSource.h"
-#include "Level/Generator/OverworldGenerator.h"
+#include "Level/Generator/ChunkGenerator.h"
 #include "Level/LevelStorage.h"
 #include "Level/SkyLightSystem.h"
 
@@ -31,7 +31,7 @@ namespace {
     }
 }
 
-ChunkWorker::ChunkWorker(const OverworldGenerator &generator, LevelStorage &storage)
+ChunkWorker::ChunkWorker(const ChunkGenerator &generator, LevelStorage &storage)
         : mGenerator(generator), mStorage(storage), mRunning(false), mDiscardGeneration(false), mGeneratedCount(0),
           mLoadedCount(0), mSavedCount(0), mPopulatedCount(0) {}
 
@@ -53,7 +53,8 @@ void ChunkWorker::start(size_t threadCount) {
     mSources.clear();
     mSources.reserve(count);
     for (size_t i = 0; i < count; ++i)
-        mSources.push_back(std::unique_ptr<GeneratorChunkSource>(new GeneratorChunkSource(mGenerator.getSeed())));
+        mSources.push_back(std::unique_ptr<GeneratorChunkSource>(
+                new GeneratorChunkSource(mGenerator.getSeed(), mGenerator.getDimensionType())));
 
     mRunning.store(true);
     mDiscardGeneration.store(false);
@@ -141,6 +142,7 @@ size_t ChunkWorker::getPendingTaskCount() const {
 
 void ChunkWorker::_processLoad(ChunkTask &task, size_t sourceIndex) {
     std::unique_ptr<LevelChunk> chunk(new LevelChunk(task.mX, task.mZ));
+    chunk->setDimension(mGenerator.getDimensionType());
 
     if (mStorage.isOpen() && mStorage.loadChunk(*chunk)) {
         mLoadedCount.fetch_add(1);

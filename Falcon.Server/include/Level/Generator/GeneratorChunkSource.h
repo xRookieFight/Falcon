@@ -14,7 +14,7 @@ class GeneratorChunkSource {
 public:
     static constexpr size_t MAX_CACHED_CHUNKS = 48;
 
-    explicit GeneratorChunkSource(int64_t seed);
+    GeneratorChunkSource(int64_t seed, DimensionType dimension);
 
     GeneratorChunkSource(const GeneratorChunkSource &) = delete;
 

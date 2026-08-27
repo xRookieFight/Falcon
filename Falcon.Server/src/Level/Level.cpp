@@ -1,7 +1,8 @@
 #include "Level/Level.h"
 
 #include "Level/BiomeRegistry.h"
-#include "Level/Generator/Biome/ClimateAttributes.h"
+#include "Level/Generator/DimensionFactory.h"
+#include "Level/Generator/Overworld/Biome/ClimateAttributes.h"
 #include "Level/SkyLightSystem.h"
 
 #include "Block/BlockData.h"
@@ -13,9 +14,23 @@
 #include <random>
 #include <utility>
 
-Level::Level(const std::string &name, int viewDistance, int64_t seed)
-        : mName(name), mViewDistance(viewDistance), mSeed(seed),
-          mGenerator(new OverworldGenerator(seed)), mLiquidPhysics(*this) {}
+Level::Level(const std::string &name, int viewDistance, int64_t seed, DimensionType dimension)
+        : mName(name), mViewDistance(viewDistance), mSeed(seed), mDimension(dimension),
+          mGenerator(DimensionFactory::createGenerator(dimension, seed)), mLiquidPhysics(*this) {}
+
+void Level::decorate(LevelChunk &chunk, std::vector<GeneratedBlockChange> *overflow) {
+    mGenerator->decorate(*this, chunk, overflow);
+}
+
+OverworldBiomeResult Level::pickBiomeResult(int32_t x, int32_t y, int32_t z) const {
+    const OverworldGenerator *overworld = dynamic_cast<const OverworldGenerator *>(mGenerator.get());
+
+    if (overworld == nullptr) {
+        return OverworldBiomeResult(mGenerator->pickBiome(x, y, z), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+    }
+
+    return overworld->pickBiomeResult(x, y, z);
+}
 
 Level &Level::operator=(Level &&other) noexcept {
     if (this == &other)
@@ -33,6 +48,7 @@ Level &Level::operator=(Level &&other) noexcept {
     mViewDistance = other.mViewDistance;
     mTime = other.mTime;
     mSeed = other.mSeed;
+    mDimension = other.mDimension;
     mGenerator = std::move(other.mGenerator);
     mStorage = std::move(other.mStorage);
     mChunks = std::move(other.mChunks);
@@ -53,17 +69,26 @@ bool Level::openStorage(const std::string &worldsDirectory) {
     if (!mStorage.open(worldsDirectory, mName, getDimensionId()))
         return false;
 
-    const Vector3i spawn = getSpawnPosition();
-    mStorage.writeLevelDat(mName, spawn.x, spawn.y, spawn.z, 0, 1, mSeed);
+    if (mDimension == DimensionType::Overworld) {
+        const Vector3i spawn = getSpawnPosition();
+        mStorage.writeLevelDat(mName, spawn.x, spawn.y, spawn.z, 0, 1, mSeed);
+    }
+
     return true;
+}
+
+bool Level::attachStorage(Level &overworld) {
+    return mStorage.attach(overworld.mStorage, getDimensionId());
 }
 
 void Level::saveAll() {
     if (!mStorage.isOpen())
         return;
 
-    saveWeather();
-    saveGameRules();
+    if (mDimension == DimensionType::Overworld) {
+        saveWeather();
+        saveGameRules();
+    }
 
     const bool async = mChunkWorker != nullptr && mChunkWorker->isRunning();
 
@@ -157,6 +182,7 @@ LevelChunk &Level::getChunk(int32_t chunkX, int32_t chunkZ) {
         return it->second;
 
     LevelChunk chunk(chunkX, chunkZ);
+    chunk.setDimension(mDimension);
 
     if (!mStorage.isOpen() || !mStorage.loadChunk(chunk))
         _generate(chunk);
@@ -177,6 +203,7 @@ LevelChunk &Level::generateTerrainChunk(int32_t chunkX, int32_t chunkZ) {
         return it->second;
 
     LevelChunk chunk(chunkX, chunkZ);
+    chunk.setDimension(mDimension);
     _generate(chunk);
 
     return mChunks.emplace(key, std::move(chunk)).first->second;
@@ -184,6 +211,7 @@ LevelChunk &Level::generateTerrainChunk(int32_t chunkX, int32_t chunkZ) {
 
 LevelChunk &Level::insertChunk(LevelChunk chunk) {
     const int64_t key = _packChunk(chunk.getX(), chunk.getZ());
+    chunk.setDimension(mDimension);
     return mChunks.emplace(key, std::move(chunk)).first->second;
 }
 
@@ -191,8 +219,11 @@ LevelChunk Level::extractChunk(int32_t chunkX, int32_t chunkZ) {
     const int64_t key = _packChunk(chunkX, chunkZ);
 
     auto it = mChunks.find(key);
-    if (it == mChunks.end())
-        return LevelChunk(chunkX, chunkZ);
+    if (it == mChunks.end()) {
+        LevelChunk empty(chunkX, chunkZ);
+        empty.setDimension(mDimension);
+        return empty;
+    }
 
     LevelChunk chunk = std::move(it->second);
     mChunks.erase(it);

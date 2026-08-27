@@ -5,6 +5,7 @@
 #include "Core/NBT/Tag.h"
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -38,6 +39,8 @@ public:
     LevelStorage &operator=(LevelStorage &&other) noexcept;
 
     bool open(const std::string &worldsDirectory, const std::string &levelName, int dimensionId = 0);
+
+    bool attach(const LevelStorage &source, int dimensionId);
 
     void close();
 
@@ -81,7 +84,7 @@ private:
 
     static void _appendLInt(std::string &out, int32_t value);
 
-    leveldb::DB *mDb;
+    std::shared_ptr<leveldb::DB> mDb;
     std::string mPath;
     int mDimensionId;
 };

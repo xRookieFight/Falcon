@@ -11,7 +11,7 @@
 #include <thread>
 #include <vector>
 
-class OverworldGenerator;
+class ChunkGenerator;
 class LevelStorage;
 class GeneratorChunkSource;
 
@@ -50,7 +50,7 @@ class ChunkWorker {
 public:
     static constexpr size_t MAX_THREADS = 64;
 
-    ChunkWorker(const OverworldGenerator &generator, LevelStorage &storage);
+    ChunkWorker(const ChunkGenerator &generator, LevelStorage &storage);
 
     ~ChunkWorker();
 
@@ -97,7 +97,7 @@ private:
 
     size_t _queueIndexFor(int32_t chunkX, int32_t chunkZ) const;
 
-    const OverworldGenerator &mGenerator;
+    const ChunkGenerator &mGenerator;
     LevelStorage &mStorage;
 
     std::vector<std::unique_ptr<GeneratorChunkSource>> mSources;

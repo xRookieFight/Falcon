@@ -140,10 +140,19 @@ void LevelChunk::forEachBlock(const std::function<void(int32_t, int32_t, int32_t
     }
 }
 
+void LevelChunk::setDimension(DimensionType dimension) {
+    mDimension = dimension;
+    mFirstNetworkSubChunk = Dimension::getLowestSubChunkIndex(dimension);
+    mNetworkSubChunkLimit = Dimension::getSubChunkCount(dimension);
+    mNetworkAnchorValid = false;
+}
+
 int LevelChunk::getNetworkSubChunkCount() const {
-    for (int i = SUB_CHUNK_COUNT - 1; i >= 0; i--) {
+    const int last = mFirstNetworkSubChunk + mNetworkSubChunkLimit - 1;
+
+    for (int i = last; i >= mFirstNetworkSubChunk; i--) {
         if (!mSubChunks[i].isEmpty())
-            return i + 1;
+            return i - mFirstNetworkSubChunk + 1;
     }
 
     return 0;
@@ -192,7 +201,7 @@ std::string LevelChunk::encodeBiomes(int sectionCount) const {
     BinaryStream stream;
 
     for (int i = 0; i < sectionCount; i++)
-        mSubChunks[i].writeBiomes(stream, false);
+        mSubChunks[mFirstNetworkSubChunk + i].writeBiomes(stream, false);
 
     return stream.getBuffer();
 }
@@ -223,7 +232,7 @@ std::string LevelChunk::encodeNetwork() const {
     const int sectionCount = getNetworkSubChunkCount();
 
     for (int i = 0; i < sectionCount; i++)
-        stream.put(encodeSubChunkNetwork(i));
+        stream.put(encodeSubChunkNetwork(mFirstNetworkSubChunk + i));
 
     stream.put(encodeBiomes(sectionCount));
     stream.putByte(0);
@@ -240,9 +249,9 @@ const std::string &LevelChunk::encodeNetworkAnchor() const {
     const int sectionCount = std::max(1, getNetworkSubChunkCount());
 
     for (int i = 0; i < sectionCount; i++)
-        mSubChunks[i].writeBiomes(stream, false);
+        mSubChunks[mFirstNetworkSubChunk + i].writeBiomes(stream, false);
 
-    for (int i = sectionCount; i < SUB_CHUNK_COUNT; i++)
+    for (int i = sectionCount; i < mNetworkSubChunkLimit; i++)
         stream.putByte(BIOME_COPY_PREVIOUS);
 
     stream.putByte(0);

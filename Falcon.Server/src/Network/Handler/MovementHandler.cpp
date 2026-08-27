@@ -161,8 +161,8 @@ void MovementHandler::tickFluidEffects(ServerNetworkHandler &owner, ServerPlayer
     if (!player.isSpawned() || player.isDead())
         return;
 
-    const LiquidContact contact = LiquidBlocksFetch::at(owner.getLevel(), player.getPosition());
-    const FireContact fireContact = FireBlocksFetch::at(owner.getLevel(), player.getPosition());
+    const LiquidContact contact = LiquidBlocksFetch::at(owner.getLevelFor(player), player.getPosition());
+    const FireContact fireContact = FireBlocksFetch::at(owner.getLevelFor(player), player.getPosition());
     WaterMoveSystem::tick(player, contact);
     LavaResetFallDistanceSystem::tick(player, contact);
 

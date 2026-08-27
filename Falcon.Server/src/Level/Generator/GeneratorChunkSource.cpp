@@ -1,12 +1,12 @@
 #include "Level/Generator/GeneratorChunkSource.h"
 
-#include "Level/Generator/Feature/OverworldFeatureBuilder.h"
 #include "Level/LevelChunk.h"
 
 #include <algorithm>
 #include <utility>
 
-GeneratorChunkSource::GeneratorChunkSource(int64_t seed) : mScratch("generator", 1, seed) {
+GeneratorChunkSource::GeneratorChunkSource(int64_t seed, DimensionType dimension)
+        : mScratch("generator", 1, seed, dimension) {
 }
 
 int64_t GeneratorChunkSource::_packChunk(int32_t chunkX, int32_t chunkZ) {
@@ -62,7 +62,7 @@ void GeneratorChunkSource::populate(LevelChunk &chunk, std::vector<GeneratedBloc
     }
 
     LevelChunk &center = mScratch.insertChunk(std::move(chunk));
-    OverworldFeatureBuilder::apply(mScratch, center, &overflow);
+    mScratch.decorate(center, &overflow);
 
     chunk = mScratch.extractChunk(chunkX, chunkZ);
 

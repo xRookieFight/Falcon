@@ -36,9 +36,7 @@ namespace {
         return data != nullptr && data->mSolid;
     }
 
-    bool canIgniteAgainst(ServerNetworkHandler &owner, const Vector3i &target, const Vector3i &placement) {
-        Level &level = owner.getLevel();
-
+    bool canIgniteAgainst(Level &level, const Vector3i &target, const Vector3i &placement) {
         if (level.getBlockState(placement.x, placement.y, placement.z).mName != "minecraft:air")
             return false;
 
@@ -79,11 +77,13 @@ bool FlintAndSteelItem::onUseOnBlock(ServerNetworkHandler &owner, ServerPlayer &
     if (player.getGameType() == (int32_t) GameType::Adventure)
         return false;
 
+    Level &level = owner.getLevelFor(player);
+
     const Vector3i placement = relativeToFace(blockPosition, face);
-    const bool ignitable = canIgniteAgainst(owner, blockPosition, placement);
+    const bool ignitable = canIgniteAgainst(level, blockPosition, placement);
 
     if (ignitable)
-        FireSystem::ignite(owner, placement);
+        FireSystem::ignite(owner, placement, &level);
 
     owner.damagePlayerHeldItem(player, 1);
     owner.playLevelSound(LevelSoundEvent::FIRE_IGNITE, centerOf(placement));
@@ -102,7 +102,7 @@ bool FireChargeItem::onUseOnBlock(ServerNetworkHandler &owner, ServerPlayer &pla
         return false;
 
     const Vector3i placement = relativeToFace(blockPosition, face);
-    if (!canIgniteAgainst(owner, blockPosition, placement))
+    if (!canIgniteAgainst(owner.getLevelFor(player), blockPosition, placement))
         return false;
 
     if (!FireSystem::ignite(owner, placement))

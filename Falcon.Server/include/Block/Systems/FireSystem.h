@@ -6,6 +6,7 @@
 #include <string>
 
 class BlockState;
+class Level;
 class ServerNetworkHandler;
 
 class FireSystem {
@@ -26,7 +27,7 @@ public:
 
     static bool canSurviveAt(ServerNetworkHandler &owner, const Vector3i &position);
 
-    static bool ignite(ServerNetworkHandler &owner, const Vector3i &position);
+    static bool ignite(ServerNetworkHandler &owner, const Vector3i &position, Level *portalLevel = nullptr);
 
     static void onNormalUpdate(ServerNetworkHandler &owner, const Vector3i &position, const BlockState &state);
 

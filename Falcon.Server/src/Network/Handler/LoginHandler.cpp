@@ -307,7 +307,7 @@ void LoginHandler::sendStartGame(ServerNetworkHandler &owner, ServerPlayer &play
     startGame.mRotation = Vector2f(player.getRotation().x, player.getRotation().y);
 
     startGame.mSeed = owner.getLevel().getSeed();
-    startGame.mDimensionId = 0;
+    startGame.mDimensionId = Dimension::toId(player.getDimension());
     startGame.mGeneratorId = 1;
     startGame.mLevelGameType = owner.getProperties().getGameType();
     startGame.mDifficulty = (int32_t) owner.getProperties().getDifficulty();

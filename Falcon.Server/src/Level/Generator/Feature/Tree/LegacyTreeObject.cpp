@@ -2,12 +2,12 @@
 
 #include "Block/Blocks/VanillaBlocks.h"
 #include "Level/Generator/Feature/BlockManager.h"
-#include "Level/Generator/Feature/Tree/LegacyBirchTree.h"
-#include "Level/Generator/Feature/Tree/LegacyDarkOakTree.h"
-#include "Level/Generator/Feature/Tree/LegacyJungleTree.h"
-#include "Level/Generator/Feature/Tree/LegacyOakTree.h"
-#include "Level/Generator/Feature/Tree/LegacySpruceTree.h"
-#include "Level/Generator/Feature/Tree/LegacyTallBirchTree.h"
+#include "Level/Generator/Overworld/Feature/Tree/LegacyBirchTree.h"
+#include "Level/Generator/Overworld/Feature/Tree/LegacyDarkOakTree.h"
+#include "Level/Generator/Overworld/Feature/Tree/LegacyJungleTree.h"
+#include "Level/Generator/Overworld/Feature/Tree/LegacyOakTree.h"
+#include "Level/Generator/Overworld/Feature/Tree/LegacySpruceTree.h"
+#include "Level/Generator/Overworld/Feature/Tree/LegacyTallBirchTree.h"
 
 #include <cmath>
 #include <memory>

@@ -5,6 +5,7 @@
 #include "Core/Math/Vector3i.h"
 #include "Core/NBT/Tag.h"
 #include "Inventory/InventoryManager.h"
+#include "Level/Dimension.h"
 #include "Inventory/PlayerInventory.h"
 #include "Network/Handler/ChunkStreamHandler.h"
 #include "Network/NetworkIdentifier.h"
@@ -153,6 +154,22 @@ public:
 
     ChunkStreamState &getChunkStreamState() { return mChunkStreamState; }
 
+    DimensionType getDimension() const { return mDimension; }
+
+    void setDimension(DimensionType dimension) { mDimension = dimension; }
+
+    bool isAwaitingDimensionAck() const { return mAwaitingDimensionAck; }
+
+    void setAwaitingDimensionAck(bool awaiting) { mAwaitingDimensionAck = awaiting; }
+
+    int32_t getPortalCooldown() const { return mPortalCooldown; }
+
+    void setPortalCooldown(int32_t ticks) { mPortalCooldown = ticks; }
+
+    int32_t getPortalTicks() const { return mPortalTicks; }
+
+    void setPortalTicks(int32_t ticks) { mPortalTicks = ticks; }
+
     bool isSpinAttacking() const { return mSpinAttackTicks > 0; }
 
     void startSpinAttack(ServerNetworkHandler &owner, int32_t ticks);
@@ -281,6 +298,13 @@ public:
         mHasChunkPosition = true;
     }
 
+    void resetChunkStreaming() {
+        mSentChunks.clear();
+        mSentChunkCount = 0;
+        mSpawnChunksReady = false;
+        mHasChunkPosition = false;
+    }
+
 private:
     NetworkIdentifier mId;
     LoginState mLoginState;
@@ -294,6 +318,10 @@ private:
     int64_t mItemUseStartTick = 0;
     int32_t mSpinAttackTicks = 0;
     ChunkStreamState mChunkStreamState;
+    DimensionType mDimension = DimensionType::Overworld;
+    bool mAwaitingDimensionAck = false;
+    int32_t mPortalCooldown = 0;
+    int32_t mPortalTicks = 0;
     bool mAwaitingConsumableRelease = false;
     int64_t mLastEarlyConsumableReleaseTick = 0;
     bool mHasLastRightClick = false;

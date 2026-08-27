@@ -619,6 +619,7 @@ Tag ServerPlayer::saveNbt(const std::string &levelName) const {
     data.putFloat(TAG_HEALTH, mAttributes.get("minecraft:health"));
     data.putInt(TAG_AIR, mAirSupply);
     data.putString(TAG_LEVEL, levelName);
+    data.putInt("DimensionId", Dimension::toId(mDimension));
     data.putInt(TAG_GAME_MODE, mGameType);
     data.putLong(TAG_FIRST_PLAYED, mFirstPlayed == 0 ? currentTimeMillis() : mFirstPlayed);
     data.putLong(TAG_LAST_PLAYED, currentTimeMillis());
@@ -696,6 +697,8 @@ void ServerPlayer::loadNbt(const Tag &data, const PacketCodecContext &context) {
     mRotation = Vector3f(listValue(data, TAG_ROTATION, 0, 0.0f),
                          listValue(data, TAG_ROTATION, 1, 0.0f),
                          listValue(data, TAG_ROTATION, 2, 0.0f));
+
+    mDimension = Dimension::fromId(data.getInt("DimensionId", 0));
 
     const float storedHealth = data.getFloat(TAG_HEALTH, 20.0f);
     mAttributes.set("minecraft:health", storedHealth);

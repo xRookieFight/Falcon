@@ -16,7 +16,8 @@
 #include "Command/LocateCommand.h"
 #include "Command/WeatherCommand.h"
 #include "Block/BlockActorStore.h"
-#include "Level/Generator/OverworldGenerator.h"
+#include "Level/Generator/Overworld/OverworldGenerator.h"
+#include "Level/PortalForcer.h"
 #include "Block/Systems/PistonSystem.h"
 #include "Network/Handler/ChunkStreamHandler.h"
 #include "Item/Items/ElytraItem.h"
@@ -88,6 +89,7 @@
 #include "Protocol/Packets/AvailableActorIdentifiersPacket.h"
 #include "Protocol/Packets/DeathInfoPacket.h"
 #include "Protocol/Packets/ActorEventPacket.h"
+#include "Protocol/Packets/ChangeDimensionPacket.h"
 #include "Protocol/Packets/PlayerActionPacket.h"
 #include "Protocol/Packets/RespawnPacket.h"
 #include "Protocol/Packets/BlockActorDataPacket.h"
@@ -546,12 +548,26 @@ void ServerNetworkHandler::setProperties(const PropertiesSettings &properties) {
         });
     }
 
-    mLevel = Level(properties.getLevelName(), _getServerViewDistance(),
-                   OverworldGenerator::parseSeed(properties.getLevelSeed()));
+    const int64_t levelSeed = OverworldGenerator::parseSeed(properties.getLevelSeed());
+
+    mLevel = Level(properties.getLevelName(), _getServerViewDistance(), levelSeed, DimensionType::Overworld);
     mLevel.openStorage("worlds");
     mLevel.initializeWeather();
     mLevel.initializeGameRules();
     mLevel.startWorkers(_getChunkWorkerThreadCount());
+
+    mNetherLevel.reset(new Level(properties.getLevelName(), _getServerViewDistance(), levelSeed,
+                                 DimensionType::Nether));
+    mTheEndLevel.reset(new Level(properties.getLevelName(), _getServerViewDistance(), levelSeed,
+                                 DimensionType::TheEnd));
+
+    if (mLevel.isStorageOpen()) {
+        mNetherLevel->attachStorage(mLevel);
+        mTheEndLevel->attachStorage(mLevel);
+    }
+
+    mNetherLevel->startWorkers(_getChunkWorkerThreadCount());
+    mTheEndLevel->startWorkers(_getChunkWorkerThreadCount());
 
     _logPackStack();
 
@@ -571,6 +587,104 @@ void ServerNetworkHandler::setProperties(const PropertiesSettings &properties) {
 
     if (mIsListening)
         _updateServerAnnouncement();
+}
+
+Level &ServerNetworkHandler::getDimension(DimensionType dimension) {
+    if (dimension == DimensionType::Nether && mNetherLevel != nullptr)
+        return *mNetherLevel;
+
+    if (dimension == DimensionType::TheEnd && mTheEndLevel != nullptr)
+        return *mTheEndLevel;
+
+    return mLevel;
+}
+
+Level &ServerNetworkHandler::getLevelFor(const ServerPlayer &player) {
+    return getDimension(player.getDimension());
+}
+
+void ServerNetworkHandler::_tickDimension(Level &level) {
+    level.drainCompletedChunks();
+    level.processGeneratedChanges();
+
+    const std::vector<int64_t> repopulated = level.consumeRepopulatedChunks();
+    if (!repopulated.empty()) {
+        for (auto &entry: mPlayers) {
+            ServerPlayer &player = entry.second;
+            if (!player.isSpawned() || player.getDimension() != level.getDimensionType())
+                continue;
+
+            for (const int64_t hash: repopulated)
+                ChunkStreamHandler::invalidateChunk(player, hash);
+        }
+    }
+
+    std::vector<int64_t> activeColumns;
+    for (auto &entry: mPlayers) {
+        ServerPlayer &player = entry.second;
+        if (!player.isSpawned() || player.getDimension() != level.getDimensionType())
+            continue;
+
+        const int32_t centerX = (int32_t) std::floor(player.getPosition().x) >> 4;
+        const int32_t centerZ = (int32_t) std::floor(player.getPosition().z) >> 4;
+
+        for (int32_t dx = -1; dx <= 1; ++dx) {
+            for (int32_t dz = -1; dz <= 1; ++dz)
+                activeColumns.push_back(((int64_t) (centerX + dx) << 32) | (uint32_t) (centerZ + dz));
+        }
+    }
+
+    level.setActiveColumns(activeColumns);
+    level.tick();
+
+    for (const Level::FluidChange &change: level.consumeFluidChanges()) {
+        UpdateBlockPacket update;
+        update.mBlockPosition = change.position;
+        update.mRuntimeId = (uint32_t) BlockStateHasher::hash(change.state.mName, change.state.mStates);
+        update.mFlags = UpdateBlockPacket::Flag::All;
+        update.mDataLayer = 0;
+        BlockActionHandler::broadcastToViewers(*this,
+                                               Vector3f((float) change.position.x + 0.5f,
+                                                        (float) change.position.y + 0.5f,
+                                                        (float) change.position.z + 0.5f),
+                                               update);
+    }
+
+    level.processChunkUnloads();
+}
+
+void ServerNetworkHandler::changePlayerDimension(ServerPlayer &player, DimensionType dimension,
+                                                 const Vector3f &position) {
+    if (player.getDimension() == dimension)
+        return;
+
+    Level &previous = getLevelFor(player);
+    previous.unregisterAllChunkLoaders(player.getRuntimeId());
+
+    player.setDimension(dimension);
+    player.setAwaitingDimensionAck(true);
+    player.resetChunkStreaming();
+    player.getChunkStreamState() = ChunkStreamState();
+
+    player.setPosition(position);
+
+    ChangeDimensionPacket change;
+    change.mDimension = Dimension::toId(dimension);
+    change.mPosition = position;
+    change.mRespawn = false;
+    change.mHasLoadingScreenId = false;
+    change.mLoadingScreenId = 0;
+    sendPacketTo(player.getNetworkIdentifier(), change);
+
+    ChunkStreamHandler::handleTeleport(*this, player);
+}
+
+void ServerNetworkHandler::onPlayerDimensionChangeAck(ServerPlayer &player) {
+    if (!player.isAwaitingDimensionAck())
+        return;
+
+    player.setAwaitingDimensionAck(false);
+    player.teleport(*this, player.getPosition(), MovePlayerTeleportationCause::Behavior);
 }
 
 void ServerNetworkHandler::_logPackStack() const {
@@ -681,6 +795,13 @@ void ServerNetworkHandler::stopServerListening() {
     saveAllActors();
 
     LOG_INFO(LogAreaID::Server, "Saving level %s", mLevel.getName().c_str());
+
+    if (mNetherLevel != nullptr)
+        mNetherLevel->closeStorage();
+
+    if (mTheEndLevel != nullptr)
+        mTheEndLevel->closeStorage();
+
     mLevel.closeStorage();
 
     AuthKeyProvider::getInstance().stop();
@@ -874,6 +995,7 @@ void ServerNetworkHandler::tick() {
         _handleVoidDamage(player);
         _handleSuffocationDamage(player);
         MovementHandler::tickFluidEffects(*this, player);
+        PortalForcer::tickPlayer(*this, player);
 
         const bool fireTickDamage = !player.isDead() && player.tickFire();
 
@@ -966,6 +1088,12 @@ void ServerNetworkHandler::tick() {
     tickActors();
     updateActorVisibility();
     mLevel.processChunkUnloads();
+
+    if (mNetherLevel != nullptr)
+        _tickDimension(*mNetherLevel);
+
+    if (mTheEndLevel != nullptr)
+        _tickDimension(*mTheEndLevel);
 
     mProfiler.beginSection(ProfilerSection::Redstone);
     RedstoneSystem::tick(*this);
@@ -1737,8 +1865,15 @@ void ServerNetworkHandler::handle(const NetworkIdentifier &id, const PlayerActio
             player->clearLastBlockAttacked();
             return;
         case PlayerActionType::DimensionChangeRequestOrCreativeDestroyBlock:
+            if (player->isAwaitingDimensionAck()) {
+                onPlayerDimensionChangeAck(*player);
+                return;
+            }
             if (player->getGameType() == (int32_t) GameType::Creative)
                 BlockActionHandler::completeBreakingBlock(*this, *player, packet.mBlockPosition);
+            return;
+        case PlayerActionType::DimensionChangeSuccess:
+            onPlayerDimensionChangeAck(*player);
             return;
         default:
             break;

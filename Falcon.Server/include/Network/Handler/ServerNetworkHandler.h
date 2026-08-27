@@ -110,6 +110,14 @@ public:
 
     Level &getLevel() { return mLevel; }
 
+    Level &getDimension(DimensionType dimension);
+
+    Level &getLevelFor(const ServerPlayer &player);
+
+    void changePlayerDimension(ServerPlayer &player, DimensionType dimension, const Vector3f &position);
+
+    void onPlayerDimensionChangeAck(ServerPlayer &player);
+
     std::unordered_map<NetworkIdentifier, ServerPlayer, NetworkIdentifier::Hasher> &getPlayers() { return mPlayers; }
 
     std::unordered_map<int64_t, std::unique_ptr<ServerActor>> &getActors() { return mActors; }
@@ -525,7 +533,11 @@ private:
     static const unsigned CHUNK_REQUESTS_PER_TICK = 64;
     static const size_t SPAWN_CHUNK_THRESHOLD = 56;
 
+    void _tickDimension(Level &level);
+
     Level mLevel;
+    std::unique_ptr<Level> mNetherLevel;
+    std::unique_ptr<Level> mTheEndLevel;
     BiomeRegistry mBiomes;
     std::vector<CreativeItemGroup> mCreativeGroups;
     std::vector<CreativeItemData> mCreativeItems;

@@ -49,8 +49,8 @@ LevelStorage::~LevelStorage() {
 }
 
 LevelStorage::LevelStorage(LevelStorage &&other) noexcept
-        : mDb(other.mDb), mPath(std::move(other.mPath)), mDimensionId(other.mDimensionId) {
-    other.mDb = nullptr;
+        : mDb(std::move(other.mDb)), mPath(std::move(other.mPath)), mDimensionId(other.mDimensionId) {
+    other.mDb.reset();
 }
 
 LevelStorage &LevelStorage::operator=(LevelStorage &&other) noexcept {
@@ -59,12 +59,25 @@ LevelStorage &LevelStorage::operator=(LevelStorage &&other) noexcept {
 
     close();
 
-    mDb = other.mDb;
+    mDb = std::move(other.mDb);
     mPath = std::move(other.mPath);
     mDimensionId = other.mDimensionId;
-    other.mDb = nullptr;
+    other.mDb.reset();
 
     return *this;
+}
+
+bool LevelStorage::attach(const LevelStorage &source, int dimensionId) {
+    if (source.mDb == nullptr)
+        return false;
+
+    close();
+
+    mDb = source.mDb;
+    mPath = source.mPath;
+    mDimensionId = dimensionId;
+
+    return true;
 }
 
 void LevelStorage::_appendLInt(std::string &out, int32_t value) {
@@ -122,7 +135,7 @@ bool LevelStorage::open(const std::string &worldsDirectory, const std::string &l
         return false;
     }
 
-    mDb = db;
+    mDb.reset(db);
 
     const std::filesystem::path nameFile = root / "levelname.txt";
     if (!std::filesystem::exists(nameFile, error)) {
@@ -138,8 +151,7 @@ void LevelStorage::close() {
     if (mDb == nullptr)
         return;
 
-    delete mDb;
-    mDb = nullptr;
+    mDb.reset();
 }
 
 bool LevelStorage::saveChunk(const LevelChunk &chunk) {

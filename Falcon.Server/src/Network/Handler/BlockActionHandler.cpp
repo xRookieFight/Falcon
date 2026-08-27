@@ -25,6 +25,7 @@
 #include "Item/StringToItemParser.h"
 #include "Inventory/InventoryManager.h"
 #include "Level/Level.h"
+#include "Level/PortalForcer.h"
 #include "Network/Handler/InventoryHandler.h"
 #include "Network/Handler/ItemActorHandler.h"
 #include "Network/Handler/NetworkHandler.h"
@@ -339,7 +340,7 @@ bool BlockActionHandler::canInteractWithBlock(ServerPlayer &player, const Vector
 }
 
 void BlockActionHandler::breakBlock(ServerNetworkHandler &owner, ServerPlayer &player, const Vector3i &position) {
-    Level &level = owner.getLevel();
+    Level &level = owner.getLevelFor(player);
 
     const BlockState brokenState = level.getChunk(position.x >> 4, position.z >> 4)
                                          .getBlock(position.x & 15, position.y, position.z & 15);
@@ -492,6 +493,8 @@ void BlockActionHandler::breakBlock(ServerNetworkHandler &owner, ServerPlayer &p
 
     RedstoneSystem::onBlockBroken(owner, position, brokenState);
 
+    PortalForcer::onFrameBlockBroken(level, position, &owner);
+
     player.exhaust(0.005f);
 
 }
@@ -507,7 +510,7 @@ void BlockActionHandler::startBreakingBlock(ServerNetworkHandler &owner, ServerP
     if (player.isBreakingBlock())
         stopBreakingBlock(owner, player);
 
-    Level &level = owner.getLevel();
+    Level &level = owner.getLevelFor(player);
     const BlockState &state = level.getChunk(position.x >> 4, position.z >> 4)
                                     .getBlock(position.x & 15, position.y, position.z & 15);
 
@@ -555,7 +558,7 @@ void BlockActionHandler::continueBreakingBlock(ServerNetworkHandler &owner, Serv
         return;
     }
 
-    Level &level = owner.getLevel();
+    Level &level = owner.getLevelFor(player);
     const BlockState &state = level.getChunk(position.x >> 4, position.z >> 4)
                                     .getBlock(position.x & 15, position.y, position.z & 15);
 
@@ -607,7 +610,7 @@ void BlockActionHandler::completeBreakingBlock(ServerNetworkHandler &owner, Serv
     }
 
     if (!creative) {
-        Level &level = owner.getLevel();
+        Level &level = owner.getLevelFor(player);
         const BlockState &state = level.getChunk(position.x >> 4, position.z >> 4)
                                         .getBlock(position.x & 15, position.y, position.z & 15);
         if (state.mName == "minecraft:air") {
@@ -638,7 +641,7 @@ void BlockActionHandler::completeBreakingBlock(ServerNetworkHandler &owner, Serv
 
 void BlockActionHandler::sendBreakingFx(ServerNetworkHandler &owner, ServerPlayer &player) {
     const Vector3i position = player.getBreakingBlockPosition();
-    Level &level = owner.getLevel();
+    Level &level = owner.getLevelFor(player);
     const BlockState &state = level.getChunk(position.x >> 4, position.z >> 4)
                                     .getBlock(position.x & 15, position.y, position.z & 15);
 
@@ -721,7 +724,10 @@ void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &p
             return;
     }
 
-    Level &level = owner.getLevel();
+    if (PortalForcer::tryInsertEnderEye(owner, player, transaction.mBlockPosition))
+        return;
+
+    Level &level = owner.getLevelFor(player);
     const BlockState clickedState = level.getBlockState(transaction.mBlockPosition.x,
                                                         transaction.mBlockPosition.y,
                                                         transaction.mBlockPosition.z);
@@ -870,7 +876,7 @@ void BlockActionHandler::placeBlock(ServerNetworkHandler &owner, ServerPlayer &p
     owner.playLevelSound(LevelSoundEvent::PLACE, targetCenter, "", (int32_t) blockHash);
 
     if (ChestBlock::matches(placedState.mName))
-        ChestBlock::onPlaced(owner.getLevel(), target);
+        ChestBlock::onPlaced(level, target);
 
     if (ContainerBlock::matches(placedState.mName))
         ContainerBlock::onPlaced(owner, target, placedState.mName, placedWithItem, (int) transaction.mBlockFace);

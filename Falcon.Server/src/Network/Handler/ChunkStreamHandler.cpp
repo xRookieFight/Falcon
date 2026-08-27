@@ -95,7 +95,7 @@ namespace {
 
     void removeOutOfRadiusChunks(ChunkStreamState &state, ServerNetworkHandler &owner, ServerPlayer &player) {
         std::unordered_set<int64_t> &sent = player.getSentChunks();
-        Level &level = owner.getLevel();
+        Level &level = owner.getLevelFor(player);
 
         for (auto it = sent.begin(); it != sent.end();) {
             if (state.mInRadius.find(*it) != state.mInRadius.end()) {
@@ -143,11 +143,12 @@ namespace {
         }
     }
 
-    void loadQueuedChunks(ChunkStreamState &state, ServerNetworkHandler &owner, int32_t attempts) {
+    void loadQueuedChunks(ChunkStreamState &state, ServerNetworkHandler &owner, ServerPlayer &player,
+                          int32_t attempts) {
         if (state.mSendQueue.empty())
             return;
 
-        Level &level = owner.getLevel();
+        Level &level = owner.getLevelFor(player);
         std::vector<int64_t> requeue;
         int32_t tried = 0;
 
@@ -188,7 +189,7 @@ namespace {
         if (state.mReadyToSend.empty())
             return;
 
-        Level &level = owner.getLevel();
+        Level &level = owner.getLevelFor(player);
         const NetworkIdentifier &id = player.getNetworkIdentifier();
         const Vector3f position = player.getPosition();
 
@@ -273,13 +274,13 @@ void ChunkStreamHandler::tick(ServerNetworkHandler &owner, ServerPlayer &player)
     const int64_t loaderChunk = packChunk(state.mComparatorChunkX, state.mComparatorChunkZ);
     if (loaderChunk != state.mLastLoaderChunk) {
         state.mLastLoaderChunk = loaderChunk;
-        updateInRadiusChunks(state, owner.getLevel().getViewDistance(), state.mComparatorChunkX,
+        updateInRadiusChunks(state, owner.getLevelFor(player).getViewDistance(), state.mComparatorChunkX,
                              state.mComparatorChunkZ);
         removeOutOfRadiusChunks(state, owner, player);
         updateChunkSendingQueue(state, player);
     }
 
-    loadQueuedChunks(state, owner, owner.getChunksPerTick());
+    loadQueuedChunks(state, owner, player, owner.getChunksPerTick());
     sendReadyChunks(state, owner, player);
 
     player.setLastChunkPosition(state.mComparatorChunkX, state.mComparatorChunkZ);
@@ -299,7 +300,7 @@ void ChunkStreamHandler::handleTeleport(ServerNetworkHandler &owner, ServerPlaye
     pruneQueueOutOfRadius(state, state.mReadyToSend);
     updateChunkSendingQueue(state, player);
 
-    loadQueuedChunks(state, owner, TELEPORT_LOAD_COUNT);
+    loadQueuedChunks(state, owner, player, TELEPORT_LOAD_COUNT);
     sendReadyChunks(state, owner, player);
 }
 
@@ -319,7 +320,7 @@ void ChunkStreamHandler::handleViewDistanceChange(ServerNetworkHandler &owner, S
     ChunkStreamState &state = player.getChunkStreamState();
 
     refreshComparatorContext(state, player);
-    updateInRadiusChunks(state, owner.getLevel().getViewDistance(), state.mComparatorChunkX,
+    updateInRadiusChunks(state, owner.getLevelFor(player).getViewDistance(), state.mComparatorChunkX,
                          state.mComparatorChunkZ);
     removeOutOfRadiusChunks(state, owner, player);
     pruneQueueOutOfRadius(state, state.mSendQueue);

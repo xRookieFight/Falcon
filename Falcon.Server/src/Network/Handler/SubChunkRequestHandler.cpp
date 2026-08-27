@@ -63,7 +63,7 @@ namespace {
 
 void SubChunkRequestHandler::handleRequest(ServerNetworkHandler &owner, ServerPlayer &player,
                                            const SubChunkRequestPacket &packet) {
-    Level &level = owner.getLevel();
+    Level &level = owner.getLevelFor(player);
     const NetworkIdentifier &id = player.getNetworkIdentifier();
     const bool wrongDimension = packet.mDimension != level.getDimensionId();
 

@@ -7,7 +7,9 @@
 #include "Level/GeneratedBlockChange.h"
 #include "Level/LevelChunk.h"
 #include "Level/ChunkWorker.h"
-#include "Level/Generator/OverworldGenerator.h"
+#include "Level/Dimension.h"
+#include "Level/Generator/ChunkGenerator.h"
+#include "Level/Generator/Overworld/OverworldGenerator.h"
 #include "Level/GameRules.h"
 #include "Level/LevelStorage.h"
 
@@ -26,7 +28,8 @@ public:
         int32_t mZ;
     };
 
-    Level(const std::string &name, int viewDistance, int64_t seed = 0);
+    Level(const std::string &name, int viewDistance, int64_t seed = 0,
+          DimensionType dimension = DimensionType::Overworld);
 
     Level &operator=(Level &&other) noexcept;
 
@@ -34,7 +37,17 @@ public:
 
     int getViewDistance() const { return mViewDistance; }
 
-    int getDimensionId() const { return 0; }
+    DimensionType getDimensionType() const { return mDimension; }
+
+    int getDimensionId() const { return Dimension::toId(mDimension); }
+
+    int32_t getMinY() const { return Dimension::getMinY(mDimension); }
+
+    int32_t getMaxY() const { return Dimension::getMaxY(mDimension); }
+
+    bool hasSkyLight() const { return Dimension::hasSkyLight(mDimension); }
+
+    void decorate(LevelChunk &chunk, std::vector<GeneratedBlockChange> *overflow);
 
     int64_t getTime() const { return mTime; }
 
@@ -80,6 +93,8 @@ public:
     bool canRainAt(int32_t x, int32_t z);
 
     bool openStorage(const std::string &worldsDirectory);
+
+    bool attachStorage(Level &overworld);
 
     void saveAll();
 
@@ -199,9 +214,7 @@ public:
 
     int32_t pickBiome(int32_t x, int32_t y, int32_t z) const { return mGenerator->pickBiome(x, y, z); }
 
-    OverworldBiomeResult pickBiomeResult(int32_t x, int32_t y, int32_t z) const {
-        return mGenerator->pickBiomeResult(x, y, z);
-    }
+    OverworldBiomeResult pickBiomeResult(int32_t x, int32_t y, int32_t z) const;
 
     size_t processGeneratedChanges();
 
@@ -225,7 +238,8 @@ private:
     std::string mName;
     int mViewDistance;
     int64_t mSeed;
-    std::unique_ptr<OverworldGenerator> mGenerator;
+    DimensionType mDimension;
+    std::unique_ptr<ChunkGenerator> mGenerator;
     LevelStorage mStorage;
     BlockUpdateScheduler mBlockUpdateScheduler;
     LiquidPhysicsSystem mLiquidPhysics;

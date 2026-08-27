@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Level/Dimension.h"
 #include "Level/SubChunk.h"
 
 #include <cstdint>
@@ -99,11 +100,20 @@ public:
 
     void clearSkyLightOnly() { mSkyLight.clear(); }
 
+    void setDimension(DimensionType dimension);
+
+    DimensionType getDimension() const { return mDimension; }
+
+    int getFirstNetworkSubChunk() const { return mFirstNetworkSubChunk; }
+
 private:
     static int _lightIndex(int x, int32_t y, int z);
     int32_t mX;
     int32_t mZ;
     uint32_t mBiomeId;
+    DimensionType mDimension = DimensionType::Overworld;
+    int mFirstNetworkSubChunk = 0;
+    int mNetworkSubChunkLimit = SUB_CHUNK_COUNT;
     bool mDirty;
     bool mPopulated = false;
     std::vector<SubChunk> mSubChunks;

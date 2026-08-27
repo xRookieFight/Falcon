@@ -8,6 +8,7 @@
 #include "Block/Systems/RedstoneSystem.h"
 #include "Level/Level.h"
 #include "Level/LevelChunk.h"
+#include "Level/PortalForcer.h"
 #include "Network/Handler/ServerNetworkHandler.h"
 #include "Protocol/Types/StartGameTypes.h"
 
@@ -311,12 +312,17 @@ bool FireSystem::canSurviveAt(ServerNetworkHandler &owner, const Vector3i &posit
            || canNeighbourBurn(owner, position);
 }
 
-bool FireSystem::ignite(ServerNetworkHandler &owner, const Vector3i &position) {
+bool FireSystem::ignite(ServerNetworkHandler &owner, const Vector3i &position, Level *portalLevel) {
     if (!isChunkReady(owner, position))
         return false;
 
     if (stateAt(owner, position).mName != "minecraft:air")
         return false;
+
+    const Vector3i frameBase = relative(position, 0, -1, 0);
+    if (portalLevel != nullptr && stateAt(owner, frameBase).mName == "minecraft:obsidian"
+        && PortalForcer::tryLightPortal(*portalLevel, frameBase, &owner))
+        return true;
 
     if (!canSurviveAt(owner, position))
         return false;

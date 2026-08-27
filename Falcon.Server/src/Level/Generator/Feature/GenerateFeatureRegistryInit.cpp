@@ -1,9 +1,9 @@
 #include "Level/Generator/Feature/GenerateFeatureRegistry.h"
 
-#include "Level/Generator/Feature/Decoration/AzaleaRootSystemFeature.h"
-#include "Level/Generator/Feature/Decoration/HugeMushroomFeature.h"
-#include "Level/Generator/Feature/Tree/AzaleaTree.h"
-#include "Level/Generator/Feature/Tree/HugeMushroom.h"
+#include "Level/Generator/Overworld/Feature/Decoration/AzaleaRootSystemFeature.h"
+#include "Level/Generator/Overworld/Feature/Decoration/HugeMushroomFeature.h"
+#include "Level/Generator/Overworld/Feature/Tree/AzaleaTree.h"
+#include "Level/Generator/Overworld/Feature/Tree/HugeMushroom.h"
 
 #include <memory>
 #include <mutex>
